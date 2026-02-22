@@ -179,7 +179,7 @@ for i = 1, 30 do
     local s = math.random(6, 16)
     local ball = Instance.new("Frame")
     ball.Size = UDim2.new(0, s, 0, s)
-    ball.BackgroundColor3 = Color3.fromRGB(240, 245, 255)
+    ball.BackgroundColor3 = Color3.fromRGB(0, 220, 255)
     ball.BackgroundTransparency = math.random(1, 4) * 0.15
     ball.BorderSizePixel = 0
     ball.ZIndex = 2
@@ -268,7 +268,7 @@ end)
 --         TOGGLE BUTTON HELPER
 -- ============================================
 
-local function CreateToggleButton(name, description, yPos, callback, height)
+local function CreateToggleButton(name, description, yPos, callback, height, saveKey)
     height = height or 44
     local Btn = Instance.new("TextButton")
     Btn.Size = UDim2.new(0, 298, 0, height)
@@ -314,6 +314,11 @@ local function CreateToggleButton(name, description, yPos, callback, height)
     ToggleCircle.ZIndex = 7
     ToggleCircle.Parent = ToggleTrack
     Instance.new("UICorner", ToggleCircle).CornerRadius = UDim.new(1, 0)
+
+    -- Store visuals for auto load
+    if saveKey then
+        toggleVisuals[saveKey] = {track = ToggleTrack, circle = ToggleCircle, stroke = BtnStroke}
+    end
 
     local enabled = false
     Btn.MouseButton1Click:Connect(function()
@@ -497,36 +502,50 @@ end
 local SAVE_FILE = "kmoney_settings.txt"
 local autoLoadEnabled = false
 local toggleStates = {fps=false, ping=false, day=false, night=false, brightness=false}
+local toggleVisuals = {} -- stores {track, circle, stroke} per key for visual update
 
 local function SaveSettings()
-    if writefile then
+    if not autoLoadEnabled then return end
+    local ok = pcall(function()
         local data = ""
-        for k,v in pairs(toggleStates) do
+        for k, v in pairs(toggleStates) do
             data = data .. k .. "=" .. tostring(v) .. "\n"
         end
-        pcall(function() writefile(SAVE_FILE, data) end)
-    end
+        writefile(SAVE_FILE, data)
+    end)
 end
 
 local function LoadSettings()
-    if readfile then
-        local ok, data = pcall(function() return readfile(SAVE_FILE) end)
-        if ok and data then
-            local loaded = {}
-            for k, v in string.gmatch(data, "(%w+)=(%w+)") do
-                loaded[k] = (v == "true")
-            end
-            return loaded
+    local ok, data = pcall(function() return readfile(SAVE_FILE) end)
+    if ok and data and data ~= "" then
+        local loaded = {}
+        for k, v in string.gmatch(data, "(%a+)=(%a+)") do
+            loaded[k] = (v == "true")
         end
+        return loaded
     end
     return nil
+end
+
+local function ApplyToggleVisual(key, state)
+    local v = toggleVisuals[key]
+    if not v then return end
+    if state then
+        TweenService:Create(v.track,  TweenInfo.new(0.18), {BackgroundColor3 = Color3.fromRGB(0,0,0)}):Play()
+        TweenService:Create(v.circle, TweenInfo.new(0.18), {Position = UDim2.new(0, 24, 0.5, -9), BackgroundColor3 = Color3.fromRGB(255,255,255)}):Play()
+        v.stroke.Color = Color3.fromRGB(100, 100, 130)
+    else
+        TweenService:Create(v.track,  TweenInfo.new(0.18), {BackgroundColor3 = Color3.fromRGB(45,45,60)}):Play()
+        TweenService:Create(v.circle, TweenInfo.new(0.18), {Position = UDim2.new(0, 3, 0.5, -9), BackgroundColor3 = Color3.fromRGB(160,160,160)}):Play()
+        v.stroke.Color = Color3.fromRGB(35, 35, 50)
+    end
 end
 
 CreateToggleButton("FPS BOOST",  "", 62,  function(s)
     toggleStates.fps = s
     ApplyFPSBoost(s)
     if autoLoadEnabled then SaveSettings() end
-end, 32)
+end, 32, "fps")
 
 -- AUTO LOAD toggle
 local AutoBox = Instance.new("Frame")
@@ -583,17 +602,36 @@ AutoBox.InputBegan:Connect(function(inp)
             -- Load saved settings immediately
             local saved = LoadSettings()
             if saved then
-                if saved.fps     then ApplyFPSBoost(true)   toggleStates.fps = true end
-                if saved.ping    then ApplyPingLow(true)    toggleStates.ping = true end
-                if saved.day     then ApplyDaySky(true)     toggleStates.day = true end
-                if saved.night   then ApplyNightSky(true)   toggleStates.night = true end
+                if saved.fps then
+                    ApplyFPSBoost(true)
+                    toggleStates.fps = true
+                    ApplyToggleVisual("fps", true)
+                end
+                if saved.ping then
+                    ApplyPingLow(true)
+                    toggleStates.ping = true
+                    ApplyToggleVisual("ping", true)
+                end
+                if saved.day then
+                    ApplyDaySky(true)
+                    toggleStates.day = true
+                    ApplyToggleVisual("day", true)
+                end
+                if saved.night then
+                    ApplyNightSky(true)
+                    toggleStates.night = true
+                    ApplyToggleVisual("night", true)
+                end
                 if saved.brightness then
                     Lighting.Brightness = 6
                     Lighting.Ambient = Color3.fromRGB(200, 200, 200)
                     Lighting.OutdoorAmbient = Color3.fromRGB(220, 220, 220)
                     toggleStates.brightness = true
+                    ApplyToggleVisual("brightness", true)
                 end
                 StarterGui:SetCore("SendNotification", {Title = "KMoney", Text = "Settings loaded!", Duration = 3})
+            else
+                StarterGui:SetCore("SendNotification", {Title = "KMoney", Text = "No saved settings found", Duration = 3})
             end
         else
             TweenService:Create(AutoTrack,  TweenInfo.new(0.18), {BackgroundColor3 = Color3.fromRGB(45,45,60)}):Play()
@@ -607,17 +645,17 @@ CreateToggleButton("PING LOW",   "", 138, function(s)
     toggleStates.ping = s
     ApplyPingLow(s)
     if autoLoadEnabled then SaveSettings() end
-end, 32)
+end, 32, "ping")
 CreateToggleButton("DAY SKY",    "", 176, function(s)
     toggleStates.day = s
     ApplyDaySky(s)
     if autoLoadEnabled then SaveSettings() end
-end, 36)
+end, 36, "day")
 CreateToggleButton("NIGHT SKY",  "", 218, function(s)
     toggleStates.night = s
     ApplyNightSky(s)
     if autoLoadEnabled then SaveSettings() end
-end, 36)
+end, 36, "night")
 CreateToggleButton("BRIGHTNESS", "", 260, function(s)
     toggleStates.brightness = s
     if s then
@@ -630,7 +668,7 @@ CreateToggleButton("BRIGHTNESS", "", 260, function(s)
         Lighting.OutdoorAmbient = savedLighting.OutdoorAmbient
     end
     if autoLoadEnabled then SaveSettings() end
-end, 36)
+end, 36, "brightness")
 
 -- ============================================
 --           FOV SLIDER
