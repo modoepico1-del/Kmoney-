@@ -145,7 +145,7 @@ end)
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 340, 0, 470)
+MainFrame.Size = UDim2.new(0, 340, 0, 510)
 MainFrame.Position = UDim2.new(0.5, -170, 0.5, -235)
 MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
 MainFrame.BackgroundTransparency = 0.55
@@ -493,11 +493,133 @@ local function SectionLabel(text, yPos)
     lbl.Parent = MainFrame
 end
 
-CreateToggleButton("FPS BOOST",  "", 62,  function(s) ApplyFPSBoost(s) end, 32)
-CreateToggleButton("PING LOW",   "", 100, function(s) ApplyPingLow(s) end, 32)
-CreateToggleButton("DAY SKY",    "", 138, function(s) ApplyDaySky(s)   end, 36)
-CreateToggleButton("NIGHT SKY",  "", 180, function(s) ApplyNightSky(s) end, 36)
-CreateToggleButton("BRIGHTNESS", "", 222, function(s)
+-- Save/load state using writefile/readfile if available
+local SAVE_FILE = "kmoney_settings.txt"
+local autoLoadEnabled = false
+local toggleStates = {fps=false, ping=false, day=false, night=false, brightness=false}
+
+local function SaveSettings()
+    if writefile then
+        local data = ""
+        for k,v in pairs(toggleStates) do
+            data = data .. k .. "=" .. tostring(v) .. "\n"
+        end
+        pcall(function() writefile(SAVE_FILE, data) end)
+    end
+end
+
+local function LoadSettings()
+    if readfile then
+        local ok, data = pcall(function() return readfile(SAVE_FILE) end)
+        if ok and data then
+            local loaded = {}
+            for k, v in string.gmatch(data, "(%w+)=(%w+)") do
+                loaded[k] = (v == "true")
+            end
+            return loaded
+        end
+    end
+    return nil
+end
+
+CreateToggleButton("FPS BOOST",  "", 62,  function(s)
+    toggleStates.fps = s
+    ApplyFPSBoost(s)
+    if autoLoadEnabled then SaveSettings() end
+end, 32)
+
+-- AUTO LOAD toggle
+local AutoBox = Instance.new("Frame")
+AutoBox.Size = UDim2.new(0, 298, 0, 32)
+AutoBox.Position = UDim2.new(0.5, -149, 0, 100)
+AutoBox.BackgroundColor3 = Color3.fromRGB(8, 8, 10)
+AutoBox.BorderSizePixel = 0
+AutoBox.ZIndex = 5
+AutoBox.Parent = MainFrame
+Instance.new("UICorner", AutoBox).CornerRadius = UDim.new(0, 9)
+
+local AutoStroke = Instance.new("UIStroke")
+AutoStroke.Color = Color3.fromRGB(35, 35, 50)
+AutoStroke.Thickness = 1
+AutoStroke.Parent = AutoBox
+
+local AutoLabel = Instance.new("TextLabel")
+AutoLabel.Size = UDim2.new(0.66, 0, 1, 0)
+AutoLabel.Position = UDim2.new(0, 12, 0, 0)
+AutoLabel.BackgroundTransparency = 1
+AutoLabel.Text = "AUTO LOAD"
+AutoLabel.TextColor3 = Color3.fromRGB(225, 225, 225)
+AutoLabel.Font = Enum.Font.GothamBold
+AutoLabel.TextScaled = true
+AutoLabel.TextXAlignment = Enum.TextXAlignment.Left
+AutoLabel.ZIndex = 6
+AutoLabel.Parent = AutoBox
+
+local AutoTrack = Instance.new("Frame")
+AutoTrack.Size = UDim2.new(0, 46, 0, 24)
+AutoTrack.Position = UDim2.new(1, -56, 0.5, -12)
+AutoTrack.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+AutoTrack.BorderSizePixel = 0
+AutoTrack.ZIndex = 6
+AutoTrack.Parent = AutoBox
+Instance.new("UICorner", AutoTrack).CornerRadius = UDim.new(1, 0)
+
+local AutoCircle = Instance.new("Frame")
+AutoCircle.Size = UDim2.new(0, 18, 0, 18)
+AutoCircle.Position = UDim2.new(0, 3, 0.5, -9)
+AutoCircle.BackgroundColor3 = Color3.fromRGB(160, 160, 160)
+AutoCircle.BorderSizePixel = 0
+AutoCircle.ZIndex = 7
+AutoCircle.Parent = AutoTrack
+Instance.new("UICorner", AutoCircle).CornerRadius = UDim.new(1, 0)
+
+AutoBox.InputBegan:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+        autoLoadEnabled = not autoLoadEnabled
+        if autoLoadEnabled then
+            TweenService:Create(AutoTrack,  TweenInfo.new(0.18), {BackgroundColor3 = Color3.fromRGB(0,0,0)}):Play()
+            TweenService:Create(AutoCircle, TweenInfo.new(0.18), {Position = UDim2.new(0, 24, 0.5, -9), BackgroundColor3 = Color3.fromRGB(255,255,255)}):Play()
+            AutoStroke.Color = Color3.fromRGB(100, 100, 130)
+            -- Load saved settings immediately
+            local saved = LoadSettings()
+            if saved then
+                if saved.fps     then ApplyFPSBoost(true)   toggleStates.fps = true end
+                if saved.ping    then ApplyPingLow(true)    toggleStates.ping = true end
+                if saved.day     then ApplyDaySky(true)     toggleStates.day = true end
+                if saved.night   then ApplyNightSky(true)   toggleStates.night = true end
+                if saved.brightness then
+                    Lighting.Brightness = 6
+                    Lighting.Ambient = Color3.fromRGB(200, 200, 200)
+                    Lighting.OutdoorAmbient = Color3.fromRGB(220, 220, 220)
+                    toggleStates.brightness = true
+                end
+                StarterGui:SetCore("SendNotification", {Title = "KMoney", Text = "Settings loaded!", Duration = 3})
+            end
+        else
+            TweenService:Create(AutoTrack,  TweenInfo.new(0.18), {BackgroundColor3 = Color3.fromRGB(45,45,60)}):Play()
+            TweenService:Create(AutoCircle, TweenInfo.new(0.18), {Position = UDim2.new(0, 3, 0.5, -9), BackgroundColor3 = Color3.fromRGB(160,160,160)}):Play()
+            AutoStroke.Color = Color3.fromRGB(35, 35, 50)
+        end
+    end
+end)
+
+CreateToggleButton("PING LOW",   "", 138, function(s)
+    toggleStates.ping = s
+    ApplyPingLow(s)
+    if autoLoadEnabled then SaveSettings() end
+end, 32)
+CreateToggleButton("DAY SKY",    "", 176, function(s)
+    toggleStates.day = s
+    ApplyDaySky(s)
+    if autoLoadEnabled then SaveSettings() end
+end, 36)
+CreateToggleButton("NIGHT SKY",  "", 218, function(s)
+    toggleStates.night = s
+    ApplyNightSky(s)
+    if autoLoadEnabled then SaveSettings() end
+end, 36)
+CreateToggleButton("BRIGHTNESS", "", 260, function(s)
+    toggleStates.brightness = s
     if s then
         Lighting.Brightness = 6
         Lighting.Ambient = Color3.fromRGB(200, 200, 200)
@@ -507,6 +629,7 @@ CreateToggleButton("BRIGHTNESS", "", 222, function(s)
         Lighting.Ambient = savedLighting.Ambient
         Lighting.OutdoorAmbient = savedLighting.OutdoorAmbient
     end
+    if autoLoadEnabled then SaveSettings() end
 end, 36)
 
 -- ============================================
@@ -515,7 +638,7 @@ end, 36)
 
 local FOVBox = Instance.new("Frame")
 FOVBox.Size = UDim2.new(0, 298, 0, 56)
-FOVBox.Position = UDim2.new(0.5, -149, 0, 268)
+FOVBox.Position = UDim2.new(0.5, -149, 0, 306)
 FOVBox.BackgroundColor3 = Color3.fromRGB(8, 8, 10)
 FOVBox.BorderSizePixel = 0
 FOVBox.ZIndex = 5
@@ -608,7 +731,7 @@ SetFOV(70)
 
 local StatsBar = Instance.new("Frame")
 StatsBar.Size = UDim2.new(0, 298, 0, 46)
-StatsBar.Position = UDim2.new(0.5, -149, 0, 334)
+StatsBar.Position = UDim2.new(0.5, -149, 0, 372)
 StatsBar.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 StatsBar.BorderSizePixel = 0
 StatsBar.ZIndex = 5
@@ -658,7 +781,7 @@ local TeleportSvc = game:GetService("TeleportService")
 
 local RejoinBtn = Instance.new("TextButton")
 RejoinBtn.Size = UDim2.new(0, 298, 0, 32)
-RejoinBtn.Position = UDim2.new(0.5, -149, 0, 390)
+RejoinBtn.Position = UDim2.new(0.5, -149, 0, 428)
 RejoinBtn.BackgroundColor3 = Color3.fromRGB(8, 8, 10)
 RejoinBtn.BorderSizePixel = 0
 RejoinBtn.Text = ""
@@ -709,7 +832,7 @@ end)
 -- Delay 0.1 toggle
 local DelayBox = Instance.new("Frame")
 DelayBox.Size = UDim2.new(0, 298, 0, 28)
-DelayBox.Position = UDim2.new(0.5, -149, 0, 428)
+DelayBox.Position = UDim2.new(0.5, -149, 0, 466)
 DelayBox.BackgroundColor3 = Color3.fromRGB(8, 8, 10)
 DelayBox.BorderSizePixel = 0
 DelayBox.ZIndex = 5
