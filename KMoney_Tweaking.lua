@@ -158,9 +158,19 @@ MainFrame.Parent = ScreenGui
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 14)
 
 local MainStroke = Instance.new("UIStroke")
-MainStroke.Color = Color3.fromRGB(0, 0, 0)
-MainStroke.Thickness = 2.5
+MainStroke.Color = Color3.fromRGB(0, 220, 255)
+MainStroke.Thickness = 2
 MainStroke.Parent = MainFrame
+
+-- Neon glow pulse on main border
+task.spawn(function()
+    while true do
+        TweenService:Create(MainStroke, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Thickness = 3.5}):Play()
+        task.wait(1.5)
+        TweenService:Create(MainStroke, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Thickness = 1.5}):Play()
+        task.wait(1.5)
+    end
+end)
 
 -- ============================================
 --   SNOWBALL EFFECT (slow white circles)
@@ -281,8 +291,8 @@ local function CreateToggleButton(name, description, yPos, callback, height, sav
     Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 9)
 
     local BtnStroke = Instance.new("UIStroke")
-    BtnStroke.Color = Color3.fromRGB(35, 35, 50)
-    BtnStroke.Thickness = 1
+    BtnStroke.Color = Color3.fromRGB(0, 80, 100)
+    BtnStroke.Thickness = 1.2
     BtnStroke.Parent = Btn
 
     local BtnLabel = Instance.new("TextLabel")
@@ -329,14 +339,14 @@ local function CreateToggleButton(name, description, yPos, callback, height, sav
                 Position = UDim2.new(0, 24, 0.5, -9),
                 BackgroundColor3 = Color3.fromRGB(255, 255, 255)
             }):Play()
-            BtnStroke.Color = Color3.fromRGB(100, 100, 130)
+            BtnStroke.Color = Color3.fromRGB(0, 220, 255)
         else
             TweenService:Create(ToggleTrack,  TweenInfo.new(0.18), {BackgroundColor3 = Color3.fromRGB(45,45,60)}):Play()
             TweenService:Create(ToggleCircle, TweenInfo.new(0.18), {
                 Position = UDim2.new(0, 3, 0.5, -9),
                 BackgroundColor3 = Color3.fromRGB(160, 160, 160)
             }):Play()
-            BtnStroke.Color = Color3.fromRGB(35, 35, 50)
+            BtnStroke.Color = Color3.fromRGB(0, 60, 80)
         end
         callback(enabled)
     end)
@@ -498,15 +508,14 @@ local function SectionLabel(text, yPos)
     lbl.Parent = MainFrame
 end
 
--- Save/load state using writefile/readfile if available
+-- Save/load state - ALWAYS saves when a toggle changes
 local SAVE_FILE = "kmoney_settings.txt"
 local autoLoadEnabled = false
 local toggleStates = {fps=false, ping=false, day=false, night=false, brightness=false}
-local toggleVisuals = {} -- stores {track, circle, stroke} per key for visual update
+local toggleVisuals = {}
 
 local function SaveSettings()
-    if not autoLoadEnabled then return end
-    local ok = pcall(function()
+    pcall(function()
         local data = ""
         for k, v in pairs(toggleStates) do
             data = data .. k .. "=" .. tostring(v) .. "\n"
@@ -533,18 +542,38 @@ local function ApplyToggleVisual(key, state)
     if state then
         TweenService:Create(v.track,  TweenInfo.new(0.18), {BackgroundColor3 = Color3.fromRGB(0,0,0)}):Play()
         TweenService:Create(v.circle, TweenInfo.new(0.18), {Position = UDim2.new(0, 24, 0.5, -9), BackgroundColor3 = Color3.fromRGB(255,255,255)}):Play()
-        v.stroke.Color = Color3.fromRGB(100, 100, 130)
+        v.stroke.Color = Color3.fromRGB(0, 220, 255)
     else
         TweenService:Create(v.track,  TweenInfo.new(0.18), {BackgroundColor3 = Color3.fromRGB(45,45,60)}):Play()
         TweenService:Create(v.circle, TweenInfo.new(0.18), {Position = UDim2.new(0, 3, 0.5, -9), BackgroundColor3 = Color3.fromRGB(160,160,160)}):Play()
-        v.stroke.Color = Color3.fromRGB(35, 35, 50)
+        v.stroke.Color = Color3.fromRGB(0, 40, 60)
     end
+end
+
+local function ApplySavedSettings(saved)
+    if not saved then return end
+    if saved.fps then ApplyFPSBoost(true) toggleStates.fps=true end
+    if saved.ping then ApplyPingLow(true) toggleStates.ping=true end
+    if saved.day then ApplyDaySky(true) toggleStates.day=true end
+    if saved.night then ApplyNightSky(true) toggleStates.night=true end
+    if saved.brightness then
+        Lighting.Brightness=6
+        Lighting.Ambient=Color3.fromRGB(200,200,200)
+        Lighting.OutdoorAmbient=Color3.fromRGB(220,220,220)
+        toggleStates.brightness=true
+    end
+    -- Update visuals after a short delay so toggleVisuals table is populated
+    task.delay(0.1, function()
+        for key, state in pairs(toggleStates) do
+            if state then ApplyToggleVisual(key, true) end
+        end
+    end)
 end
 
 CreateToggleButton("FPS BOOST",  "", 62,  function(s)
     toggleStates.fps = s
     ApplyFPSBoost(s)
-    if autoLoadEnabled then SaveSettings() end
+    SaveSettings()
 end, 32, "fps")
 
 -- AUTO LOAD toggle
@@ -558,8 +587,8 @@ AutoBox.Parent = MainFrame
 Instance.new("UICorner", AutoBox).CornerRadius = UDim.new(0, 9)
 
 local AutoStroke = Instance.new("UIStroke")
-AutoStroke.Color = Color3.fromRGB(35, 35, 50)
-AutoStroke.Thickness = 1
+AutoStroke.Color = Color3.fromRGB(0, 80, 100)
+AutoStroke.Thickness = 1.2
 AutoStroke.Parent = AutoBox
 
 local AutoLabel = Instance.new("TextLabel")
@@ -598,45 +627,18 @@ AutoBox.InputBegan:Connect(function(inp)
         if autoLoadEnabled then
             TweenService:Create(AutoTrack,  TweenInfo.new(0.18), {BackgroundColor3 = Color3.fromRGB(0,0,0)}):Play()
             TweenService:Create(AutoCircle, TweenInfo.new(0.18), {Position = UDim2.new(0, 24, 0.5, -9), BackgroundColor3 = Color3.fromRGB(255,255,255)}):Play()
-            AutoStroke.Color = Color3.fromRGB(100, 100, 130)
-            -- Load saved settings immediately
+            AutoStroke.Color = Color3.fromRGB(0, 220, 255)
             local saved = LoadSettings()
             if saved then
-                if saved.fps then
-                    ApplyFPSBoost(true)
-                    toggleStates.fps = true
-                    ApplyToggleVisual("fps", true)
-                end
-                if saved.ping then
-                    ApplyPingLow(true)
-                    toggleStates.ping = true
-                    ApplyToggleVisual("ping", true)
-                end
-                if saved.day then
-                    ApplyDaySky(true)
-                    toggleStates.day = true
-                    ApplyToggleVisual("day", true)
-                end
-                if saved.night then
-                    ApplyNightSky(true)
-                    toggleStates.night = true
-                    ApplyToggleVisual("night", true)
-                end
-                if saved.brightness then
-                    Lighting.Brightness = 6
-                    Lighting.Ambient = Color3.fromRGB(200, 200, 200)
-                    Lighting.OutdoorAmbient = Color3.fromRGB(220, 220, 220)
-                    toggleStates.brightness = true
-                    ApplyToggleVisual("brightness", true)
-                end
-                StarterGui:SetCore("SendNotification", {Title = "KMoney", Text = "Settings loaded!", Duration = 3})
+                ApplySavedSettings(saved)
+                StarterGui:SetCore("SendNotification", {Title="KMoney", Text="Settings loaded!", Duration=3})
             else
-                StarterGui:SetCore("SendNotification", {Title = "KMoney", Text = "No saved settings found", Duration = 3})
+                StarterGui:SetCore("SendNotification", {Title="KMoney", Text="No saved settings yet — toggle options to save", Duration=4})
             end
         else
             TweenService:Create(AutoTrack,  TweenInfo.new(0.18), {BackgroundColor3 = Color3.fromRGB(45,45,60)}):Play()
             TweenService:Create(AutoCircle, TweenInfo.new(0.18), {Position = UDim2.new(0, 3, 0.5, -9), BackgroundColor3 = Color3.fromRGB(160,160,160)}):Play()
-            AutoStroke.Color = Color3.fromRGB(35, 35, 50)
+            AutoStroke.Color = Color3.fromRGB(0, 40, 60)
         end
     end
 end)
@@ -644,17 +646,17 @@ end)
 CreateToggleButton("PING LOW",   "", 138, function(s)
     toggleStates.ping = s
     ApplyPingLow(s)
-    if autoLoadEnabled then SaveSettings() end
+    SaveSettings()
 end, 32, "ping")
 CreateToggleButton("DAY SKY",    "", 176, function(s)
     toggleStates.day = s
     ApplyDaySky(s)
-    if autoLoadEnabled then SaveSettings() end
+    SaveSettings()
 end, 36, "day")
 CreateToggleButton("NIGHT SKY",  "", 218, function(s)
     toggleStates.night = s
     ApplyNightSky(s)
-    if autoLoadEnabled then SaveSettings() end
+    SaveSettings()
 end, 36, "night")
 CreateToggleButton("BRIGHTNESS", "", 260, function(s)
     toggleStates.brightness = s
@@ -667,7 +669,7 @@ CreateToggleButton("BRIGHTNESS", "", 260, function(s)
         Lighting.Ambient = savedLighting.Ambient
         Lighting.OutdoorAmbient = savedLighting.OutdoorAmbient
     end
-    if autoLoadEnabled then SaveSettings() end
+    SaveSettings()
 end, 36, "brightness")
 
 -- ============================================
@@ -683,8 +685,8 @@ FOVBox.ZIndex = 5
 FOVBox.Parent = MainFrame
 Instance.new("UICorner", FOVBox).CornerRadius = UDim.new(0, 9)
 local FOVS = Instance.new("UIStroke")
-FOVS.Color = Color3.fromRGB(35, 35, 50)
-FOVS.Thickness = 1
+FOVS.Color = Color3.fromRGB(0, 80, 100)
+FOVS.Thickness = 1.2
 FOVS.Parent = FOVBox
 
 local FOVTitle = Instance.new("TextLabel")
@@ -828,8 +830,8 @@ RejoinBtn.Parent = MainFrame
 Instance.new("UICorner", RejoinBtn).CornerRadius = UDim.new(0, 9)
 
 local RejoinStroke = Instance.new("UIStroke")
-RejoinStroke.Color = Color3.fromRGB(35, 35, 50)
-RejoinStroke.Thickness = 1
+RejoinStroke.Color = Color3.fromRGB(0, 80, 100)
+RejoinStroke.Thickness = 1.2
 RejoinStroke.Parent = RejoinBtn
 
 local RejoinLabel = Instance.new("TextLabel")
@@ -844,11 +846,11 @@ RejoinLabel.Parent = RejoinBtn
 
 RejoinBtn.MouseEnter:Connect(function()
     TweenService:Create(RejoinBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(28, 28, 35)}):Play()
-    RejoinStroke.Color = Color3.fromRGB(80, 80, 100)
+    RejoinStroke.Color = Color3.fromRGB(0, 220, 255)
 end)
 RejoinBtn.MouseLeave:Connect(function()
     TweenService:Create(RejoinBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(8, 8, 10)}):Play()
-    RejoinStroke.Color = Color3.fromRGB(35, 35, 50)
+    RejoinStroke.Color = Color3.fromRGB(0, 80, 100)
 end)
 
 local rejoinDelay = 0.8
@@ -877,8 +879,8 @@ DelayBox.ZIndex = 5
 DelayBox.Parent = MainFrame
 Instance.new("UICorner", DelayBox).CornerRadius = UDim.new(0, 7)
 local DelayStroke = Instance.new("UIStroke")
-DelayStroke.Color = Color3.fromRGB(35, 35, 50)
-DelayStroke.Thickness = 1
+DelayStroke.Color = Color3.fromRGB(0, 80, 100)
+DelayStroke.Thickness = 1.2
 DelayStroke.Parent = DelayBox
 
 local DelayLabel = Instance.new("TextLabel")
@@ -928,6 +930,48 @@ DelayBox.InputBegan:Connect(function(inp)
             DelayStroke.Color = Color3.fromRGB(35, 35, 50)
             DelayLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
         end
+    end
+end)
+
+-- ============================================
+--     NEON BORDER PULSE on all elements
+-- ============================================
+
+local allBorders = {} -- collect strokes after toggles are created
+task.delay(0.05, function()
+    for _, desc in ipairs(MainFrame:GetDescendants()) do
+        if desc:IsA("UIStroke") and desc ~= MainStroke then
+            table.insert(allBorders, desc)
+        end
+    end
+    task.spawn(function()
+        while true do
+            for _, s in ipairs(allBorders) do
+                if s and s.Parent then
+                    TweenService:Create(s, TweenInfo.new(1.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                        Thickness = 2.2
+                    }):Play()
+                end
+            end
+            task.wait(1.8)
+            for _, s in ipairs(allBorders) do
+                if s and s.Parent then
+                    TweenService:Create(s, TweenInfo.new(1.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                        Thickness = 1
+                    }):Play()
+                end
+            end
+            task.wait(1.8)
+        end
+    end)
+end)
+
+-- Auto-startup: if save file exists, load settings automatically
+task.delay(0.2, function()
+    local saved = LoadSettings()
+    if saved then
+        ApplySavedSettings(saved)
+        StarterGui:SetCore("SendNotification", {Title="KMoney", Text="Settings auto-loaded!", Duration=3})
     end
 end)
 
