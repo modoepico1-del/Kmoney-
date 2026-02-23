@@ -33,7 +33,7 @@ ScreenGui.Parent = game.CoreGui
 
 local LogoHolder = Instance.new("Frame")
 LogoHolder.Size = UDim2.new(0,80,0,96)
-LogoHolder.Position = UDim2.new(0,18,0.5,-48)
+LogoHolder.Position = UDim2.new(0,18,0.3,-48)
 LogoHolder.BackgroundTransparency = 1
 LogoHolder.BorderSizePixel = 0
 LogoHolder.Visible = false
@@ -87,27 +87,27 @@ task.spawn(function()
     end
 end)
 
--- KMONEY label: all violet neon below logo
+-- KMONEY label: black neon below logo
 local kmoneyChars = {"K","M","O","N","E","Y"}
 local letterLabels = {}
 local lspc=10; local lstart=math.floor((80-#kmoneyChars*lspc)/2)
 for i,ch in ipairs(kmoneyChars) do
     local lbl=Instance.new("TextLabel")
     lbl.Size=UDim2.new(0,lspc,0,14); lbl.Position=UDim2.new(0,lstart+(i-1)*lspc,0,74)
-    lbl.BackgroundTransparency=1; lbl.Text=ch; lbl.TextColor3=VIO
+    lbl.BackgroundTransparency=1; lbl.Text=ch; lbl.TextColor3=Color3.fromRGB(20,20,20)
     lbl.Font=Enum.Font.GothamBold; lbl.TextSize=10
     lbl.TextXAlignment=Enum.TextXAlignment.Center; lbl.ZIndex=10; lbl.Parent=LogoHolder
     letterLabels[i]=lbl
 end
 
--- KMONEY violet neon pulse
+-- KMONEY black neon pulse (dark shimmer)
 local neonT=0
 RunService.Heartbeat:Connect(function(dt)
     if not LogoHolder.Visible then return end
     neonT=neonT+dt*1.2
     for i,lbl in ipairs(letterLabels) do
-        local b=0.75+math.sin(neonT+i*0.8)*0.25
-        lbl.TextColor3=Color3.fromRGB(math.floor(160*b+20),0,math.floor(240*b+15))
+        local b=math.floor(math.sin(neonT+i*0.8)*20+28)
+        lbl.TextColor3=Color3.fromRGB(b,b,b)
     end
 end)
 
@@ -173,10 +173,10 @@ end)
 -- ============================================
 
 local TitleBar=Instance.new("Frame"); TitleBar.Size=UDim2.new(1,0,0,68)
-TitleBar.BackgroundColor3=Color3.fromRGB(0,0,0); TitleBar.BorderSizePixel=0; TitleBar.ZIndex=5; TitleBar.Parent=MainFrame
+TitleBar.BackgroundColor3=Color3.fromRGB(0,0,0); TitleBar.BackgroundTransparency=0.55; TitleBar.BorderSizePixel=0; TitleBar.ZIndex=5; TitleBar.Parent=MainFrame
 Instance.new("UICorner",TitleBar).CornerRadius=UDim.new(0,14)
 local TFix=Instance.new("Frame"); TFix.Size=UDim2.new(1,0,0.5,0); TFix.Position=UDim2.new(0,0,0.5,0)
-TFix.BackgroundColor3=Color3.fromRGB(0,0,0); TFix.BorderSizePixel=0; TFix.ZIndex=5; TFix.Parent=TitleBar
+TFix.BackgroundColor3=Color3.fromRGB(0,0,0); TFix.BackgroundTransparency=0.55; TFix.BorderSizePixel=0; TFix.ZIndex=5; TFix.Parent=TitleBar
 
 -- KMONEY TWEAKING title (top line)
 local TitleLabel=Instance.new("TextLabel")
@@ -313,7 +313,7 @@ local function ApplyDaySky(state)
         for _,v in ipairs(Lighting:GetChildren()) do if v:IsA("Sky") then v:Destroy() end end
         local sky=Instance.new("Sky")
         -- Use the custom CIELO asset for all faces
-        local id="rbxassetid://2083298847"
+        local id="rbxassetid://11904277833"
         sky.SkyboxBk=id; sky.SkyboxDn=id; sky.SkyboxFt=id
         sky.SkyboxLf=id; sky.SkyboxRt=id; sky.SkyboxUp=id
         sky.Parent=Lighting
@@ -342,7 +342,7 @@ local function ApplyNightSky(state)
         setNight()
         for _,v in ipairs(Lighting:GetChildren()) do if v:IsA("Sky") then v:Destroy() end end
         local sky=Instance.new("Sky")
-        local id="rbxassetid://10608647954"
+        local id="rbxassetid://9016402918"
         sky.SkyboxBk=id; sky.SkyboxDn=id; sky.SkyboxFt=id
         sky.SkyboxLf=id; sky.SkyboxRt=id; sky.SkyboxUp=id
         sky.StarCount=3000; sky.Parent=Lighting
@@ -527,8 +527,8 @@ MakeToggle("LOW GRAPHICS",Y,function(s) toggleStates.lowgfx=s;  ApplyLowGraphics
 MakeToggle("FPS BOOST",   Y,function(s) toggleStates.fps=s;     ApplyFPSBoost(s);    SaveSettings() end,36,"fps");     Y=Y+42
 MakeToggle("PING LOW",    Y,function(s) toggleStates.ping=s;    ApplyPingLow(s);     SaveSettings() end,36,"ping");    Y=Y+42
 MakeToggle("DAY",         Y,function(s) toggleStates.day=s;     ApplyDaySky(s);      SaveSettings() end,36,"day");     Y=Y+42
-MakeToggle("NIGHT SKY",   Y,function(s) toggleStates.night=s;   ApplyNightSky(s);    SaveSettings() end,36,"night");   Y=Y+42
-MakeToggle("BRIGHTNESS",  Y,function(s)
+MakeToggle("SKY",         Y,function(s) toggleStates.night=s;   ApplyNightSky(s);    SaveSettings() end,36,"night");   Y=Y+42
+MakeToggle("BRIGHT",  Y,function(s)
     toggleStates.brightness=s
     if s then Lighting.Brightness=6; Lighting.Ambient=Color3.fromRGB(200,200,200); Lighting.OutdoorAmbient=Color3.fromRGB(220,220,220)
     else Lighting.Brightness=savedLighting.Brightness; Lighting.Ambient=savedLighting.Ambient; Lighting.OutdoorAmbient=savedLighting.OutdoorAmbient end
