@@ -121,8 +121,8 @@ end)
 
 local MainFrame=Instance.new("Frame")
 MainFrame.Name="MainFrame"
-MainFrame.Size=UDim2.new(0,340,0,600)
-MainFrame.Position=UDim2.new(0.5,-170,0.5,-300)
+MainFrame.Size=UDim2.new(0,300,0,600)
+MainFrame.Position=UDim2.new(0.5,-150,0.5,-300)
 MainFrame.BackgroundColor3=Color3.fromRGB(10,10,12)
 MainFrame.BackgroundTransparency=0.5
 MainFrame.BorderSizePixel=0
@@ -213,7 +213,7 @@ PingInTitle.TextXAlignment=Enum.TextXAlignment.Left; PingInTitle.ZIndex=6; PingI
 
 -- PREMIUM label below PING, small, violet neon
 local PremiumLbl=Instance.new("TextLabel")
-PremiumLbl.Size=UDim2.new(0.6,0,0,11); PremiumLbl.Position=UDim2.new(0,14,0,60)
+PremiumLbl.Size=UDim2.new(0.6,0,0,11); PremiumLbl.Position=UDim2.new(0,6,0,60)
 PremiumLbl.BackgroundTransparency=1; PremiumLbl.Text="✦ PREMIUM ✦"; PremiumLbl.TextColor3=VIO
 PremiumLbl.Font=Enum.Font.GothamBold; PremiumLbl.TextSize=9
 PremiumLbl.TextXAlignment=Enum.TextXAlignment.Left; PremiumLbl.ZIndex=6; PremiumLbl.Parent=TitleBar
@@ -262,7 +262,7 @@ LogoBtn.MouseButton1Click:Connect(function() LogoHolder.Visible=false; MainFrame
 --   FOV STAT (transparent, small, below title)
 -- ============================================
 
-local FovStatBox=Instance.new("Frame"); FovStatBox.Size=UDim2.new(0,298,0,22); FovStatBox.Position=UDim2.new(0.5,-149,0,84)
+local FovStatBox=Instance.new("Frame"); FovStatBox.Size=UDim2.new(0,258,0,22); FovStatBox.Position=UDim2.new(0.5,-129,0,84)
 FovStatBox.BackgroundTransparency=1; FovStatBox.BorderSizePixel=0; FovStatBox.ZIndex=5; FovStatBox.Parent=MainFrame
 
 local FovStatLbl=Instance.new("TextLabel"); FovStatLbl.Size=UDim2.new(1,0,1,0); FovStatLbl.BackgroundTransparency=1
@@ -277,7 +277,7 @@ local toggleVisuals={}
 
 local function MakeToggle(name,yPos,callback,height,saveKey)
     height=height or 36
-    local Btn=Instance.new("TextButton"); Btn.Size=UDim2.new(0,298,0,height); Btn.Position=UDim2.new(0.5,-149,0,yPos)
+    local Btn=Instance.new("TextButton"); Btn.Size=UDim2.new(0,258,0,height); Btn.Position=UDim2.new(0.5,-129,0,yPos)
     Btn.BackgroundColor3=BLACK; Btn.BackgroundTransparency=0.6; Btn.BorderSizePixel=0; Btn.Text=""; Btn.ZIndex=5; Btn.Parent=MainFrame
     Instance.new("UICorner",Btn).CornerRadius=UDim.new(0,9)
     local BtnStroke=Instance.new("UIStroke"); BtnStroke.Color=VIO_D; BtnStroke.Thickness=1.2; BtnStroke.Parent=Btn
@@ -495,7 +495,7 @@ end
 -- ============================================
 
 local function MakeSliderBox(name, yPos, minVal, maxVal, startVal, onToggle, onSlide, saveKey)
-    local Box=Instance.new("Frame"); Box.Size=UDim2.new(0,298,0,72); Box.Position=UDim2.new(0.5,-149,0,yPos)
+    local Box=Instance.new("Frame"); Box.Size=UDim2.new(0,258,0,72); Box.Position=UDim2.new(0.5,-129,0,yPos)
     Box.BackgroundColor3=BLACK; Box.BackgroundTransparency=0.6; Box.BorderSizePixel=0; Box.ZIndex=5; Box.Parent=MainFrame
     Instance.new("UICorner",Box).CornerRadius=UDim.new(0,9)
     local BoxStroke=Instance.new("UIStroke"); BoxStroke.Color=VIO_D; BoxStroke.Thickness=1.2; BoxStroke.Parent=Box
@@ -604,7 +604,7 @@ end,36,"brightness"); Y=Y+42
 --   FOV SLIDER
 -- ============================================
 
-local FOVBox=Instance.new("Frame"); FOVBox.Size=UDim2.new(0,298,0,52); FOVBox.Position=UDim2.new(0.5,-149,0,Y)
+local FOVBox=Instance.new("Frame"); FOVBox.Size=UDim2.new(0,258,0,52); FOVBox.Position=UDim2.new(0.5,-129,0,Y)
 FOVBox.BackgroundTransparency=0.6; FOVBox.BackgroundColor3=BLACK; FOVBox.BorderSizePixel=0; FOVBox.ZIndex=5; FOVBox.Parent=MainFrame
 Instance.new("UICorner",FOVBox).CornerRadius=UDim.new(0,9)
 local FOVS=Instance.new("UIStroke"); FOVS.Color=VIO_D; FOVS.Thickness=1.2; FOVS.Parent=FOVBox
@@ -668,7 +668,7 @@ local rejoinDelay=0.1
 local rejoinKey=nil
 local rejoinListening=false
 
-local RejoinBox=Instance.new("Frame"); RejoinBox.Size=UDim2.new(0,298,0,90); RejoinBox.Position=UDim2.new(0.5,-149,0,Y)
+local RejoinBox=Instance.new("Frame"); RejoinBox.Size=UDim2.new(0,258,0,90); RejoinBox.Position=UDim2.new(0.5,-129,0,Y)
 RejoinBox.BackgroundColor3=BLACK; RejoinBox.BackgroundTransparency=0.6; RejoinBox.BorderSizePixel=0; RejoinBox.ZIndex=5; RejoinBox.Parent=MainFrame
 Instance.new("UICorner",RejoinBox).CornerRadius=UDim.new(0,9)
 local RejoinStroke=Instance.new("UIStroke"); RejoinStroke.Color=VIO_D; RejoinStroke.Thickness=1.2; RejoinStroke.Parent=RejoinBox
@@ -772,7 +772,7 @@ local kitDelay=0.1
 local kitKey=nil
 local kitListening=false
 
-local KitBox=Instance.new("Frame"); KitBox.Size=UDim2.new(0,298,0,90); KitBox.Position=UDim2.new(0.5,-149,0,Y)
+local KitBox=Instance.new("Frame"); KitBox.Size=UDim2.new(0,258,0,90); KitBox.Position=UDim2.new(0.5,-129,0,Y)
 KitBox.BackgroundColor3=BLACK; KitBox.BackgroundTransparency=0.6; KitBox.BorderSizePixel=0; KitBox.ZIndex=5; KitBox.Parent=MainFrame
 Instance.new("UICorner",KitBox).CornerRadius=UDim.new(0,9)
 local KitStroke=Instance.new("UIStroke"); KitStroke.Color=VIO_D; KitStroke.Thickness=1.2; KitStroke.Parent=KitBox
@@ -921,8 +921,8 @@ MakeToggle("LOAD",Y,function(s)
 end,36,"autoload"); Y=Y+42
 
 -- Resize frame
-MainFrame.Size=UDim2.new(0,340,0,Y+16)
-MainFrame.Position=UDim2.new(0.5,-170,0.5,-(Y+16)/2)
+MainFrame.Size=UDim2.new(0,300,0,Y+16)
+MainFrame.Position=UDim2.new(0.5,-150,0.5,-(Y+16)/2)
 
 -- ============================================
 --   AUTO STARTUP LOAD
