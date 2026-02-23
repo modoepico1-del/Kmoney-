@@ -515,7 +515,6 @@ local function MakeSliderBox(name, yPos, minVal, maxVal, startVal, onToggle, onS
     local ValLbl=Instance.new("TextLabel"); ValLbl.Size=UDim2.new(1,0,0,14); ValLbl.Position=UDim2.new(0,0,0,30)
     ValLbl.BackgroundTransparency=1; ValLbl.TextColor3=VIO; ValLbl.Font=Enum.Font.Gotham; ValLbl.TextSize=11
     ValLbl.TextXAlignment=Enum.TextXAlignment.Center; ValLbl.ZIndex=6; ValLbl.Parent=Box
-    -- Violet neon pulse on delay label
     task.spawn(function()
         while ValLbl.Parent do
             TweenService:Create(ValLbl,TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO_L}):Play()
@@ -564,7 +563,7 @@ local function MakeSliderBox(name, yPos, minVal, maxVal, startVal, onToggle, onS
     Box.InputBegan:Connect(function(inp)
         if inp.UserInputType==Enum.UserInputType.MouseButton1 then
             local my=inp.Position.Y-Box.AbsolutePosition.Y
-            if my>45 then return end -- ignore slider area clicks
+            if my>45 then return end
             enabled=not enabled
             if enabled then
                 TweenService:Create(BTrack,TweenInfo.new(0.18),{BackgroundColor3=BLACK}):Play()
@@ -620,7 +619,6 @@ FOVVal.BackgroundTransparency=1; FOVVal.Text="70"; FOVVal.TextColor3=VIO
 FOVVal.Font=Enum.Font.GothamBold; FOVVal.TextSize=13; FOVVal.TextXAlignment=Enum.TextXAlignment.Right
 FOVVal.ZIndex=6; FOVVal.Parent=FOVBox
 
--- Violet neon pulse on FOV number
 task.spawn(function()
     while FOVVal.Parent do
         TweenService:Create(FOVVal,TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO_L}):Play()
@@ -667,7 +665,7 @@ SetFOV(70); Y=Y+60
 
 local autoRejoinEnabled=false
 local rejoinDelay=0.1
-local rejoinKey=nil -- nil = no keybind
+local rejoinKey=nil
 local rejoinListening=false
 
 local RejoinBox=Instance.new("Frame"); RejoinBox.Size=UDim2.new(0,298,0,90); RejoinBox.Position=UDim2.new(0.5,-149,0,Y)
@@ -676,14 +674,12 @@ Instance.new("UICorner",RejoinBox).CornerRadius=UDim.new(0,9)
 local RejoinStroke=Instance.new("UIStroke"); RejoinStroke.Color=VIO_D; RejoinStroke.Thickness=1.2; RejoinStroke.Parent=RejoinBox
 toggleVisuals["autorejoin"]={track=nil,circle=nil,stroke=RejoinStroke}
 
--- Name label
 local RejoinNameLbl=Instance.new("TextLabel"); RejoinNameLbl.Size=UDim2.new(0.55,0,0,26); RejoinNameLbl.Position=UDim2.new(0,12,0,0)
 RejoinNameLbl.BackgroundTransparency=1; RejoinNameLbl.Text="REJOIN"; RejoinNameLbl.TextColor3=VIO
 RejoinNameLbl.Font=Enum.Font.GothamBold; RejoinNameLbl.TextSize=13; RejoinNameLbl.TextXAlignment=Enum.TextXAlignment.Left
 RejoinNameLbl.ZIndex=6; RejoinNameLbl.Parent=RejoinBox
 task.spawn(function() while RejoinNameLbl.Parent do TweenService:Create(RejoinNameLbl,TweenInfo.new(1.3,Enum.EasingStyle.Sine),{TextColor3=VIO_L}):Play() task.wait(1.3) TweenService:Create(RejoinNameLbl,TweenInfo.new(1.3,Enum.EasingStyle.Sine),{TextColor3=VIO}):Play() task.wait(1.3) end end)
 
--- Toggle switch
 local RTrack=Instance.new("Frame"); RTrack.Size=UDim2.new(0,46,0,24); RTrack.Position=UDim2.new(1,-56,0,1)
 RTrack.BackgroundColor3=Color3.fromRGB(45,45,60); RTrack.BorderSizePixel=0; RTrack.ZIndex=6; RTrack.Parent=RejoinBox
 Instance.new("UICorner",RTrack).CornerRadius=UDim.new(1,0)
@@ -692,13 +688,11 @@ RCircle.BackgroundColor3=Color3.fromRGB(160,160,160); RCircle.BorderSizePixel=0;
 Instance.new("UICorner",RCircle).CornerRadius=UDim.new(1,0)
 toggleVisuals["autorejoin"].track=RTrack; toggleVisuals["autorejoin"].circle=RCircle
 
--- Delay label
 local RDelayLbl=Instance.new("TextLabel"); RDelayLbl.Size=UDim2.new(1,0,0,13); RDelayLbl.Position=UDim2.new(0,0,0,30)
 RDelayLbl.BackgroundTransparency=1; RDelayLbl.Text="Delay: 0.1s"; RDelayLbl.TextColor3=VIO
 RDelayLbl.Font=Enum.Font.Gotham; RDelayLbl.TextSize=11; RDelayLbl.TextXAlignment=Enum.TextXAlignment.Center; RDelayLbl.ZIndex=6; RDelayLbl.Parent=RejoinBox
 task.spawn(function() while RDelayLbl.Parent do TweenService:Create(RDelayLbl,TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO_L}):Play() task.wait(1.2) TweenService:Create(RDelayLbl,TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO}):Play() task.wait(1.2) end end)
 
--- Delay slider
 local RSliderTrack=Instance.new("Frame"); RSliderTrack.Size=UDim2.new(1,-24,0,7); RSliderTrack.Position=UDim2.new(0,12,0,46)
 RSliderTrack.BackgroundColor3=Color3.fromRGB(38,38,52); RSliderTrack.BorderSizePixel=0; RSliderTrack.ZIndex=6; RSliderTrack.Parent=RejoinBox
 Instance.new("UICorner",RSliderTrack).CornerRadius=UDim.new(1,0)
@@ -726,7 +720,6 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Keybind button
 local RKeyBtn=Instance.new("TextButton"); RKeyBtn.Size=UDim2.new(1,-24,0,16); RKeyBtn.Position=UDim2.new(0,12,0,70)
 RKeyBtn.BackgroundColor3=Color3.fromRGB(30,0,50); RKeyBtn.BackgroundTransparency=0.4; RKeyBtn.Text="KEY: NONE (click to set)"; RKeyBtn.TextColor3=VIO
 RKeyBtn.Font=Enum.Font.Gotham; RKeyBtn.TextSize=10; RKeyBtn.BorderSizePixel=0; RKeyBtn.ZIndex=6; RKeyBtn.Parent=RejoinBox
@@ -743,14 +736,12 @@ RKeyBtn.MouseButton1Click:Connect(function()
     end)
 end)
 
--- Listen for keybind trigger
 UserInputSvc.InputBegan:Connect(function(inp)
     if not rejoinListening and rejoinKey and inp.KeyCode==rejoinKey and autoRejoinEnabled then
         pcall(function() TeleportSvc:Teleport(game.PlaceId,LocalPlayer) end)
     end
 end)
 
--- Toggle
 RejoinBox.InputBegan:Connect(function(inp)
     if inp.UserInputType==Enum.UserInputType.MouseButton1 then
         local my=inp.Position.Y-RejoinBox.AbsolutePosition.Y
