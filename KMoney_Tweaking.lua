@@ -235,7 +235,7 @@ end)
 
 -- Close button
 local CloseBtn=Instance.new("TextButton"); CloseBtn.Size=UDim2.new(0,28,0,28); CloseBtn.Position=UDim2.new(1,-38,0,8)
-CloseBtn.BackgroundColor3=Color3.fromRGB(170,35,35); CloseBtn.BackgroundTransparency=0.5; CloseBtn.Text="X"; CloseBtn.TextColor3=WHITE
+CloseBtn.BackgroundColor3=Color3.fromRGB(170,35,35); CloseBtn.BackgroundTransparency=1; CloseBtn.Text="X"; CloseBtn.TextColor3=Color3.fromRGB(255,80,80)
 CloseBtn.Font=Enum.Font.GothamBold; CloseBtn.TextScaled=true; CloseBtn.BorderSizePixel=0
 CloseBtn.ZIndex=7; CloseBtn.Parent=TitleBar
 Instance.new("UICorner",CloseBtn).CornerRadius=UDim.new(0,7)
@@ -270,6 +270,15 @@ local function MakeToggle(name,yPos,callback,height,saveKey)
     BtnLbl.BackgroundTransparency=1; BtnLbl.Text=name; BtnLbl.TextColor3=VIO
     BtnLbl.Font=Enum.Font.GothamBold; BtnLbl.TextSize=13; BtnLbl.TextXAlignment=Enum.TextXAlignment.Left
     BtnLbl.ZIndex=6; BtnLbl.Parent=Btn
+    -- Violet neon pulse on label
+    task.spawn(function()
+        while BtnLbl.Parent do
+            TweenService:Create(BtnLbl,TweenInfo.new(1.3,Enum.EasingStyle.Sine),{TextColor3=VIO_L}):Play()
+            task.wait(1.3)
+            TweenService:Create(BtnLbl,TweenInfo.new(1.3,Enum.EasingStyle.Sine),{TextColor3=VIO}):Play()
+            task.wait(1.3)
+        end
+    end)
     local Track=Instance.new("Frame"); Track.Size=UDim2.new(0,46,0,24); Track.Position=UDim2.new(1,-56,0.5,-12)
     Track.BackgroundColor3=Color3.fromRGB(45,45,60); Track.BorderSizePixel=0; Track.ZIndex=6; Track.Parent=Btn
     Instance.new("UICorner",Track).CornerRadius=UDim.new(1,0)
@@ -374,7 +383,7 @@ local function ApplyGalaxySky(state)
         setGalaxy()
         for _,v in ipairs(Lighting:GetChildren()) do if v:IsA("Sky") then v:Destroy() end end
         local sky=Instance.new("Sky")
-        local id="rbxassetid://119445663"
+        local id="rbxassetid://106334655417321"
         sky.SkyboxBk=id; sky.SkyboxDn=id; sky.SkyboxFt=id
         sky.SkyboxLf=id; sky.SkyboxRt=id; sky.SkyboxUp=id
         sky.StarCount=5000; sky.Parent=Lighting
@@ -588,13 +597,23 @@ local FOVS=Instance.new("UIStroke"); FOVS.Color=VIO_D; FOVS.Thickness=1.2; FOVS.
 
 local FOVTit=Instance.new("TextLabel"); FOVTit.Size=UDim2.new(0.5,0,0,22); FOVTit.Position=UDim2.new(0,12,0,4)
 FOVTit.BackgroundTransparency=1; FOVTit.Text="FOV"; FOVTit.TextColor3=VIO
-FOVTit.Font=Enum.Font.GothamBold; FOVTit.TextScaled=true; FOVTit.TextXAlignment=Enum.TextXAlignment.Left
+FOVTit.Font=Enum.Font.GothamBold; FOVTit.TextSize=13; FOVTit.TextXAlignment=Enum.TextXAlignment.Left
 FOVTit.ZIndex=6; FOVTit.Parent=FOVBox
 
 local FOVVal=Instance.new("TextLabel"); FOVVal.Size=UDim2.new(0.42,0,0,22); FOVVal.Position=UDim2.new(0.56,0,0,4)
-FOVVal.BackgroundTransparency=1; FOVVal.Text="70"; FOVVal.TextColor3=VIO_L
-FOVVal.Font=Enum.Font.GothamBold; FOVVal.TextScaled=true; FOVVal.TextXAlignment=Enum.TextXAlignment.Right
+FOVVal.BackgroundTransparency=1; FOVVal.Text="70"; FOVVal.TextColor3=VIO
+FOVVal.Font=Enum.Font.GothamBold; FOVVal.TextSize=13; FOVVal.TextXAlignment=Enum.TextXAlignment.Right
 FOVVal.ZIndex=6; FOVVal.Parent=FOVBox
+
+-- Violet neon pulse on FOV number
+task.spawn(function()
+    while FOVVal.Parent do
+        TweenService:Create(FOVVal,TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO_L}):Play()
+        task.wait(1.2)
+        TweenService:Create(FOVVal,TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO}):Play()
+        task.wait(1.2)
+    end
+end)
 
 local FovTrack=Instance.new("Frame"); FovTrack.Size=UDim2.new(1,-24,0,8); FovTrack.Position=UDim2.new(0,12,0,32)
 FovTrack.BackgroundColor3=Color3.fromRGB(38,38,52); FovTrack.BorderSizePixel=0; FovTrack.ZIndex=6; FovTrack.Parent=FOVBox
