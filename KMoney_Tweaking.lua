@@ -177,10 +177,10 @@ end)
 -- ============================================
 
 local TitleBar=Instance.new("Frame"); TitleBar.Size=UDim2.new(1,0,0,68)
-TitleBar.BackgroundColor3=Color3.fromRGB(0,0,0); TitleBar.BackgroundTransparency=0.55; TitleBar.BorderSizePixel=0; TitleBar.ZIndex=5; TitleBar.Parent=MainFrame
+TitleBar.BackgroundColor3=Color3.fromRGB(0,0,0); TitleBar.BackgroundTransparency=1; TitleBar.BorderSizePixel=0; TitleBar.ZIndex=5; TitleBar.Parent=MainFrame
 Instance.new("UICorner",TitleBar).CornerRadius=UDim.new(0,14)
 local TFix=Instance.new("Frame"); TFix.Size=UDim2.new(1,0,0.5,0); TFix.Position=UDim2.new(0,0,0.5,0)
-TFix.BackgroundColor3=Color3.fromRGB(0,0,0); TFix.BackgroundTransparency=0.55; TFix.BorderSizePixel=0; TFix.ZIndex=5; TFix.Parent=TitleBar
+TFix.BackgroundColor3=Color3.fromRGB(0,0,0); TFix.BackgroundTransparency=1; TFix.BorderSizePixel=0; TFix.ZIndex=5; TFix.Parent=TitleBar
 
 -- KMONEY TWEAKING title (top line)
 local TitleLabel=Instance.new("TextLabel")
@@ -235,7 +235,7 @@ end)
 
 -- Close button
 local CloseBtn=Instance.new("TextButton"); CloseBtn.Size=UDim2.new(0,28,0,28); CloseBtn.Position=UDim2.new(1,-38,0,8)
-CloseBtn.BackgroundColor3=Color3.fromRGB(170,35,35); CloseBtn.Text="X"; CloseBtn.TextColor3=WHITE
+CloseBtn.BackgroundColor3=Color3.fromRGB(170,35,35); CloseBtn.BackgroundTransparency=0.5; CloseBtn.Text="X"; CloseBtn.TextColor3=WHITE
 CloseBtn.Font=Enum.Font.GothamBold; CloseBtn.TextScaled=true; CloseBtn.BorderSizePixel=0
 CloseBtn.ZIndex=7; CloseBtn.Parent=TitleBar
 Instance.new("UICorner",CloseBtn).CornerRadius=UDim.new(0,7)
@@ -268,7 +268,7 @@ local function MakeToggle(name,yPos,callback,height,saveKey)
     local BtnStroke=Instance.new("UIStroke"); BtnStroke.Color=VIO_D; BtnStroke.Thickness=1.2; BtnStroke.Parent=Btn
     local BtnLbl=Instance.new("TextLabel"); BtnLbl.Size=UDim2.new(0.7,0,1,0); BtnLbl.Position=UDim2.new(0,12,0,0)
     BtnLbl.BackgroundTransparency=1; BtnLbl.Text=name; BtnLbl.TextColor3=VIO
-    BtnLbl.Font=Enum.Font.GothamBold; BtnLbl.TextScaled=true; BtnLbl.TextXAlignment=Enum.TextXAlignment.Left
+    BtnLbl.Font=Enum.Font.GothamBold; BtnLbl.TextSize=13; BtnLbl.TextXAlignment=Enum.TextXAlignment.Left
     BtnLbl.ZIndex=6; BtnLbl.Parent=Btn
     local Track=Instance.new("Frame"); Track.Size=UDim2.new(0,46,0,24); Track.Position=UDim2.new(1,-56,0.5,-12)
     Track.BackgroundColor3=Color3.fromRGB(45,45,60); Track.BorderSizePixel=0; Track.ZIndex=6; Track.Parent=Btn
@@ -345,7 +345,7 @@ local function ApplyNightSky(state)
         setNight()
         for _,v in ipairs(Lighting:GetChildren()) do if v:IsA("Sky") then v:Destroy() end end
         local sky=Instance.new("Sky")
-        local id="rbxassetid://94323559180006"
+        local id="rbxassetid://5347804161"
         sky.SkyboxBk=id; sky.SkyboxDn=id; sky.SkyboxFt=id
         sky.SkyboxLf=id; sky.SkyboxRt=id; sky.SkyboxUp=id
         sky.StarCount=3000; sky.Parent=Lighting
@@ -374,7 +374,7 @@ local function ApplyGalaxySky(state)
         setGalaxy()
         for _,v in ipairs(Lighting:GetChildren()) do if v:IsA("Sky") then v:Destroy() end end
         local sky=Instance.new("Sky")
-        local id="rbxassetid://126150693377405"
+        local id="rbxassetid://119445663"
         sky.SkyboxBk=id; sky.SkyboxDn=id; sky.SkyboxFt=id
         sky.SkyboxLf=id; sky.SkyboxRt=id; sky.SkyboxUp=id
         sky.StarCount=5000; sky.Parent=Lighting
@@ -478,7 +478,7 @@ local function MakeSliderBox(name, yPos, minVal, maxVal, startVal, onToggle, onS
 
     local NameLbl=Instance.new("TextLabel"); NameLbl.Size=UDim2.new(0.62,0,0,28); NameLbl.Position=UDim2.new(0,12,0,0)
     NameLbl.BackgroundTransparency=1; NameLbl.Text=name; NameLbl.TextColor3=VIO
-    NameLbl.Font=Enum.Font.GothamBold; NameLbl.TextScaled=true; NameLbl.TextXAlignment=Enum.TextXAlignment.Left
+    NameLbl.Font=Enum.Font.GothamBold; NameLbl.TextSize=13; NameLbl.TextXAlignment=Enum.TextXAlignment.Left
     NameLbl.ZIndex=6; NameLbl.Parent=Box
 
     local BTrack=Instance.new("Frame"); BTrack.Size=UDim2.new(0,46,0,24); BTrack.Position=UDim2.new(1,-56,0,2)
@@ -489,8 +489,17 @@ local function MakeSliderBox(name, yPos, minVal, maxVal, startVal, onToggle, onS
     Instance.new("UICorner",BCircle).CornerRadius=UDim.new(1,0)
 
     local ValLbl=Instance.new("TextLabel"); ValLbl.Size=UDim2.new(1,0,0,14); ValLbl.Position=UDim2.new(0,0,0,30)
-    ValLbl.BackgroundTransparency=1; ValLbl.TextColor3=VIO_L; ValLbl.Font=Enum.Font.Gotham; ValLbl.TextSize=11
+    ValLbl.BackgroundTransparency=1; ValLbl.TextColor3=VIO; ValLbl.Font=Enum.Font.Gotham; ValLbl.TextSize=11
     ValLbl.TextXAlignment=Enum.TextXAlignment.Center; ValLbl.ZIndex=6; ValLbl.Parent=Box
+    -- Violet neon pulse on delay label
+    task.spawn(function()
+        while ValLbl.Parent do
+            TweenService:Create(ValLbl,TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO_L}):Play()
+            task.wait(1.2)
+            TweenService:Create(ValLbl,TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO}):Play()
+            task.wait(1.2)
+        end
+    end)
 
     local STrack=Instance.new("Frame"); STrack.Size=UDim2.new(1,-24,0,8); STrack.Position=UDim2.new(0,12,0,50)
     STrack.BackgroundColor3=Color3.fromRGB(38,38,52); STrack.BorderSizePixel=0; STrack.ZIndex=6; STrack.Parent=Box
@@ -559,7 +568,7 @@ MakeToggle("LOW GRAPHICS",Y,function(s) toggleStates.lowgfx=s;  ApplyLowGraphics
 MakeToggle("FPS BOOST",   Y,function(s) toggleStates.fps=s;     ApplyFPSBoost(s);    SaveSettings() end,36,"fps");     Y=Y+42
 MakeToggle("PING LOW",    Y,function(s) toggleStates.ping=s;    ApplyPingLow(s);     SaveSettings() end,36,"ping");    Y=Y+42
 MakeToggle("DAY",         Y,function(s) toggleStates.day=s;     ApplyDaySky(s);      SaveSettings() end,36,"day");     Y=Y+42
-MakeToggle("SKY",         Y,function(s) toggleStates.night=s;   ApplyNightSky(s);    SaveSettings() end,36,"night");   Y=Y+42
+MakeToggle("NIGHT",       Y,function(s) toggleStates.night=s;   ApplyNightSky(s);    SaveSettings() end,36,"night");   Y=Y+42
 MakeToggle("GALAXY",      Y,function(s) toggleStates.galaxy=s;  ApplyGalaxySky(s);   SaveSettings() end,36,"galaxy");  Y=Y+42
 MakeToggle("BRIGHT",  Y,function(s)
     toggleStates.brightness=s
