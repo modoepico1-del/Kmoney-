@@ -16,17 +16,47 @@ local LocalPlayer  = Players.LocalPlayer
 
 local VIO   = Color3.fromRGB(180, 0, 255)
 local VIO_D = Color3.fromRGB(70,  0, 110)
-local VIO_L = Color3.fromRGB(220,130, 255)
+local VIO_L = Color3.fromRGB(220, 130, 255)
 local BLACK = Color3.fromRGB(8, 8, 10)
-local WHITE = Color3.fromRGB(255,255,255)
+local WHITE = Color3.fromRGB(255, 255, 255)
 
+-- ============================================
+-- AUTO SPEED (invisible, solo funciona)
+-- ============================================
+local WALK_SPEED = 28
+
+local function SetSpeed()
+    local char = LocalPlayer.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then hum.WalkSpeed = WALK_SPEED end
+    end
+end
+
+LocalPlayer.CharacterAdded:Connect(function(char)
+    local hum = char:WaitForChild("Humanoid", 10)
+    if hum then
+        hum.WalkSpeed = WALK_SPEED
+        hum:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+            if hum.WalkSpeed ~= WALK_SPEED then
+                hum.WalkSpeed = WALK_SPEED
+            end
+        end)
+    end
+end)
+
+SetSpeed()
+
+-- ============================================
+-- GUI
+-- ============================================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "KMoneyHub"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = game.CoreGui
 
--- LOGO
+-- LOGO (mini boton cuando el hub esta cerrado)
 local LogoHolder = Instance.new("Frame")
 LogoHolder.Size = UDim2.new(0,62,0,76)
 LogoHolder.Position = UDim2.new(0,12,0.3,-38)
@@ -48,11 +78,12 @@ LogoBtn.Font = Enum.Font.GothamBold
 LogoBtn.TextSize = 18
 LogoBtn.ZIndex = 10
 LogoBtn.Parent = LogoHolder
-Instance.new("UICorner",LogoBtn).CornerRadius = UDim.new(1,0)
+Instance.new("UICorner", LogoBtn).CornerRadius = UDim.new(1,0)
 
 local LogoStroke = Instance.new("UIStroke")
 LogoStroke.Color = VIO; LogoStroke.Thickness = 2; LogoStroke.Parent = LogoBtn
 
+-- drag logo
 local logoDragging, logoDragStart, logoStartPos = false, nil, nil
 LogoBtn.InputBegan:Connect(function(inp)
     if inp.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -68,17 +99,20 @@ end)
 UserInputSvc.InputEnded:Connect(function(inp)
     if inp.UserInputType == Enum.UserInputType.MouseButton1 then logoDragging = false end
 end)
+
+-- logo pulse
 task.spawn(function()
     while true do
-        TweenService:Create(LogoStroke,TweenInfo.new(1,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{Thickness=4,Color=VIO_L}):Play()
-        TweenService:Create(LogoBtn,TweenInfo.new(1,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{TextColor3=VIO_L}):Play()
+        TweenService:Create(LogoStroke, TweenInfo.new(1,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {Thickness=4, Color=VIO_L}):Play()
+        TweenService:Create(LogoBtn,    TweenInfo.new(1,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {TextColor3=VIO_L}):Play()
         task.wait(1)
-        TweenService:Create(LogoStroke,TweenInfo.new(1,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{Thickness=1.5,Color=VIO}):Play()
-        TweenService:Create(LogoBtn,TweenInfo.new(1,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{TextColor3=VIO}):Play()
+        TweenService:Create(LogoStroke, TweenInfo.new(1,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {Thickness=1.5, Color=VIO}):Play()
+        TweenService:Create(LogoBtn,    TweenInfo.new(1,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {TextColor3=VIO}):Play()
         task.wait(1)
     end
 end)
 
+-- letras KMONEY debajo del logo
 local kmoneyChars = {"K","M","O","N","E","Y"}
 local letterLabels = {}
 local lspc = 8
@@ -104,7 +138,7 @@ RunService.Heartbeat:Connect(function(dt)
     end
 end)
 
--- MAIN FRAME (220px ancho)
+-- MAIN FRAME
 local HW = 220
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
@@ -115,24 +149,25 @@ MainFrame.BackgroundTransparency = 0.45
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true; MainFrame.Draggable = true; MainFrame.ClipsDescendants = true
 MainFrame.Parent = ScreenGui
-Instance.new("UICorner",MainFrame).CornerRadius = UDim.new(0,12)
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0,12)
 
 local MainStroke = Instance.new("UIStroke")
 MainStroke.Color = VIO; MainStroke.Thickness = 2; MainStroke.Parent = MainFrame
 task.spawn(function()
     while true do
-        TweenService:Create(MainStroke,TweenInfo.new(1.8,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{Thickness=3.5,Color=VIO_L}):Play()
+        TweenService:Create(MainStroke, TweenInfo.new(1.8,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {Thickness=3.5, Color=VIO_L}):Play()
         task.wait(1.8)
-        TweenService:Create(MainStroke,TweenInfo.new(1.8,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{Thickness=1.5,Color=VIO}):Play()
+        TweenService:Create(MainStroke, TweenInfo.new(1.8,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {Thickness=1.5, Color=VIO}):Play()
         task.wait(1.8)
     end
 end)
 
--- NIEVE VIOLETA NEON
+-- NIEVE
 local SnowCanvas = Instance.new("Frame")
 SnowCanvas.Size = UDim2.new(1,0,1,0)
 SnowCanvas.BackgroundTransparency = 1; SnowCanvas.BorderSizePixel = 0
 SnowCanvas.ZIndex = 1; SnowCanvas.Parent = MainFrame
+
 local snowballs = {}
 for i = 1, 22 do
     local s = math.random(3,9)
@@ -141,10 +176,11 @@ for i = 1, 22 do
     ball.BackgroundColor3 = VIO
     ball.BackgroundTransparency = math.random(1,3) * 0.2
     ball.BorderSizePixel = 0; ball.ZIndex = 2; ball.Parent = SnowCanvas
-    Instance.new("UICorner",ball).CornerRadius = UDim.new(1,0)
+    Instance.new("UICorner", ball).CornerRadius = UDim.new(1,0)
     local st = Instance.new("UIStroke"); st.Color = VIO_L; st.Thickness = 1.5; st.Parent = ball
     snowballs[i] = {frame=ball, stroke=st, speed=math.random(5,12)/1000, xBase=math.random(), progress=math.random()}
 end
+
 local snowT = 0
 RunService.RenderStepped:Connect(function(dt)
     snowT = snowT + dt * 0.9
@@ -163,7 +199,7 @@ end)
 
 -- TITLE BAR
 local TitleBar = Instance.new("Frame")
-TitleBar.Size = UDim2.new(1,0,0,55)
+TitleBar.Size = UDim2.new(1,0,0,42)
 TitleBar.BackgroundTransparency = 1; TitleBar.BorderSizePixel = 0
 TitleBar.ZIndex = 5; TitleBar.Parent = MainFrame
 
@@ -174,47 +210,36 @@ TitleLabel.TextColor3 = VIO; TitleLabel.TextScaled = true; TitleLabel.Font = Enu
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left; TitleLabel.ZIndex = 6; TitleLabel.Parent = TitleBar
 task.spawn(function()
     while true do
-        TweenService:Create(TitleLabel,TweenInfo.new(1.5,Enum.EasingStyle.Sine),{TextColor3=VIO_L}):Play(); task.wait(1.5)
-        TweenService:Create(TitleLabel,TweenInfo.new(1.5,Enum.EasingStyle.Sine),{TextColor3=VIO}):Play(); task.wait(1.5)
+        TweenService:Create(TitleLabel, TweenInfo.new(1.5,Enum.EasingStyle.Sine), {TextColor3=VIO_L}):Play(); task.wait(1.5)
+        TweenService:Create(TitleLabel, TweenInfo.new(1.5,Enum.EasingStyle.Sine), {TextColor3=VIO}):Play();  task.wait(1.5)
     end
 end)
 
 local FPSInTitle = Instance.new("TextLabel")
-FPSInTitle.Size = UDim2.new(0.5,0,0,10); FPSInTitle.Position = UDim2.new(0,10,0,26)
+FPSInTitle.Size = UDim2.new(0.4,0,0,10); FPSInTitle.Position = UDim2.new(0,10,0,25)
 FPSInTitle.BackgroundTransparency = 1; FPSInTitle.Text = "FPS: --"; FPSInTitle.TextColor3 = VIO
 FPSInTitle.Font = Enum.Font.GothamBold; FPSInTitle.TextSize = 8
 FPSInTitle.TextXAlignment = Enum.TextXAlignment.Left; FPSInTitle.ZIndex = 6; FPSInTitle.Parent = TitleBar
 
 local PingInTitle = Instance.new("TextLabel")
-PingInTitle.Size = UDim2.new(0.5,0,0,10); PingInTitle.Position = UDim2.new(0,10,0,38)
+PingInTitle.Size = UDim2.new(0.4,0,0,10); PingInTitle.Position = UDim2.new(0.4,0,0,25)
 PingInTitle.BackgroundTransparency = 1; PingInTitle.Text = "PING: --"; PingInTitle.TextColor3 = VIO
 PingInTitle.Font = Enum.Font.GothamBold; PingInTitle.TextSize = 8
 PingInTitle.TextXAlignment = Enum.TextXAlignment.Left; PingInTitle.ZIndex = 6; PingInTitle.Parent = TitleBar
 
-local PremiumLbl = Instance.new("TextLabel")
-PremiumLbl.Size = UDim2.new(0.5,0,0,9); PremiumLbl.Position = UDim2.new(0,10,0,44)
-PremiumLbl.BackgroundTransparency = 1; PremiumLbl.Text = "PREMIUM"; PremiumLbl.TextColor3 = VIO
-PremiumLbl.Font = Enum.Font.GothamBold; PremiumLbl.TextSize = 7
-PremiumLbl.TextXAlignment = Enum.TextXAlignment.Left; PremiumLbl.ZIndex = 6; PremiumLbl.Parent = TitleBar
 task.spawn(function()
     while true do
-        TweenService:Create(PremiumLbl,TweenInfo.new(1.1,Enum.EasingStyle.Sine),{TextColor3=VIO_L}):Play(); task.wait(1.1)
-        TweenService:Create(PremiumLbl,TweenInfo.new(1.1,Enum.EasingStyle.Sine),{TextColor3=VIO}):Play(); task.wait(1.1)
-    end
-end)
-task.spawn(function()
-    while true do
-        TweenService:Create(FPSInTitle,TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO_L}):Play()
-        TweenService:Create(PingInTitle,TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO_L}):Play()
+        TweenService:Create(FPSInTitle,  TweenInfo.new(1.2,Enum.EasingStyle.Sine), {TextColor3=VIO_L}):Play()
+        TweenService:Create(PingInTitle, TweenInfo.new(1.2,Enum.EasingStyle.Sine), {TextColor3=VIO_L}):Play()
         task.wait(1.2)
-        TweenService:Create(FPSInTitle,TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO}):Play()
-        TweenService:Create(PingInTitle,TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO}):Play()
+        TweenService:Create(FPSInTitle,  TweenInfo.new(1.2,Enum.EasingStyle.Sine), {TextColor3=VIO}):Play()
+        TweenService:Create(PingInTitle, TweenInfo.new(1.2,Enum.EasingStyle.Sine), {TextColor3=VIO}):Play()
         task.wait(1.2)
     end
 end)
 
-local lastT = tick()
-local fc = 0
+-- FPS counter
+local lastT = tick(); local fc = 0
 RunService.RenderStepped:Connect(function()
     fc = fc + 1
     local now = tick()
@@ -232,16 +257,13 @@ CloseBtn.Size = UDim2.new(0,20,0,20); CloseBtn.Position = UDim2.new(1,-26,0,4)
 CloseBtn.BackgroundTransparency = 1; CloseBtn.Text = "X"; CloseBtn.TextColor3 = Color3.fromRGB(255,80,80)
 CloseBtn.Font = Enum.Font.GothamBold; CloseBtn.TextScaled = true; CloseBtn.BorderSizePixel = 0
 CloseBtn.ZIndex = 7; CloseBtn.Parent = TitleBar
-Instance.new("UICorner",CloseBtn).CornerRadius = UDim.new(0,5)
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0,5)
 CloseBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false; LogoHolder.Visible = true end)
 LogoBtn.MouseButton1Click:Connect(function() LogoHolder.Visible = false; MainFrame.Visible = true end)
 
 -- ============================================
--- SAVE / LOAD SYSTEM (arreglado)
--- Guarda cada toggle al momento de activarlo
--- Al ejecutar el script carga todo automatico
+-- SAVE / LOAD
 -- ============================================
-
 local SAVE_FILE = "kmoney_v9.txt"
 local currentFOV = 70
 local toggleStates = {
@@ -274,25 +296,23 @@ end
 -- ============================================
 -- TOGGLE HELPER
 -- ============================================
-
 local toggleVisuals = {}
 local BW = HW - 24
 
 local function ApplyToggleVisual(key, state)
     local v = toggleVisuals[key]; if not v then return end
     if state then
-        TweenService:Create(v.btn,TweenInfo.new(0.15),{BackgroundColor3=Color3.fromRGB(40,0,70),BackgroundTransparency=0.1}):Play()
+        TweenService:Create(v.btn,   TweenInfo.new(0.15), {BackgroundColor3=Color3.fromRGB(40,0,70), BackgroundTransparency=0.1}):Play()
         v.stroke.Color = VIO_L; v.stroke.Thickness = 2
     else
-        TweenService:Create(v.btn,TweenInfo.new(0.15),{BackgroundColor3=BLACK,BackgroundTransparency=0.55}):Play()
+        TweenService:Create(v.btn,   TweenInfo.new(0.15), {BackgroundColor3=BLACK, BackgroundTransparency=0.55}):Play()
         v.stroke.Color = VIO_D; v.stroke.Thickness = 1.2
     end
 end
 
-local function MakeToggle(name, yPos, callback, height, saveKey)
-    height = height or 28
+local function MakeToggle(name, yPos, callback, saveKey)
     local Btn = Instance.new("TextButton")
-    Btn.Size = UDim2.new(0,BW,0,height)
+    Btn.Size = UDim2.new(0,BW,0,28)
     Btn.Position = UDim2.new(0.5,-(BW/2),0,yPos)
     Btn.BackgroundColor3 = BLACK
     Btn.BackgroundTransparency = 0.55
@@ -303,14 +323,14 @@ local function MakeToggle(name, yPos, callback, height, saveKey)
     Btn.TextSize = 11
     Btn.ZIndex = 5
     Btn.Parent = MainFrame
-    Instance.new("UICorner",Btn).CornerRadius = UDim.new(0,7)
+    Instance.new("UICorner", Btn).CornerRadius = UDim.new(0,7)
     local BtnStroke = Instance.new("UIStroke")
     BtnStroke.Color = VIO_D; BtnStroke.Thickness = 1.2; BtnStroke.Parent = Btn
-    if saveKey then toggleVisuals[saveKey] = {btn=Btn, stroke=BtnStroke} end
+    toggleVisuals[saveKey] = {btn=Btn, stroke=BtnStroke}
     task.spawn(function()
         while Btn.Parent do
-            TweenService:Create(Btn,TweenInfo.new(1.3,Enum.EasingStyle.Sine),{TextColor3=VIO_L}):Play(); task.wait(1.3)
-            TweenService:Create(Btn,TweenInfo.new(1.3,Enum.EasingStyle.Sine),{TextColor3=VIO}):Play(); task.wait(1.3)
+            TweenService:Create(Btn, TweenInfo.new(1.3,Enum.EasingStyle.Sine), {TextColor3=VIO_L}):Play(); task.wait(1.3)
+            TweenService:Create(Btn, TweenInfo.new(1.3,Enum.EasingStyle.Sine), {TextColor3=VIO}):Play();   task.wait(1.3)
         end
     end)
     local enabled = false
@@ -319,17 +339,18 @@ local function MakeToggle(name, yPos, callback, height, saveKey)
         ApplyToggleVisual(saveKey, enabled)
         callback(enabled)
     end)
-    return Btn, BtnStroke
 end
 
+-- ============================================
 -- FEATURES
+-- ============================================
 local savedLighting = {
-    ClockTime = Lighting.ClockTime,
-    Brightness = Lighting.Brightness,
-    Ambient = Lighting.Ambient,
+    ClockTime    = Lighting.ClockTime,
+    Brightness   = Lighting.Brightness,
+    Ambient      = Lighting.Ambient,
     OutdoorAmbient = Lighting.OutdoorAmbient,
-    FogEnd = Lighting.FogEnd,
-    FogStart = Lighting.FogStart
+    FogEnd       = Lighting.FogEnd,
+    FogStart     = Lighting.FogStart
 }
 
 local dayConn = nil
@@ -337,12 +358,14 @@ local function ApplyDaySky(state)
     if state then
         if dayConn then dayConn:Disconnect() end
         Lighting.ClockTime = 14; Lighting.Brightness = 3
-        Lighting.Ambient = Color3.fromRGB(120,140,180); Lighting.OutdoorAmbient = Color3.fromRGB(130,160,200)
+        Lighting.Ambient = Color3.fromRGB(120,140,180)
+        Lighting.OutdoorAmbient = Color3.fromRGB(130,160,200)
         Lighting.FogEnd = 300000; Lighting.FogStart = 200000
         for _, v in ipairs(Lighting:GetChildren()) do if v:IsA("Sky") then v:Destroy() end end
         local sky = Instance.new("Sky")
         local id = "rbxassetid://75213778961746"
-        sky.SkyboxBk=id; sky.SkyboxDn=id; sky.SkyboxFt=id; sky.SkyboxLf=id; sky.SkyboxRt=id; sky.SkyboxUp=id
+        sky.SkyboxBk=id; sky.SkyboxDn=id; sky.SkyboxFt=id
+        sky.SkyboxLf=id; sky.SkyboxRt=id; sky.SkyboxUp=id
         sky.Parent = Lighting
         dayConn = RunService.Heartbeat:Connect(function()
             if Lighting.ClockTime < 12 or Lighting.ClockTime > 16 then Lighting.ClockTime = 14 end
@@ -361,12 +384,14 @@ local function ApplyNightSky(state)
     if state then
         if nightConn then nightConn:Disconnect() end
         Lighting.ClockTime = 0; Lighting.Brightness = 0.1
-        Lighting.Ambient = Color3.fromRGB(10,10,30); Lighting.OutdoorAmbient = Color3.fromRGB(15,15,40)
+        Lighting.Ambient = Color3.fromRGB(10,10,30)
+        Lighting.OutdoorAmbient = Color3.fromRGB(15,15,40)
         Lighting.FogEnd = 100000; Lighting.FogStart = 80000
         for _, v in ipairs(Lighting:GetChildren()) do if v:IsA("Sky") then v:Destroy() end end
         local sky = Instance.new("Sky")
         local id = "rbxassetid://5347804161"
-        sky.SkyboxBk=id; sky.SkyboxDn=id; sky.SkyboxFt=id; sky.SkyboxLf=id; sky.SkyboxRt=id; sky.SkyboxUp=id
+        sky.SkyboxBk=id; sky.SkyboxDn=id; sky.SkyboxFt=id
+        sky.SkyboxLf=id; sky.SkyboxRt=id; sky.SkyboxUp=id
         sky.StarCount = 3000; sky.Parent = Lighting
         nightConn = RunService.Heartbeat:Connect(function()
             if Lighting.ClockTime > 2 then Lighting.ClockTime = 0 end
@@ -459,25 +484,29 @@ local function ApplyBrightness(state)
     end
 end
 
+-- ============================================
 -- BUILD TOGGLES
-local Y = 62  -- empieza mas arriba porque quitamos el FovStatLbl del titulo
+-- ============================================
+local Y = 48
 
-MakeToggle("LOW GRAPHICS",Y,function(s) toggleStates.lowgfx=s; ApplyLowGraphics(s); SaveSettings() end,28,"lowgfx"); Y=Y+34
-MakeToggle("FPS BOOST",   Y,function(s) toggleStates.fps=s;    ApplyFPSBoost(s);    SaveSettings() end,28,"fps");    Y=Y+34
-MakeToggle("PING LOW",    Y,function(s) toggleStates.ping=s;   ApplyPingLow(s);     SaveSettings() end,28,"ping");   Y=Y+34
-MakeToggle("DELAY 0",     Y,function(s) toggleStates.delay=s;  ApplyDelay(s);       SaveSettings() end,28,"delay");  Y=Y+34
-MakeToggle("DAY",         Y,function(s) toggleStates.day=s;    ApplyDaySky(s);      SaveSettings() end,28,"day");    Y=Y+34
-MakeToggle("NIGHT",       Y,function(s) toggleStates.night=s;  ApplyNightSky(s);    SaveSettings() end,28,"night");  Y=Y+34
-MakeToggle("BRIGHT",      Y,function(s) toggleStates.brightness=s; ApplyBrightness(s); SaveSettings() end,28,"brightness"); Y=Y+34
+MakeToggle("LOW GRAPHICS", Y, function(s) toggleStates.lowgfx=s;      ApplyLowGraphics(s); SaveSettings() end, "lowgfx");    Y=Y+34
+MakeToggle("FPS BOOST",    Y, function(s) toggleStates.fps=s;         ApplyFPSBoost(s);    SaveSettings() end, "fps");       Y=Y+34
+MakeToggle("PING LOW",     Y, function(s) toggleStates.ping=s;        ApplyPingLow(s);     SaveSettings() end, "ping");      Y=Y+34
+MakeToggle("DELAY 0",      Y, function(s) toggleStates.delay=s;       ApplyDelay(s);       SaveSettings() end, "delay");     Y=Y+34
+MakeToggle("DAY",          Y, function(s) toggleStates.day=s;         ApplyDaySky(s);      SaveSettings() end, "day");       Y=Y+34
+MakeToggle("NIGHT",        Y, function(s) toggleStates.night=s;       ApplyNightSky(s);    SaveSettings() end, "night");     Y=Y+34
+MakeToggle("BRIGHT",       Y, function(s) toggleStates.brightness=s;  ApplyBrightness(s);  SaveSettings() end, "brightness"); Y=Y+34
 
+-- ============================================
 -- FOV SLIDER
+-- ============================================
 local SetFOV
 
 local FOVBox = Instance.new("Frame")
 FOVBox.Size = UDim2.new(0,BW,0,42); FOVBox.Position = UDim2.new(0.5,-(BW/2),0,Y)
 FOVBox.BackgroundTransparency = 0.55; FOVBox.BackgroundColor3 = BLACK
 FOVBox.BorderSizePixel = 0; FOVBox.ZIndex = 5; FOVBox.Parent = MainFrame
-Instance.new("UICorner",FOVBox).CornerRadius = UDim.new(0,7)
+Instance.new("UICorner", FOVBox).CornerRadius = UDim.new(0,7)
 local FOVS = Instance.new("UIStroke"); FOVS.Color = VIO_D; FOVS.Thickness = 1.2; FOVS.Parent = FOVBox
 
 local FOVTit = Instance.new("TextLabel")
@@ -493,8 +522,8 @@ FOVVal.Font = Enum.Font.GothamBold; FOVVal.TextSize = 11
 FOVVal.TextXAlignment = Enum.TextXAlignment.Right; FOVVal.ZIndex = 6; FOVVal.Parent = FOVBox
 task.spawn(function()
     while FOVVal.Parent do
-        TweenService:Create(FOVVal,TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO_L}):Play(); task.wait(1.2)
-        TweenService:Create(FOVVal,TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO}):Play(); task.wait(1.2)
+        TweenService:Create(FOVVal, TweenInfo.new(1.2,Enum.EasingStyle.Sine), {TextColor3=VIO_L}):Play(); task.wait(1.2)
+        TweenService:Create(FOVVal, TweenInfo.new(1.2,Enum.EasingStyle.Sine), {TextColor3=VIO}):Play();   task.wait(1.2)
     end
 end)
 
@@ -502,21 +531,22 @@ local FovTrack = Instance.new("Frame")
 FovTrack.Size = UDim2.new(1,-16,0,6); FovTrack.Position = UDim2.new(0,8,0,28)
 FovTrack.BackgroundColor3 = Color3.fromRGB(38,38,52); FovTrack.BorderSizePixel = 0
 FovTrack.ZIndex = 6; FovTrack.Parent = FOVBox
-Instance.new("UICorner",FovTrack).CornerRadius = UDim.new(1,0)
+Instance.new("UICorner", FovTrack).CornerRadius = UDim.new(1,0)
 
 local FovFill = Instance.new("Frame")
 FovFill.Size = UDim2.new(0.25,0,1,0); FovFill.BackgroundColor3 = VIO
 FovFill.BorderSizePixel = 0; FovFill.ZIndex = 7; FovFill.Parent = FovTrack
-Instance.new("UICorner",FovFill).CornerRadius = UDim.new(1,0)
+Instance.new("UICorner", FovFill).CornerRadius = UDim.new(1,0)
 
 local FovThumb = Instance.new("TextButton")
 FovThumb.Size = UDim2.new(0,16,0,16); FovThumb.Position = UDim2.new(0.25,-8,0.5,-8)
 FovThumb.BackgroundColor3 = WHITE; FovThumb.Text = ""; FovThumb.BorderSizePixel = 0
 FovThumb.ZIndex = 8; FovThumb.Parent = FovTrack
-Instance.new("UICorner",FovThumb).CornerRadius = UDim.new(1,0)
+Instance.new("UICorner", FovThumb).CornerRadius = UDim.new(1,0)
 
 local FOV_MIN, FOV_MAX = 40, 200
 local draggingFOV = false
+
 SetFOV = function(fov)
     fov = math.clamp(fov, FOV_MIN, FOV_MAX)
     local cam = workspace.CurrentCamera
@@ -527,6 +557,7 @@ SetFOV = function(fov)
     FOVVal.Text = math.floor(fov) .. ""
     currentFOV = fov; SaveSettings()
 end
+
 FovThumb.MouseButton1Down:Connect(function() draggingFOV = true end)
 UserInputSvc.InputEnded:Connect(function(inp)
     if inp.UserInputType == Enum.UserInputType.MouseButton1 then draggingFOV = false end
@@ -539,79 +570,53 @@ RunService.RenderStepped:Connect(function()
 end)
 SetFOV(70); Y = Y + 50
 
--- REJOIN — solo boton, sin keybind
+-- ============================================
+-- REJOIN (boton simple)
+-- ============================================
 local RejoinBtn = Instance.new("TextButton")
 RejoinBtn.Size = UDim2.new(0,BW,0,28); RejoinBtn.Position = UDim2.new(0.5,-(BW/2),0,Y)
 RejoinBtn.BackgroundColor3 = BLACK; RejoinBtn.BackgroundTransparency = 0.55
 RejoinBtn.Text = "REJOIN"; RejoinBtn.TextColor3 = VIO
 RejoinBtn.Font = Enum.Font.GothamBold; RejoinBtn.TextSize = 11
 RejoinBtn.BorderSizePixel = 0; RejoinBtn.ZIndex = 5; RejoinBtn.Parent = MainFrame
-Instance.new("UICorner",RejoinBtn).CornerRadius = UDim.new(0,7)
+Instance.new("UICorner", RejoinBtn).CornerRadius = UDim.new(0,7)
 local RejoinStroke = Instance.new("UIStroke")
 RejoinStroke.Color = VIO_D; RejoinStroke.Thickness = 1.2; RejoinStroke.Parent = RejoinBtn
 task.spawn(function()
     while RejoinBtn.Parent do
-        TweenService:Create(RejoinBtn,TweenInfo.new(1.3,Enum.EasingStyle.Sine),{TextColor3=VIO_L}):Play(); task.wait(1.3)
-        TweenService:Create(RejoinBtn,TweenInfo.new(1.3,Enum.EasingStyle.Sine),{TextColor3=VIO}):Play(); task.wait(1.3)
+        TweenService:Create(RejoinBtn, TweenInfo.new(1.3,Enum.EasingStyle.Sine), {TextColor3=VIO_L}):Play(); task.wait(1.3)
+        TweenService:Create(RejoinBtn, TweenInfo.new(1.3,Enum.EasingStyle.Sine), {TextColor3=VIO}):Play();   task.wait(1.3)
     end
 end)
 RejoinBtn.MouseButton1Click:Connect(function()
-    TweenService:Create(RejoinBtn,TweenInfo.new(0.1),{BackgroundColor3=Color3.fromRGB(40,0,70),BackgroundTransparency=0.1}):Play()
+    TweenService:Create(RejoinBtn, TweenInfo.new(0.1), {BackgroundColor3=Color3.fromRGB(40,0,70), BackgroundTransparency=0.1}):Play()
     RejoinStroke.Color = VIO_L; RejoinStroke.Thickness = 2
     task.wait(0.15)
-    TweenService:Create(RejoinBtn,TweenInfo.new(0.2),{BackgroundColor3=BLACK,BackgroundTransparency=0.55}):Play()
-    RejoinStroke.Color = VIO_D; RejoinStroke.Thickness = 1.2
     pcall(function() TeleportSvc:Teleport(game.PlaceId, LocalPlayer) end)
 end)
 Y = Y + 34
 
--- Resize final
+-- resize
 MainFrame.Size = UDim2.new(0,HW,0,Y+12)
 MainFrame.Position = UDim2.new(0.5,-(HW/2),0.5,-(Y+12)/2)
 
 -- ============================================
--- AUTO STARTUP LOAD — carga todo al ejecutar
+-- AUTO LOAD al ejecutar
 -- ============================================
 task.delay(0.3, function()
     local saved = LoadSettings()
-    if saved then
-        if saved.fov then SetFOV(saved.fov) end
+    if not saved then return end
 
-        if saved.lowgfx then
-            ApplyLowGraphics(true); toggleStates.lowgfx = true
-            ApplyToggleVisual("lowgfx", true)
-        end
-        if saved.fps then
-            ApplyFPSBoost(true); toggleStates.fps = true
-            ApplyToggleVisual("fps", true)
-        end
-        if saved.ping then
-            ApplyPingLow(true); toggleStates.ping = true
-            ApplyToggleVisual("ping", true)
-        end
-        if saved.delay then
-            ApplyDelay(true); toggleStates.delay = true
-            ApplyToggleVisual("delay", true)
-        end
-        if saved.day then
-            ApplyDaySky(true); toggleStates.day = true
-            ApplyToggleVisual("day", true)
-        end
-        if saved.night then
-            ApplyNightSky(true); toggleStates.night = true
-            ApplyToggleVisual("night", true)
-        end
-        if saved.brightness then
-            ApplyBrightness(true); toggleStates.brightness = true
-            ApplyToggleVisual("brightness", true)
-        end
+    if saved.fov        then SetFOV(saved.fov) end
+    if saved.lowgfx     then ApplyLowGraphics(true); toggleStates.lowgfx=true;     ApplyToggleVisual("lowgfx",true)     end
+    if saved.fps        then ApplyFPSBoost(true);    toggleStates.fps=true;        ApplyToggleVisual("fps",true)        end
+    if saved.ping       then ApplyPingLow(true);     toggleStates.ping=true;       ApplyToggleVisual("ping",true)       end
+    if saved.delay      then ApplyDelay(true);       toggleStates.delay=true;      ApplyToggleVisual("delay",true)      end
+    if saved.day        then ApplyDaySky(true);      toggleStates.day=true;        ApplyToggleVisual("day",true)        end
+    if saved.night      then ApplyNightSky(true);    toggleStates.night=true;      ApplyToggleVisual("night",true)      end
+    if saved.brightness then ApplyBrightness(true);  toggleStates.brightness=true; ApplyToggleVisual("brightness",true) end
 
-        pcall(function()
-            StarterGui:SetCore("SendNotification",{
-                Title="KMoney", Text="Config cargada!", Duration=3
-            })
-        end)
-    end
+    pcall(function() StarterGui:SetCore("SendNotification",{Title="KMoney",Text="Config cargada!",Duration=3}) end)
 end)
 
 pcall(function() StarterGui:SetCore("SendNotification",{Title="KMoney Tweaking",Text="Hub v9 listo!",Duration=4}) end)
