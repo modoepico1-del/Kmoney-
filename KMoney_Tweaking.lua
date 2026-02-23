@@ -172,15 +172,15 @@ end)
 --   TITLE BAR  (no PREMIUM - replaced by FPS+PING)
 -- ============================================
 
-local TitleBar=Instance.new("Frame"); TitleBar.Size=UDim2.new(1,0,0,62)
+local TitleBar=Instance.new("Frame"); TitleBar.Size=UDim2.new(1,0,0,68)
 TitleBar.BackgroundColor3=Color3.fromRGB(0,0,0); TitleBar.BorderSizePixel=0; TitleBar.ZIndex=5; TitleBar.Parent=MainFrame
 Instance.new("UICorner",TitleBar).CornerRadius=UDim.new(0,14)
 local TFix=Instance.new("Frame"); TFix.Size=UDim2.new(1,0,0.5,0); TFix.Position=UDim2.new(0,0,0.5,0)
 TFix.BackgroundColor3=Color3.fromRGB(0,0,0); TFix.BorderSizePixel=0; TFix.ZIndex=5; TFix.Parent=TitleBar
 
--- KMONEY TWEAKING title
+-- KMONEY TWEAKING title (top line)
 local TitleLabel=Instance.new("TextLabel")
-TitleLabel.Size=UDim2.new(0.58,0,0,26); TitleLabel.Position=UDim2.new(0,14,0,4)
+TitleLabel.Size=UDim2.new(0.82,0,0,24); TitleLabel.Position=UDim2.new(0,14,0,4)
 TitleLabel.BackgroundTransparency=1; TitleLabel.Text="KMONEY TWEAKING"
 TitleLabel.TextColor3=VIO; TitleLabel.TextScaled=true; TitleLabel.Font=Enum.Font.GothamBold
 TitleLabel.TextXAlignment=Enum.TextXAlignment.Left; TitleLabel.ZIndex=6; TitleLabel.Parent=TitleBar
@@ -194,20 +194,32 @@ task.spawn(function()
     end
 end)
 
--- FPS and PING small labels in title bar (top right, replacing PREMIUM)
+-- FPS and PING below title, small, violet neon
 local FPSInTitle=Instance.new("TextLabel")
-FPSInTitle.Size=UDim2.new(0.36,0,0,14); FPSInTitle.Position=UDim2.new(0.6,0,0,6)
-FPSInTitle.BackgroundTransparency=1; FPSInTitle.Text="FPS: --"; FPSInTitle.TextColor3=VIO_L
-FPSInTitle.Font=Enum.Font.GothamBold; FPSInTitle.TextSize=11
-FPSInTitle.TextXAlignment=Enum.TextXAlignment.Right; FPSInTitle.ZIndex=6; FPSInTitle.Parent=TitleBar
+FPSInTitle.Size=UDim2.new(0.42,0,0,12); FPSInTitle.Position=UDim2.new(0,14,0,32)
+FPSInTitle.BackgroundTransparency=1; FPSInTitle.Text="FPS: --"; FPSInTitle.TextColor3=VIO
+FPSInTitle.Font=Enum.Font.GothamBold; FPSInTitle.TextSize=10
+FPSInTitle.TextXAlignment=Enum.TextXAlignment.Left; FPSInTitle.ZIndex=6; FPSInTitle.Parent=TitleBar
 
 local PingInTitle=Instance.new("TextLabel")
-PingInTitle.Size=UDim2.new(0.36,0,0,14); PingInTitle.Position=UDim2.new(0.6,0,0,24)
-PingInTitle.BackgroundTransparency=1; PingInTitle.Text="PING: --"; PingInTitle.TextColor3=VIO_L
-PingInTitle.Font=Enum.Font.GothamBold; PingInTitle.TextSize=11
-PingInTitle.TextXAlignment=Enum.TextXAlignment.Right; PingInTitle.ZIndex=6; PingInTitle.Parent=TitleBar
+PingInTitle.Size=UDim2.new(0.42,0,0,12); PingInTitle.Position=UDim2.new(0,14,0,46)
+PingInTitle.BackgroundTransparency=1; PingInTitle.Text="PING: --"; PingInTitle.TextColor3=VIO
+PingInTitle.Font=Enum.Font.GothamBold; PingInTitle.TextSize=10
+PingInTitle.TextXAlignment=Enum.TextXAlignment.Left; PingInTitle.ZIndex=6; PingInTitle.Parent=TitleBar
 
--- Update FPS/PING in title bar
+-- Violet neon pulse on FPS/PING labels
+task.spawn(function()
+    while true do
+        TweenService:Create(FPSInTitle, TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO_L}):Play()
+        TweenService:Create(PingInTitle,TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO_L}):Play()
+        task.wait(1.2)
+        TweenService:Create(FPSInTitle, TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO}):Play()
+        TweenService:Create(PingInTitle,TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO}):Play()
+        task.wait(1.2)
+    end
+end)
+
+-- Update FPS/PING
 local lastT,fc=tick(),0
 RunService.RenderStepped:Connect(function()
     fc+=1; local now=tick()
@@ -247,11 +259,11 @@ local toggleVisuals={}
 local function MakeToggle(name,yPos,callback,height,saveKey)
     height=height or 36
     local Btn=Instance.new("TextButton"); Btn.Size=UDim2.new(0,298,0,height); Btn.Position=UDim2.new(0.5,-149,0,yPos)
-    Btn.BackgroundColor3=BLACK; Btn.BorderSizePixel=0; Btn.Text=""; Btn.ZIndex=5; Btn.Parent=MainFrame
+    Btn.BackgroundColor3=BLACK; Btn.BackgroundTransparency=0.6; Btn.BorderSizePixel=0; Btn.Text=""; Btn.ZIndex=5; Btn.Parent=MainFrame
     Instance.new("UICorner",Btn).CornerRadius=UDim.new(0,9)
     local BtnStroke=Instance.new("UIStroke"); BtnStroke.Color=VIO_D; BtnStroke.Thickness=1.2; BtnStroke.Parent=Btn
     local BtnLbl=Instance.new("TextLabel"); BtnLbl.Size=UDim2.new(0.7,0,1,0); BtnLbl.Position=UDim2.new(0,12,0,0)
-    BtnLbl.BackgroundTransparency=1; BtnLbl.Text=name; BtnLbl.TextColor3=VIO  -- violet neon label
+    BtnLbl.BackgroundTransparency=1; BtnLbl.Text=name; BtnLbl.TextColor3=VIO
     BtnLbl.Font=Enum.Font.GothamBold; BtnLbl.TextScaled=true; BtnLbl.TextXAlignment=Enum.TextXAlignment.Left
     BtnLbl.ZIndex=6; BtnLbl.Parent=Btn
     local Track=Instance.new("Frame"); Track.Size=UDim2.new(0,46,0,24); Track.Position=UDim2.new(1,-56,0.5,-12)
@@ -428,7 +440,7 @@ end
 
 local function MakeSliderBox(name, yPos, minVal, maxVal, startVal, onToggle, onSlide, saveKey)
     local Box=Instance.new("Frame"); Box.Size=UDim2.new(0,298,0,72); Box.Position=UDim2.new(0.5,-149,0,yPos)
-    Box.BackgroundColor3=BLACK; Box.BorderSizePixel=0; Box.ZIndex=5; Box.Parent=MainFrame
+    Box.BackgroundColor3=BLACK; Box.BackgroundTransparency=0.6; Box.BorderSizePixel=0; Box.ZIndex=5; Box.Parent=MainFrame
     Instance.new("UICorner",Box).CornerRadius=UDim.new(0,9)
     local BoxStroke=Instance.new("UIStroke"); BoxStroke.Color=VIO_D; BoxStroke.Thickness=1.2; BoxStroke.Parent=Box
 
@@ -515,7 +527,7 @@ MakeToggle("LOW GRAPHICS",Y,function(s) toggleStates.lowgfx=s;  ApplyLowGraphics
 MakeToggle("FPS BOOST",   Y,function(s) toggleStates.fps=s;     ApplyFPSBoost(s);    SaveSettings() end,36,"fps");     Y=Y+42
 MakeToggle("PING LOW",    Y,function(s) toggleStates.ping=s;    ApplyPingLow(s);     SaveSettings() end,36,"ping");    Y=Y+42
 MakeToggle("DAY",         Y,function(s) toggleStates.day=s;     ApplyDaySky(s);      SaveSettings() end,36,"day");     Y=Y+42
-MakeToggle("NOCHE",       Y,function(s) toggleStates.night=s;   ApplyNightSky(s);    SaveSettings() end,36,"night");   Y=Y+42
+MakeToggle("NIGHT SKY",   Y,function(s) toggleStates.night=s;   ApplyNightSky(s);    SaveSettings() end,36,"night");   Y=Y+42
 MakeToggle("BRIGHTNESS",  Y,function(s)
     toggleStates.brightness=s
     if s then Lighting.Brightness=6; Lighting.Ambient=Color3.fromRGB(200,200,200); Lighting.OutdoorAmbient=Color3.fromRGB(220,220,220)
