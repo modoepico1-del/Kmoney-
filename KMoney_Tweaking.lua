@@ -45,6 +45,7 @@ LogoHolder.ZIndex = 10
 LogoHolder.Active = true
 LogoHolder.Parent = ScreenGui
 
+-- Black circle background, violet neon $K text
 local LogoBtn = Instance.new("TextButton")
 LogoBtn.Size = UDim2.new(0,64,0,64)
 LogoBtn.Position = UDim2.new(0.5,-32,0,0)
@@ -61,6 +62,7 @@ Instance.new("UICorner",LogoBtn).CornerRadius = UDim.new(1,0)
 local LogoStroke = Instance.new("UIStroke")
 LogoStroke.Color = VIO; LogoStroke.Thickness = 2; LogoStroke.Parent = LogoBtn
 
+-- Logo drag
 local logoDragging,logoDragStart,logoStartPos = false,nil,nil
 LogoBtn.InputBegan:Connect(function(inp)
     if inp.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -77,6 +79,7 @@ UserInputSvc.InputEnded:Connect(function(inp)
     if inp.UserInputType==Enum.UserInputType.MouseButton1 then logoDragging=false end
 end)
 
+-- $K neon pulse (text color pulses violet)
 task.spawn(function()
     while true do
         TweenService:Create(LogoStroke,TweenInfo.new(1,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{Thickness=4,Color=VIO_L}):Play()
@@ -88,6 +91,7 @@ task.spawn(function()
     end
 end)
 
+-- KMONEY label: black neon below logo
 local kmoneyChars = {"K","M","O","N","E","Y"}
 local letterLabels = {}
 local lspc=10; local lstart=math.floor((80-#kmoneyChars*lspc)/2)
@@ -100,6 +104,7 @@ for i,ch in ipairs(kmoneyChars) do
     letterLabels[i]=lbl
 end
 
+-- KMONEY black neon pulse (dark shimmer)
 local neonT=0
 RunService.Heartbeat:Connect(function(dt)
     if not LogoHolder.Visible then return end
@@ -168,7 +173,7 @@ RunService.RenderStepped:Connect(function(dt)
 end)
 
 -- ============================================
---   TITLE BAR
+--   TITLE BAR  (no PREMIUM - replaced by FPS+PING)
 -- ============================================
 
 local TitleBar=Instance.new("Frame"); TitleBar.Size=UDim2.new(1,0,0,82)
@@ -177,6 +182,7 @@ Instance.new("UICorner",TitleBar).CornerRadius=UDim.new(0,14)
 local TFix=Instance.new("Frame"); TFix.Size=UDim2.new(1,0,0.5,0); TFix.Position=UDim2.new(0,0,0.5,0)
 TFix.BackgroundColor3=Color3.fromRGB(0,0,0); TFix.BackgroundTransparency=1; TFix.BorderSizePixel=0; TFix.ZIndex=5; TFix.Parent=TitleBar
 
+-- KMONEY TWEAKING title (top line)
 local TitleLabel=Instance.new("TextLabel")
 TitleLabel.Size=UDim2.new(0.82,0,0,24); TitleLabel.Position=UDim2.new(0,14,0,4)
 TitleLabel.BackgroundTransparency=1; TitleLabel.Text="KMONEY TWEAKING"
@@ -192,6 +198,7 @@ task.spawn(function()
     end
 end)
 
+-- FPS and PING below title, small, violet neon
 local FPSInTitle=Instance.new("TextLabel")
 FPSInTitle.Size=UDim2.new(0.42,0,0,12); FPSInTitle.Position=UDim2.new(0,14,0,32)
 FPSInTitle.BackgroundTransparency=1; FPSInTitle.Text="FPS: --"; FPSInTitle.TextColor3=VIO
@@ -204,8 +211,9 @@ PingInTitle.BackgroundTransparency=1; PingInTitle.Text="PING: --"; PingInTitle.T
 PingInTitle.Font=Enum.Font.GothamBold; PingInTitle.TextSize=10
 PingInTitle.TextXAlignment=Enum.TextXAlignment.Left; PingInTitle.ZIndex=6; PingInTitle.Parent=TitleBar
 
+-- PREMIUM label below PING, small, violet neon
 local PremiumLbl=Instance.new("TextLabel")
-PremiumLbl.Size=UDim2.new(0.42,0,0,12); PremiumLbl.Position=UDim2.new(0.5,-10,0,46)
+PremiumLbl.Size=UDim2.new(0.6,0,0,11); PremiumLbl.Position=UDim2.new(0,14,0,60)
 PremiumLbl.BackgroundTransparency=1; PremiumLbl.Text="✦ PREMIUM ✦"; PremiumLbl.TextColor3=VIO
 PremiumLbl.Font=Enum.Font.GothamBold; PremiumLbl.TextSize=9
 PremiumLbl.TextXAlignment=Enum.TextXAlignment.Left; PremiumLbl.ZIndex=6; PremiumLbl.Parent=TitleBar
@@ -218,6 +226,7 @@ task.spawn(function()
     end
 end)
 
+-- Violet neon pulse on FPS/PING labels
 task.spawn(function()
     while true do
         TweenService:Create(FPSInTitle, TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO_L}):Play()
@@ -229,6 +238,7 @@ task.spawn(function()
     end
 end)
 
+-- Update FPS/PING
 local lastT,fc=tick(),0
 RunService.RenderStepped:Connect(function()
     fc+=1; local now=tick()
@@ -238,6 +248,7 @@ RunService.Heartbeat:Connect(function()
     PingInTitle.Text="PING: "..math.floor(LocalPlayer:GetNetworkPing()*1000).."ms"
 end)
 
+-- Close button
 local CloseBtn=Instance.new("TextButton"); CloseBtn.Size=UDim2.new(0,28,0,28); CloseBtn.Position=UDim2.new(1,-38,0,8)
 CloseBtn.BackgroundColor3=Color3.fromRGB(170,35,35); CloseBtn.BackgroundTransparency=1; CloseBtn.Text="X"; CloseBtn.TextColor3=Color3.fromRGB(255,80,80)
 CloseBtn.Font=Enum.Font.GothamBold; CloseBtn.TextScaled=true; CloseBtn.BorderSizePixel=0
@@ -247,7 +258,16 @@ Instance.new("UICorner",CloseBtn).CornerRadius=UDim.new(0,7)
 CloseBtn.MouseButton1Click:Connect(function() MainFrame.Visible=false; LogoHolder.Visible=true end)
 LogoBtn.MouseButton1Click:Connect(function() LogoHolder.Visible=false; MainFrame.Visible=true end)
 
+-- ============================================
+--   FOV STAT (transparent, small, below title)
+-- ============================================
 
+local FovStatBox=Instance.new("Frame"); FovStatBox.Size=UDim2.new(0,298,0,22); FovStatBox.Position=UDim2.new(0.5,-149,0,84)
+FovStatBox.BackgroundTransparency=1; FovStatBox.BorderSizePixel=0; FovStatBox.ZIndex=5; FovStatBox.Parent=MainFrame
+
+local FovStatLbl=Instance.new("TextLabel"); FovStatLbl.Size=UDim2.new(1,0,1,0); FovStatLbl.BackgroundTransparency=1
+FovStatLbl.Text="FOV: 70"; FovStatLbl.TextColor3=VIO; FovStatLbl.Font=Enum.Font.GothamBold
+FovStatLbl.TextSize=12; FovStatLbl.TextXAlignment=Enum.TextXAlignment.Center; FovStatLbl.ZIndex=6; FovStatLbl.Parent=FovStatBox
 
 -- ============================================
 --   TOGGLE HELPER
@@ -265,6 +285,7 @@ local function MakeToggle(name,yPos,callback,height,saveKey)
     BtnLbl.BackgroundTransparency=1; BtnLbl.Text=name; BtnLbl.TextColor3=VIO
     BtnLbl.Font=Enum.Font.GothamBold; BtnLbl.TextSize=13; BtnLbl.TextXAlignment=Enum.TextXAlignment.Left
     BtnLbl.ZIndex=6; BtnLbl.Parent=Btn
+    -- Violet neon pulse on label
     task.spawn(function()
         while BtnLbl.Parent do
             TweenService:Create(BtnLbl,TweenInfo.new(1.3,Enum.EasingStyle.Sine),{TextColor3=VIO_L}):Play()
@@ -306,6 +327,7 @@ local savedLighting={
     FogEnd=Lighting.FogEnd, FogStart=Lighting.FogStart
 }
 
+-- DAY sky ID: 75213778961746
 local dayConn=nil
 local function ApplyDaySky(state)
     if state then
@@ -334,6 +356,7 @@ local function ApplyDaySky(state)
     end
 end
 
+-- NIGHT sky ID: 94323559180006
 local nightConn=nil
 local function ApplyNightSky(state)
     if state then
@@ -362,6 +385,7 @@ local function ApplyNightSky(state)
     end
 end
 
+-- GALAXY sky ID: 126150693377405
 local galaxyConn=nil
 local function ApplyGalaxySky(state)
     if state then
@@ -426,72 +450,16 @@ local function ApplyPingLow(state)
 end
 
 -- ============================================
---   FULL BRIGHT (mejorado) — nivel 1.0–10.0
+--   SAVE / LOAD (includes FOV)
 -- ============================================
 
-local fullBrightEnabled = false
-local fullBrightLevel   = 5.0  -- valor inicial
-
--- Calcula los colores de ambiente segun el nivel
-local function BrightAmbientColor(level)
-    local v = math.floor(math.clamp(level / 10 * 255, 0, 255))
-    return Color3.fromRGB(v, v, v)
-end
-
--- Aplica la iluminacion con el nivel dado (solo si activo)
-local function ApplyFullBright(state, level)
-    level = level or fullBrightLevel
-    if state then
-        Lighting.Brightness       = level
-        Lighting.GlobalShadows    = false
-        Lighting.ClockTime        = 14
-        Lighting.FogEnd           = 300000
-        Lighting.FogStart         = 200000
-        local amb = BrightAmbientColor(level)
-        Lighting.Ambient          = amb
-        Lighting.OutdoorAmbient   = amb
-        -- Elimina efectos de oscuridad (ColorCorrection, Bloom exagerado)
-        for _, fx in ipairs(Lighting:GetChildren()) do
-            if fx:IsA("ColorCorrectionEffect") then
-                fx.Brightness = math.clamp(level * 0.05, 0, 1)
-                fx.Contrast   = 0
-            elseif fx:IsA("BloomEffect") then
-                fx.Intensity = 0.1
-            elseif fx:IsA("BlurEffect") then
-                fx.Size = 0
-            end
-        end
-    else
-        Lighting.Brightness     = savedLighting.Brightness
-        Lighting.GlobalShadows  = true
-        Lighting.ClockTime      = savedLighting.ClockTime
-        Lighting.FogEnd         = savedLighting.FogEnd
-        Lighting.FogStart       = savedLighting.FogStart
-        Lighting.Ambient        = savedLighting.Ambient
-        Lighting.OutdoorAmbient = savedLighting.OutdoorAmbient
-        -- Restaura efectos
-        for _, fx in ipairs(Lighting:GetChildren()) do
-            if fx:IsA("ColorCorrectionEffect") then
-                fx.Brightness = 0; fx.Contrast = 0
-            elseif fx:IsA("BlurEffect") then
-                fx.Size = 24
-            end
-        end
-    end
-end
-
--- ============================================
---   SAVE / LOAD (incluye FOV + brightLevel)
--- ============================================
-
-local SAVE_FILE="kmoney_v7.txt"
+local SAVE_FILE="kmoney_v6.txt"
 local currentFOV=70
 local toggleStates={lowgfx=false,fps=false,ping=false,day=false,night=false,galaxy=false,brightness=false,autorejoin=false,autokit=false,autoload=false}
 
 local function SaveSettings()
     pcall(function()
         local d="fov="..tostring(math.floor(currentFOV)).."\n"
-        d=d.."brightlevel="..tostring(string.format("%.1f",fullBrightLevel)).."\n"
         for k,v in pairs(toggleStates) do d=d..k.."="..tostring(v).."\n" end
         writefile(SAVE_FILE,d)
     end)
@@ -502,9 +470,7 @@ local function LoadSettings()
     if ok and d and d~="" then
         local t={}
         for k,v in string.gmatch(d,"([%a]+)=([%w%.]+)") do
-            if k=="fov" then t.fov=tonumber(v)
-            elseif k=="brightlevel" then t.brightlevel=tonumber(v)
-            else t[k]=(v=="true") end
+            if k=="fov" then t.fov=tonumber(v) else t[k]=(v=="true") end
         end
         return t
     end
@@ -525,144 +491,115 @@ local function ApplyToggleVisual(key,state)
 end
 
 -- ============================================
---   BUILD TOGGLES  (Y starts at 110)
+--   SLIDER HELPER (for rejoin + kit)
 -- ============================================
 
-local Y=96
+local function MakeSliderBox(name, yPos, minVal, maxVal, startVal, onToggle, onSlide, saveKey)
+    local Box=Instance.new("Frame"); Box.Size=UDim2.new(0,298,0,72); Box.Position=UDim2.new(0.5,-149,0,yPos)
+    Box.BackgroundColor3=BLACK; Box.BackgroundTransparency=0.6; Box.BorderSizePixel=0; Box.ZIndex=5; Box.Parent=MainFrame
+    Instance.new("UICorner",Box).CornerRadius=UDim.new(0,9)
+    local BoxStroke=Instance.new("UIStroke"); BoxStroke.Color=VIO_D; BoxStroke.Thickness=1.2; BoxStroke.Parent=Box
 
-MakeToggle("LOW GRAPHICS",Y,function(s) toggleStates.lowgfx=s; ApplyLowGraphics(s); SaveSettings() end,36,"lowgfx"); Y=Y+42
-MakeToggle("FPS BOOST",   Y,function(s) toggleStates.fps=s;    ApplyFPSBoost(s);    SaveSettings() end,36,"fps");    Y=Y+42
-MakeToggle("PING LOW",    Y,function(s) toggleStates.ping=s;   ApplyPingLow(s);     SaveSettings() end,36,"ping");   Y=Y+42
-MakeToggle("DAY",         Y,function(s) toggleStates.day=s;    ApplyDaySky(s);      SaveSettings() end,36,"day");    Y=Y+42
-MakeToggle("NIGHT",       Y,function(s) toggleStates.night=s;  ApplyNightSky(s);    SaveSettings() end,36,"night");  Y=Y+42
-MakeToggle("GALAXY",      Y,function(s) toggleStates.galaxy=s; ApplyGalaxySky(s);   SaveSettings() end,36,"galaxy"); Y=Y+42
+    local NameLbl=Instance.new("TextLabel"); NameLbl.Size=UDim2.new(0.62,0,0,28); NameLbl.Position=UDim2.new(0,12,0,0)
+    NameLbl.BackgroundTransparency=1; NameLbl.Text=name; NameLbl.TextColor3=VIO
+    NameLbl.Font=Enum.Font.GothamBold; NameLbl.TextSize=13; NameLbl.TextXAlignment=Enum.TextXAlignment.Left
+    NameLbl.ZIndex=6; NameLbl.Parent=Box
 
--- ============================================
---   FULL BRIGHT — SLIDER + TOGGLE (MEJORADO)
--- ============================================
+    local BTrack=Instance.new("Frame"); BTrack.Size=UDim2.new(0,46,0,24); BTrack.Position=UDim2.new(1,-56,0,2)
+    BTrack.BackgroundColor3=Color3.fromRGB(45,45,60); BTrack.BorderSizePixel=0; BTrack.ZIndex=6; BTrack.Parent=Box
+    Instance.new("UICorner",BTrack).CornerRadius=UDim.new(1,0)
+    local BCircle=Instance.new("Frame"); BCircle.Size=UDim2.new(0,18,0,18); BCircle.Position=UDim2.new(0,3,0.5,-9)
+    BCircle.BackgroundColor3=Color3.fromRGB(160,160,160); BCircle.BorderSizePixel=0; BCircle.ZIndex=7; BCircle.Parent=BTrack
+    Instance.new("UICorner",BCircle).CornerRadius=UDim.new(1,0)
 
-local FBBox=Instance.new("Frame"); FBBox.Size=UDim2.new(0,298,0,80); FBBox.Position=UDim2.new(0.5,-149,0,Y)
-FBBox.BackgroundColor3=BLACK; FBBox.BackgroundTransparency=0.6; FBBox.BorderSizePixel=0; FBBox.ZIndex=5; FBBox.Parent=MainFrame
-Instance.new("UICorner",FBBox).CornerRadius=UDim.new(0,9)
-local FBStroke=Instance.new("UIStroke"); FBStroke.Color=VIO_D; FBStroke.Thickness=1.2; FBStroke.Parent=FBBox
-toggleVisuals["brightness"]={track=nil,circle=nil,stroke=FBStroke}
-
--- Titulo
-local FBNameLbl=Instance.new("TextLabel"); FBNameLbl.Size=UDim2.new(0.65,0,0,26); FBNameLbl.Position=UDim2.new(0,12,0,0)
-FBNameLbl.BackgroundTransparency=1; FBNameLbl.Text="FULL BRIGHT ☀"; FBNameLbl.TextColor3=VIO
-FBNameLbl.Font=Enum.Font.GothamBold; FBNameLbl.TextSize=13; FBNameLbl.TextXAlignment=Enum.TextXAlignment.Left
-FBNameLbl.ZIndex=6; FBNameLbl.Parent=FBBox
-task.spawn(function()
-    while FBNameLbl.Parent do
-        TweenService:Create(FBNameLbl,TweenInfo.new(1.3,Enum.EasingStyle.Sine),{TextColor3=VIO_L}):Play()
-        task.wait(1.3)
-        TweenService:Create(FBNameLbl,TweenInfo.new(1.3,Enum.EasingStyle.Sine),{TextColor3=VIO}):Play()
-        task.wait(1.3)
-    end
-end)
-
--- Toggle switch
-local FBTrack=Instance.new("Frame"); FBTrack.Size=UDim2.new(0,46,0,24); FBTrack.Position=UDim2.new(1,-56,0,1)
-FBTrack.BackgroundColor3=Color3.fromRGB(45,45,60); FBTrack.BorderSizePixel=0; FBTrack.ZIndex=6; FBTrack.Parent=FBBox
-Instance.new("UICorner",FBTrack).CornerRadius=UDim.new(1,0)
-local FBCircle=Instance.new("Frame"); FBCircle.Size=UDim2.new(0,18,0,18); FBCircle.Position=UDim2.new(0,3,0.5,-9)
-FBCircle.BackgroundColor3=Color3.fromRGB(160,160,160); FBCircle.BorderSizePixel=0; FBCircle.ZIndex=7; FBCircle.Parent=FBTrack
-Instance.new("UICorner",FBCircle).CornerRadius=UDim.new(1,0)
-toggleVisuals["brightness"].track=FBTrack; toggleVisuals["brightness"].circle=FBCircle
-
--- Label nivel
-local FBValLbl=Instance.new("TextLabel"); FBValLbl.Size=UDim2.new(1,0,0,14); FBValLbl.Position=UDim2.new(0,0,0,28)
-FBValLbl.BackgroundTransparency=1; FBValLbl.Text="Brillo: 5.0  |  Ambiente: 127"; FBValLbl.TextColor3=VIO
-FBValLbl.Font=Enum.Font.Gotham; FBValLbl.TextSize=10; FBValLbl.TextXAlignment=Enum.TextXAlignment.Center
-FBValLbl.ZIndex=6; FBValLbl.Parent=FBBox
-task.spawn(function()
-    while FBValLbl.Parent do
-        TweenService:Create(FBValLbl,TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO_L}):Play()
-        task.wait(1.2)
-        TweenService:Create(FBValLbl,TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO}):Play()
-        task.wait(1.2)
-    end
-end)
-
--- Barra de slider
-local FBSliderTrack=Instance.new("Frame"); FBSliderTrack.Size=UDim2.new(1,-24,0,8); FBSliderTrack.Position=UDim2.new(0,12,0,50)
-FBSliderTrack.BackgroundColor3=Color3.fromRGB(38,38,52); FBSliderTrack.BorderSizePixel=0; FBSliderTrack.ZIndex=6; FBSliderTrack.Parent=FBBox
-Instance.new("UICorner",FBSliderTrack).CornerRadius=UDim.new(1,0)
-
-local FBSliderFill=Instance.new("Frame"); FBSliderFill.BackgroundColor3=VIO; FBSliderFill.BorderSizePixel=0; FBSliderFill.ZIndex=7; FBSliderFill.Parent=FBSliderTrack
-Instance.new("UICorner",FBSliderFill).CornerRadius=UDim.new(1,0)
-
--- El thumb del slider tiene un pequeño icono de sol
-local FBSliderThumb=Instance.new("TextButton"); FBSliderThumb.Size=UDim2.new(0,20,0,20)
-FBSliderThumb.BackgroundColor3=WHITE; FBSliderThumb.Text="☀"; FBSliderThumb.TextColor3=VIO
-FBSliderThumb.Font=Enum.Font.GothamBold; FBSliderThumb.TextSize=11
-FBSliderThumb.BorderSizePixel=0; FBSliderThumb.ZIndex=8; FBSliderThumb.Parent=FBSliderTrack
-Instance.new("UICorner",FBSliderThumb).CornerRadius=UDim.new(1,0)
-
--- Marcadores min/max
-local FBMin=Instance.new("TextLabel"); FBMin.Size=UDim2.new(0,16,0,10); FBMin.Position=UDim2.new(0,12,0,62)
-FBMin.BackgroundTransparency=1; FBMin.Text="1"; FBMin.TextColor3=VIO_D
-FBMin.Font=Enum.Font.Gotham; FBMin.TextSize=8; FBMin.TextXAlignment=Enum.TextXAlignment.Left
-FBMin.ZIndex=6; FBMin.Parent=FBBox
-
-local FBMax=Instance.new("TextLabel"); FBMax.Size=UDim2.new(0,20,0,10); FBMax.Position=UDim2.new(1,-32,0,62)
-FBMax.BackgroundTransparency=1; FBMax.Text="10"; FBMax.TextColor3=VIO_D
-FBMax.Font=Enum.Font.Gotham; FBMax.TextSize=8; FBMax.TextXAlignment=Enum.TextXAlignment.Right
-FBMax.ZIndex=6; FBMax.Parent=FBBox
-
--- Funcion para actualizar el slider visualmente y aplicar si activo
-local draggingFBSlider=false
-local function SetFullBrightLevel(v)
-    v = math.clamp(math.floor(v*10+0.5)/10, 1.0, 10.0)
-    fullBrightLevel = v
-    local pct = (v-1.0)/9.0
-    FBSliderFill.Size = UDim2.new(pct,0,1,0)
-    FBSliderThumb.Position = UDim2.new(pct,-10,0.5,-10)
-    local ambVal = math.floor(pct*255)
-    FBValLbl.Text = "Brillo: "..string.format("%.1f",v).."  |  Ambiente: "..ambVal
-    -- Colorea el fill segun intensidad: de violeta oscuro a blanco brillante
-    local fillR = math.floor(VIO.R*255 + pct*(255-VIO.R*255))
-    local fillG = math.floor(pct*180)
-    local fillB = math.floor(VIO.B*255 + pct*(255-VIO.B*255))
-    FBSliderFill.BackgroundColor3 = Color3.fromRGB(fillR, fillG, fillB)
-    if fullBrightEnabled then ApplyFullBright(true, v) end
-    SaveSettings()
-end
-SetFullBrightLevel(5.0)
-
-FBSliderThumb.MouseButton1Down:Connect(function() draggingFBSlider=true end)
-UserInputSvc.InputEnded:Connect(function(i)
-    if i.UserInputType==Enum.UserInputType.MouseButton1 then draggingFBSlider=false end
-end)
-RunService.RenderStepped:Connect(function()
-    if draggingFBSlider then
-        local pct=math.clamp((UserInputSvc:GetMouseLocation().X-FBSliderTrack.AbsolutePosition.X)/FBSliderTrack.AbsoluteSize.X,0,1)
-        SetFullBrightLevel(1.0+pct*9.0)
-    end
-end)
-
--- Toggle handler (click en el area superior, fuera del slider)
-FBBox.InputBegan:Connect(function(inp)
-    if inp.UserInputType==Enum.UserInputType.MouseButton1 then
-        local my = inp.Position.Y - FBBox.AbsolutePosition.Y
-        if my > 44 then return end -- zona del slider, ignorar
-        fullBrightEnabled = not fullBrightEnabled
-        toggleStates.brightness = fullBrightEnabled
-        if fullBrightEnabled then
-            TweenService:Create(FBTrack,TweenInfo.new(0.18),{BackgroundColor3=BLACK}):Play()
-            TweenService:Create(FBCircle,TweenInfo.new(0.18),{Position=UDim2.new(0,24,0.5,-9),BackgroundColor3=WHITE}):Play()
-            FBStroke.Color=VIO; FBNameLbl.TextColor3=VIO_L
-            ApplyFullBright(true, fullBrightLevel)
-        else
-            TweenService:Create(FBTrack,TweenInfo.new(0.18),{BackgroundColor3=Color3.fromRGB(45,45,60)}):Play()
-            TweenService:Create(FBCircle,TweenInfo.new(0.18),{Position=UDim2.new(0,3,0.5,-9),BackgroundColor3=Color3.fromRGB(160,160,160)}):Play()
-            FBStroke.Color=VIO_D; FBNameLbl.TextColor3=VIO
-            ApplyFullBright(false, fullBrightLevel)
+    local ValLbl=Instance.new("TextLabel"); ValLbl.Size=UDim2.new(1,0,0,14); ValLbl.Position=UDim2.new(0,0,0,30)
+    ValLbl.BackgroundTransparency=1; ValLbl.TextColor3=VIO; ValLbl.Font=Enum.Font.Gotham; ValLbl.TextSize=11
+    ValLbl.TextXAlignment=Enum.TextXAlignment.Center; ValLbl.ZIndex=6; ValLbl.Parent=Box
+    -- Violet neon pulse on delay label
+    task.spawn(function()
+        while ValLbl.Parent do
+            TweenService:Create(ValLbl,TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO_L}):Play()
+            task.wait(1.2)
+            TweenService:Create(ValLbl,TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO}):Play()
+            task.wait(1.2)
         end
-        SaveSettings()
+    end)
+
+    local STrack=Instance.new("Frame"); STrack.Size=UDim2.new(1,-24,0,8); STrack.Position=UDim2.new(0,12,0,50)
+    STrack.BackgroundColor3=Color3.fromRGB(38,38,52); STrack.BorderSizePixel=0; STrack.ZIndex=6; STrack.Parent=Box
+    Instance.new("UICorner",STrack).CornerRadius=UDim.new(1,0)
+
+    local SFill=Instance.new("Frame"); SFill.BackgroundColor3=VIO; SFill.BorderSizePixel=0; SFill.ZIndex=7; SFill.Parent=STrack
+    Instance.new("UICorner",SFill).CornerRadius=UDim.new(1,0)
+
+    local SThumb=Instance.new("TextButton"); SThumb.Size=UDim2.new(0,18,0,18); SThumb.BackgroundColor3=WHITE
+    SThumb.Text=""; SThumb.BorderSizePixel=0; SThumb.ZIndex=8; SThumb.Parent=STrack
+    Instance.new("UICorner",SThumb).CornerRadius=UDim.new(1,0)
+
+    local curVal=startVal
+    local function SetVal(v)
+        v=math.clamp(v,minVal,maxVal)
+        v=math.floor(v*10+0.5)/10
+        curVal=v
+        local pct=(v-minVal)/(maxVal-minVal)
+        SFill.Size=UDim2.new(pct,0,1,0); SThumb.Position=UDim2.new(pct,-9,0.5,-9)
+        ValLbl.Text="Delay: "..string.format("%.1f",v).."s"
+        if onSlide then onSlide(v) end
     end
-end)
-Y=Y+88
+    SetVal(startVal)
+
+    local dragging=false
+    SThumb.MouseButton1Down:Connect(function() dragging=true end)
+    UserInputSvc.InputEnded:Connect(function(inp) if inp.UserInputType==Enum.UserInputType.MouseButton1 then dragging=false end end)
+    RunService.RenderStepped:Connect(function()
+        if dragging then
+            local pct=math.clamp((UserInputSvc:GetMouseLocation().X-STrack.AbsolutePosition.X)/STrack.AbsoluteSize.X,0,1)
+            SetVal(minVal+pct*(maxVal-minVal))
+        end
+    end)
+
+    if saveKey then toggleVisuals[saveKey]={track=BTrack,circle=BCircle,stroke=BoxStroke} end
+
+    local enabled=false
+    Box.InputBegan:Connect(function(inp)
+        if inp.UserInputType==Enum.UserInputType.MouseButton1 then
+            local my=inp.Position.Y-Box.AbsolutePosition.Y
+            if my>45 then return end -- ignore slider area clicks
+            enabled=not enabled
+            if enabled then
+                TweenService:Create(BTrack,TweenInfo.new(0.18),{BackgroundColor3=BLACK}):Play()
+                TweenService:Create(BCircle,TweenInfo.new(0.18),{Position=UDim2.new(0,24,0.5,-9),BackgroundColor3=WHITE}):Play()
+                BoxStroke.Color=VIO; NameLbl.TextColor3=VIO_L
+            else
+                TweenService:Create(BTrack,TweenInfo.new(0.18),{BackgroundColor3=Color3.fromRGB(45,45,60)}):Play()
+                TweenService:Create(BCircle,TweenInfo.new(0.18),{Position=UDim2.new(0,3,0.5,-9),BackgroundColor3=Color3.fromRGB(160,160,160)}):Play()
+                BoxStroke.Color=VIO_D; NameLbl.TextColor3=VIO
+            end
+            if onToggle then onToggle(enabled, curVal) end
+        end
+    end)
+
+    return enabled
+end
+
+-- ============================================
+--   BUILD TOGGLES  (Y starts at 96)
+-- ============================================
+
+local Y=110
+
+MakeToggle("LOW GRAPHICS",Y,function(s) toggleStates.lowgfx=s;  ApplyLowGraphics(s); SaveSettings() end,36,"lowgfx");  Y=Y+42
+MakeToggle("FPS BOOST",   Y,function(s) toggleStates.fps=s;     ApplyFPSBoost(s);    SaveSettings() end,36,"fps");     Y=Y+42
+MakeToggle("PING LOW",    Y,function(s) toggleStates.ping=s;    ApplyPingLow(s);     SaveSettings() end,36,"ping");    Y=Y+42
+MakeToggle("DAY",         Y,function(s) toggleStates.day=s;     ApplyDaySky(s);      SaveSettings() end,36,"day");     Y=Y+42
+MakeToggle("NIGHT",       Y,function(s) toggleStates.night=s;   ApplyNightSky(s);    SaveSettings() end,36,"night");   Y=Y+42
+MakeToggle("GALAXY",      Y,function(s) toggleStates.galaxy=s;  ApplyGalaxySky(s);   SaveSettings() end,36,"galaxy");  Y=Y+42
+MakeToggle("BRIGHT",  Y,function(s)
+    toggleStates.brightness=s
+    if s then Lighting.Brightness=6; Lighting.Ambient=Color3.fromRGB(200,200,200); Lighting.OutdoorAmbient=Color3.fromRGB(220,220,220)
+    else Lighting.Brightness=savedLighting.Brightness; Lighting.Ambient=savedLighting.Ambient; Lighting.OutdoorAmbient=savedLighting.OutdoorAmbient end
+    SaveSettings()
+end,36,"brightness"); Y=Y+42
 
 -- ============================================
 --   FOV SLIDER
@@ -683,6 +620,7 @@ FOVVal.BackgroundTransparency=1; FOVVal.Text="70"; FOVVal.TextColor3=VIO
 FOVVal.Font=Enum.Font.GothamBold; FOVVal.TextSize=13; FOVVal.TextXAlignment=Enum.TextXAlignment.Right
 FOVVal.ZIndex=6; FOVVal.Parent=FOVBox
 
+-- Violet neon pulse on FOV number
 task.spawn(function()
     while FOVVal.Parent do
         TweenService:Create(FOVVal,TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO_L}):Play()
@@ -710,7 +648,7 @@ local function SetFOV(fov)
     local cam=workspace.CurrentCamera; if cam then cam.FieldOfView=fov end
     local pct=(fov-FOV_MIN)/(FOV_MAX-FOV_MIN)
     FovFill.Size=UDim2.new(pct,0,1,0); FovThumb.Position=UDim2.new(pct,-10,0.5,-10)
-    FOVVal.Text=math.floor(fov)..""
+    FOVVal.Text=math.floor(fov)..""; FovStatLbl.Text="FOV: "..math.floor(fov)
     currentFOV=fov; SaveSettings()
 end
 FovThumb.MouseButton1Down:Connect(function() draggingFOV=true end)
@@ -729,7 +667,7 @@ SetFOV(70); Y=Y+60
 
 local autoRejoinEnabled=false
 local rejoinDelay=0.1
-local rejoinKey=nil
+local rejoinKey=nil -- nil = no keybind
 local rejoinListening=false
 
 local RejoinBox=Instance.new("Frame"); RejoinBox.Size=UDim2.new(0,298,0,90); RejoinBox.Position=UDim2.new(0.5,-149,0,Y)
@@ -738,12 +676,14 @@ Instance.new("UICorner",RejoinBox).CornerRadius=UDim.new(0,9)
 local RejoinStroke=Instance.new("UIStroke"); RejoinStroke.Color=VIO_D; RejoinStroke.Thickness=1.2; RejoinStroke.Parent=RejoinBox
 toggleVisuals["autorejoin"]={track=nil,circle=nil,stroke=RejoinStroke}
 
+-- Name label
 local RejoinNameLbl=Instance.new("TextLabel"); RejoinNameLbl.Size=UDim2.new(0.55,0,0,26); RejoinNameLbl.Position=UDim2.new(0,12,0,0)
 RejoinNameLbl.BackgroundTransparency=1; RejoinNameLbl.Text="REJOIN"; RejoinNameLbl.TextColor3=VIO
 RejoinNameLbl.Font=Enum.Font.GothamBold; RejoinNameLbl.TextSize=13; RejoinNameLbl.TextXAlignment=Enum.TextXAlignment.Left
 RejoinNameLbl.ZIndex=6; RejoinNameLbl.Parent=RejoinBox
 task.spawn(function() while RejoinNameLbl.Parent do TweenService:Create(RejoinNameLbl,TweenInfo.new(1.3,Enum.EasingStyle.Sine),{TextColor3=VIO_L}):Play() task.wait(1.3) TweenService:Create(RejoinNameLbl,TweenInfo.new(1.3,Enum.EasingStyle.Sine),{TextColor3=VIO}):Play() task.wait(1.3) end end)
 
+-- Toggle switch
 local RTrack=Instance.new("Frame"); RTrack.Size=UDim2.new(0,46,0,24); RTrack.Position=UDim2.new(1,-56,0,1)
 RTrack.BackgroundColor3=Color3.fromRGB(45,45,60); RTrack.BorderSizePixel=0; RTrack.ZIndex=6; RTrack.Parent=RejoinBox
 Instance.new("UICorner",RTrack).CornerRadius=UDim.new(1,0)
@@ -752,11 +692,13 @@ RCircle.BackgroundColor3=Color3.fromRGB(160,160,160); RCircle.BorderSizePixel=0;
 Instance.new("UICorner",RCircle).CornerRadius=UDim.new(1,0)
 toggleVisuals["autorejoin"].track=RTrack; toggleVisuals["autorejoin"].circle=RCircle
 
+-- Delay label
 local RDelayLbl=Instance.new("TextLabel"); RDelayLbl.Size=UDim2.new(1,0,0,13); RDelayLbl.Position=UDim2.new(0,0,0,30)
 RDelayLbl.BackgroundTransparency=1; RDelayLbl.Text="Delay: 0.1s"; RDelayLbl.TextColor3=VIO
 RDelayLbl.Font=Enum.Font.Gotham; RDelayLbl.TextSize=11; RDelayLbl.TextXAlignment=Enum.TextXAlignment.Center; RDelayLbl.ZIndex=6; RDelayLbl.Parent=RejoinBox
 task.spawn(function() while RDelayLbl.Parent do TweenService:Create(RDelayLbl,TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO_L}):Play() task.wait(1.2) TweenService:Create(RDelayLbl,TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO}):Play() task.wait(1.2) end end)
 
+-- Delay slider
 local RSliderTrack=Instance.new("Frame"); RSliderTrack.Size=UDim2.new(1,-24,0,7); RSliderTrack.Position=UDim2.new(0,12,0,46)
 RSliderTrack.BackgroundColor3=Color3.fromRGB(38,38,52); RSliderTrack.BorderSizePixel=0; RSliderTrack.ZIndex=6; RSliderTrack.Parent=RejoinBox
 Instance.new("UICorner",RSliderTrack).CornerRadius=UDim.new(1,0)
@@ -784,6 +726,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
+-- Keybind button
 local RKeyBtn=Instance.new("TextButton"); RKeyBtn.Size=UDim2.new(1,-24,0,16); RKeyBtn.Position=UDim2.new(0,12,0,70)
 RKeyBtn.BackgroundColor3=Color3.fromRGB(30,0,50); RKeyBtn.BackgroundTransparency=0.4; RKeyBtn.Text="KEY: NONE (click to set)"; RKeyBtn.TextColor3=VIO
 RKeyBtn.Font=Enum.Font.Gotham; RKeyBtn.TextSize=10; RKeyBtn.BorderSizePixel=0; RKeyBtn.ZIndex=6; RKeyBtn.Parent=RejoinBox
@@ -800,12 +743,14 @@ RKeyBtn.MouseButton1Click:Connect(function()
     end)
 end)
 
+-- Listen for keybind trigger
 UserInputSvc.InputBegan:Connect(function(inp)
     if not rejoinListening and rejoinKey and inp.KeyCode==rejoinKey and autoRejoinEnabled then
         pcall(function() TeleportSvc:Teleport(game.PlaceId,LocalPlayer) end)
     end
 end)
 
+-- Toggle
 RejoinBox.InputBegan:Connect(function(inp)
     if inp.UserInputType==Enum.UserInputType.MouseButton1 then
         local my=inp.Position.Y-RejoinBox.AbsolutePosition.Y
@@ -964,18 +909,16 @@ MakeToggle("LOAD",Y,function(s)
         local saved=LoadSettings()
         if saved then
             task.delay(0.15,function()
-                if saved.fov         then SetFOV(saved.fov) end
-                if saved.brightlevel then SetFullBrightLevel(saved.brightlevel) end
-                if saved.lowgfx      then ApplyLowGraphics(true); toggleStates.lowgfx=true;   ApplyToggleVisual("lowgfx",true)   end
-                if saved.fps         then ApplyFPSBoost(true);    toggleStates.fps=true;       ApplyToggleVisual("fps",true)       end
-                if saved.ping        then ApplyPingLow(true);     toggleStates.ping=true;      ApplyToggleVisual("ping",true)      end
-                if saved.day         then ApplyDaySky(true);      toggleStates.day=true;       ApplyToggleVisual("day",true)       end
-                if saved.night       then ApplyNightSky(true);    toggleStates.night=true;     ApplyToggleVisual("night",true)     end
-                if saved.galaxy      then ApplyGalaxySky(true);   toggleStates.galaxy=true;    ApplyToggleVisual("galaxy",true)    end
-                if saved.brightness  then
-                    fullBrightEnabled=true; toggleStates.brightness=true
-                    ApplyFullBright(true, fullBrightLevel)
-                    ApplyToggleVisual("brightness",true)
+                if saved.fov      then SetFOV(saved.fov) end
+                if saved.lowgfx   then ApplyLowGraphics(true); toggleStates.lowgfx=true;   ApplyToggleVisual("lowgfx",true)   end
+                if saved.fps      then ApplyFPSBoost(true);    toggleStates.fps=true;       ApplyToggleVisual("fps",true)       end
+                if saved.ping     then ApplyPingLow(true);     toggleStates.ping=true;      ApplyToggleVisual("ping",true)      end
+                if saved.day      then ApplyDaySky(true);      toggleStates.day=true;       ApplyToggleVisual("day",true)       end
+                if saved.night    then ApplyNightSky(true);    toggleStates.night=true;     ApplyToggleVisual("night",true)     end
+                if saved.galaxy   then ApplyGalaxySky(true);   toggleStates.galaxy=true;    ApplyToggleVisual("galaxy",true)    end
+                if saved.brightness then
+                    Lighting.Brightness=6; Lighting.Ambient=Color3.fromRGB(200,200,200); Lighting.OutdoorAmbient=Color3.fromRGB(220,220,220)
+                    toggleStates.brightness=true; ApplyToggleVisual("brightness",true)
                 end
                 StarterGui:SetCore("SendNotification",{Title="KMoney",Text="Settings loaded!",Duration=3})
             end)
@@ -997,22 +940,20 @@ MainFrame.Position=UDim2.new(0.5,-170,0.5,-(Y+16)/2)
 task.delay(0.3,function()
     local saved=LoadSettings()
     if saved then
-        if saved.fov         then SetFOV(saved.fov) end
-        if saved.brightlevel then SetFullBrightLevel(saved.brightlevel) end
-        if saved.lowgfx      then ApplyLowGraphics(true); toggleStates.lowgfx=true;   ApplyToggleVisual("lowgfx",true)   end
-        if saved.fps         then ApplyFPSBoost(true);    toggleStates.fps=true;       ApplyToggleVisual("fps",true)       end
-        if saved.ping        then ApplyPingLow(true);     toggleStates.ping=true;      ApplyToggleVisual("ping",true)      end
-        if saved.day         then ApplyDaySky(true);      toggleStates.day=true;       ApplyToggleVisual("day",true)       end
-        if saved.night       then ApplyNightSky(true);    toggleStates.night=true;     ApplyToggleVisual("night",true)     end
-        if saved.galaxy      then ApplyGalaxySky(true);   toggleStates.galaxy=true;    ApplyToggleVisual("galaxy",true)    end
-        if saved.brightness  then
-            fullBrightEnabled=true; toggleStates.brightness=true
-            ApplyFullBright(true, fullBrightLevel)
-            ApplyToggleVisual("brightness",true)
+        if saved.fov      then SetFOV(saved.fov) end
+        if saved.lowgfx   then ApplyLowGraphics(true); toggleStates.lowgfx=true;   ApplyToggleVisual("lowgfx",true)   end
+        if saved.fps      then ApplyFPSBoost(true);    toggleStates.fps=true;       ApplyToggleVisual("fps",true)       end
+        if saved.ping     then ApplyPingLow(true);     toggleStates.ping=true;      ApplyToggleVisual("ping",true)      end
+        if saved.day      then ApplyDaySky(true);      toggleStates.day=true;       ApplyToggleVisual("day",true)       end
+        if saved.night    then ApplyNightSky(true);    toggleStates.night=true;     ApplyToggleVisual("night",true)     end
+        if saved.galaxy   then ApplyGalaxySky(true);   toggleStates.galaxy=true;    ApplyToggleVisual("galaxy",true)    end
+        if saved.brightness then
+            Lighting.Brightness=6; Lighting.Ambient=Color3.fromRGB(200,200,200); Lighting.OutdoorAmbient=Color3.fromRGB(220,220,220)
+            toggleStates.brightness=true; ApplyToggleVisual("brightness",true)
         end
         StarterGui:SetCore("SendNotification",{Title="KMoney",Text="Auto-loaded settings!",Duration=3})
     end
 end)
 
-StarterGui:SetCore("SendNotification",{Title="KMoney Tweaking",Text="Hub v7 + Full Bright mejorado!",Duration=4})
-print("[KMoney v7] Hub loaded con Full Bright mejorado!")
+StarterGui:SetCore("SendNotification",{Title="KMoney Tweaking",Text="Hub v6 loaded!",Duration=4})
+print("[KMoney v6] Hub loaded!")
