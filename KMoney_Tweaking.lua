@@ -176,7 +176,7 @@ end)
 --   TITLE BAR  (no PREMIUM - replaced by FPS+PING)
 -- ============================================
 
-local TitleBar=Instance.new("Frame"); TitleBar.Size=UDim2.new(1,0,0,68)
+local TitleBar=Instance.new("Frame"); TitleBar.Size=UDim2.new(1,0,0,82)
 TitleBar.BackgroundColor3=Color3.fromRGB(0,0,0); TitleBar.BackgroundTransparency=1; TitleBar.BorderSizePixel=0; TitleBar.ZIndex=5; TitleBar.Parent=MainFrame
 Instance.new("UICorner",TitleBar).CornerRadius=UDim.new(0,14)
 local TFix=Instance.new("Frame"); TFix.Size=UDim2.new(1,0,0.5,0); TFix.Position=UDim2.new(0,0,0.5,0)
@@ -210,6 +210,21 @@ PingInTitle.Size=UDim2.new(0.42,0,0,12); PingInTitle.Position=UDim2.new(0,14,0,4
 PingInTitle.BackgroundTransparency=1; PingInTitle.Text="PING: --"; PingInTitle.TextColor3=VIO
 PingInTitle.Font=Enum.Font.GothamBold; PingInTitle.TextSize=10
 PingInTitle.TextXAlignment=Enum.TextXAlignment.Left; PingInTitle.ZIndex=6; PingInTitle.Parent=TitleBar
+
+-- PREMIUM label below PING, small, violet neon
+local PremiumLbl=Instance.new("TextLabel")
+PremiumLbl.Size=UDim2.new(0.6,0,0,11); PremiumLbl.Position=UDim2.new(0,14,0,60)
+PremiumLbl.BackgroundTransparency=1; PremiumLbl.Text="✦ PREMIUM ✦"; PremiumLbl.TextColor3=VIO
+PremiumLbl.Font=Enum.Font.GothamBold; PremiumLbl.TextSize=9
+PremiumLbl.TextXAlignment=Enum.TextXAlignment.Left; PremiumLbl.ZIndex=6; PremiumLbl.Parent=TitleBar
+task.spawn(function()
+    while true do
+        TweenService:Create(PremiumLbl,TweenInfo.new(1.1,Enum.EasingStyle.Sine),{TextColor3=VIO_L}):Play()
+        task.wait(1.1)
+        TweenService:Create(PremiumLbl,TweenInfo.new(1.1,Enum.EasingStyle.Sine),{TextColor3=VIO}):Play()
+        task.wait(1.1)
+    end
+end)
 
 -- Violet neon pulse on FPS/PING labels
 task.spawn(function()
@@ -247,7 +262,7 @@ LogoBtn.MouseButton1Click:Connect(function() LogoHolder.Visible=false; MainFrame
 --   FOV STAT (transparent, small, below title)
 -- ============================================
 
-local FovStatBox=Instance.new("Frame"); FovStatBox.Size=UDim2.new(0,298,0,22); FovStatBox.Position=UDim2.new(0.5,-149,0,68)
+local FovStatBox=Instance.new("Frame"); FovStatBox.Size=UDim2.new(0,298,0,22); FovStatBox.Position=UDim2.new(0.5,-149,0,84)
 FovStatBox.BackgroundTransparency=1; FovStatBox.BorderSizePixel=0; FovStatBox.ZIndex=5; FovStatBox.Parent=MainFrame
 
 local FovStatLbl=Instance.new("TextLabel"); FovStatLbl.Size=UDim2.new(1,0,1,0); FovStatLbl.BackgroundTransparency=1
@@ -571,7 +586,7 @@ end
 --   BUILD TOGGLES  (Y starts at 96)
 -- ============================================
 
-local Y=96
+local Y=110
 
 MakeToggle("LOW GRAPHICS",Y,function(s) toggleStates.lowgfx=s;  ApplyLowGraphics(s); SaveSettings() end,36,"lowgfx");  Y=Y+42
 MakeToggle("FPS BOOST",   Y,function(s) toggleStates.fps=s;     ApplyFPSBoost(s);    SaveSettings() end,36,"fps");     Y=Y+42
@@ -627,7 +642,7 @@ local FovThumb=Instance.new("TextButton"); FovThumb.Size=UDim2.new(0,20,0,20); F
 FovThumb.BackgroundColor3=WHITE; FovThumb.Text=""; FovThumb.BorderSizePixel=0; FovThumb.ZIndex=8; FovThumb.Parent=FovTrack
 Instance.new("UICorner",FovThumb).CornerRadius=UDim.new(1,0)
 
-local FOV_MIN,FOV_MAX=40,160; local draggingFOV=false
+local FOV_MIN,FOV_MAX=40,200; local draggingFOV=false
 local function SetFOV(fov)
     fov=math.clamp(fov,FOV_MIN,FOV_MAX)
     local cam=workspace.CurrentCamera; if cam then cam.FieldOfView=fov end
@@ -647,39 +662,218 @@ end)
 SetFOV(70); Y=Y+60
 
 -- ============================================
---   AUTO REJOIN (slider 0.1-2.0)
+--   REJOIN (slider + keybind)
 -- ============================================
 
 local autoRejoinEnabled=false
 local rejoinDelay=0.1
+local rejoinKey=nil -- nil = no keybind
+local rejoinListening=false
 
-MakeSliderBox("REJOIN", Y, 0.1, 2.0, 0.1,
-    function(s, delay) -- toggle callback
-        autoRejoinEnabled=s; toggleStates.autorejoin=s; SaveSettings()
-        if s then
+local RejoinBox=Instance.new("Frame"); RejoinBox.Size=UDim2.new(0,298,0,90); RejoinBox.Position=UDim2.new(0.5,-149,0,Y)
+RejoinBox.BackgroundColor3=BLACK; RejoinBox.BackgroundTransparency=0.6; RejoinBox.BorderSizePixel=0; RejoinBox.ZIndex=5; RejoinBox.Parent=MainFrame
+Instance.new("UICorner",RejoinBox).CornerRadius=UDim.new(0,9)
+local RejoinStroke=Instance.new("UIStroke"); RejoinStroke.Color=VIO_D; RejoinStroke.Thickness=1.2; RejoinStroke.Parent=RejoinBox
+toggleVisuals["autorejoin"]={track=nil,circle=nil,stroke=RejoinStroke}
+
+-- Name label
+local RejoinNameLbl=Instance.new("TextLabel"); RejoinNameLbl.Size=UDim2.new(0.55,0,0,26); RejoinNameLbl.Position=UDim2.new(0,12,0,0)
+RejoinNameLbl.BackgroundTransparency=1; RejoinNameLbl.Text="REJOIN"; RejoinNameLbl.TextColor3=VIO
+RejoinNameLbl.Font=Enum.Font.GothamBold; RejoinNameLbl.TextSize=13; RejoinNameLbl.TextXAlignment=Enum.TextXAlignment.Left
+RejoinNameLbl.ZIndex=6; RejoinNameLbl.Parent=RejoinBox
+task.spawn(function() while RejoinNameLbl.Parent do TweenService:Create(RejoinNameLbl,TweenInfo.new(1.3,Enum.EasingStyle.Sine),{TextColor3=VIO_L}):Play() task.wait(1.3) TweenService:Create(RejoinNameLbl,TweenInfo.new(1.3,Enum.EasingStyle.Sine),{TextColor3=VIO}):Play() task.wait(1.3) end end)
+
+-- Toggle switch
+local RTrack=Instance.new("Frame"); RTrack.Size=UDim2.new(0,46,0,24); RTrack.Position=UDim2.new(1,-56,0,1)
+RTrack.BackgroundColor3=Color3.fromRGB(45,45,60); RTrack.BorderSizePixel=0; RTrack.ZIndex=6; RTrack.Parent=RejoinBox
+Instance.new("UICorner",RTrack).CornerRadius=UDim.new(1,0)
+local RCircle=Instance.new("Frame"); RCircle.Size=UDim2.new(0,18,0,18); RCircle.Position=UDim2.new(0,3,0.5,-9)
+RCircle.BackgroundColor3=Color3.fromRGB(160,160,160); RCircle.BorderSizePixel=0; RCircle.ZIndex=7; RCircle.Parent=RTrack
+Instance.new("UICorner",RCircle).CornerRadius=UDim.new(1,0)
+toggleVisuals["autorejoin"].track=RTrack; toggleVisuals["autorejoin"].circle=RCircle
+
+-- Delay label
+local RDelayLbl=Instance.new("TextLabel"); RDelayLbl.Size=UDim2.new(1,0,0,13); RDelayLbl.Position=UDim2.new(0,0,0,30)
+RDelayLbl.BackgroundTransparency=1; RDelayLbl.Text="Delay: 0.1s"; RDelayLbl.TextColor3=VIO
+RDelayLbl.Font=Enum.Font.Gotham; RDelayLbl.TextSize=11; RDelayLbl.TextXAlignment=Enum.TextXAlignment.Center; RDelayLbl.ZIndex=6; RDelayLbl.Parent=RejoinBox
+task.spawn(function() while RDelayLbl.Parent do TweenService:Create(RDelayLbl,TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO_L}):Play() task.wait(1.2) TweenService:Create(RDelayLbl,TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO}):Play() task.wait(1.2) end end)
+
+-- Delay slider
+local RSliderTrack=Instance.new("Frame"); RSliderTrack.Size=UDim2.new(1,-24,0,7); RSliderTrack.Position=UDim2.new(0,12,0,46)
+RSliderTrack.BackgroundColor3=Color3.fromRGB(38,38,52); RSliderTrack.BorderSizePixel=0; RSliderTrack.ZIndex=6; RSliderTrack.Parent=RejoinBox
+Instance.new("UICorner",RSliderTrack).CornerRadius=UDim.new(1,0)
+local RSliderFill=Instance.new("Frame"); RSliderFill.BackgroundColor3=VIO; RSliderFill.BorderSizePixel=0; RSliderFill.ZIndex=7; RSliderFill.Parent=RSliderTrack
+Instance.new("UICorner",RSliderFill).CornerRadius=UDim.new(1,0)
+local RSliderThumb=Instance.new("TextButton"); RSliderThumb.Size=UDim2.new(0,16,0,16); RSliderThumb.BackgroundColor3=WHITE
+RSliderThumb.Text=""; RSliderThumb.BorderSizePixel=0; RSliderThumb.ZIndex=8; RSliderThumb.Parent=RSliderTrack
+Instance.new("UICorner",RSliderThumb).CornerRadius=UDim.new(1,0)
+
+local draggingRSlider=false
+local function SetRejoinDelay(v)
+    v=math.clamp(math.floor(v*10+0.5)/10, 0.1, 2.0)
+    rejoinDelay=v
+    local pct=(v-0.1)/1.9
+    RSliderFill.Size=UDim2.new(pct,0,1,0); RSliderThumb.Position=UDim2.new(pct,-8,0.5,-8)
+    RDelayLbl.Text="Delay: "..string.format("%.1f",v).."s"
+end
+SetRejoinDelay(0.1)
+RSliderThumb.MouseButton1Down:Connect(function() draggingRSlider=true end)
+UserInputSvc.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then draggingRSlider=false end end)
+RunService.RenderStepped:Connect(function()
+    if draggingRSlider then
+        local pct=math.clamp((UserInputSvc:GetMouseLocation().X-RSliderTrack.AbsolutePosition.X)/RSliderTrack.AbsoluteSize.X,0,1)
+        SetRejoinDelay(0.1+pct*1.9)
+    end
+end)
+
+-- Keybind button
+local RKeyBtn=Instance.new("TextButton"); RKeyBtn.Size=UDim2.new(1,-24,0,16); RKeyBtn.Position=UDim2.new(0,12,0,70)
+RKeyBtn.BackgroundColor3=Color3.fromRGB(30,0,50); RKeyBtn.BackgroundTransparency=0.4; RKeyBtn.Text="KEY: NONE (click to set)"; RKeyBtn.TextColor3=VIO
+RKeyBtn.Font=Enum.Font.Gotham; RKeyBtn.TextSize=10; RKeyBtn.BorderSizePixel=0; RKeyBtn.ZIndex=6; RKeyBtn.Parent=RejoinBox
+Instance.new("UICorner",RKeyBtn).CornerRadius=UDim.new(0,5)
+
+RKeyBtn.MouseButton1Click:Connect(function()
+    rejoinListening=true; RKeyBtn.Text="Press a key..."
+    local conn; conn=UserInputSvc.InputBegan:Connect(function(inp)
+        if inp.UserInputType==Enum.UserInputType.Keyboard then
+            rejoinKey=inp.KeyCode; rejoinListening=false
+            RKeyBtn.Text="KEY: "..inp.KeyCode.Name.." (click to change)"
+            conn:Disconnect()
+        end
+    end)
+end)
+
+-- Listen for keybind trigger
+UserInputSvc.InputBegan:Connect(function(inp)
+    if not rejoinListening and rejoinKey and inp.KeyCode==rejoinKey and autoRejoinEnabled then
+        pcall(function() TeleportSvc:Teleport(game.PlaceId,LocalPlayer) end)
+    end
+end)
+
+-- Toggle
+RejoinBox.InputBegan:Connect(function(inp)
+    if inp.UserInputType==Enum.UserInputType.MouseButton1 then
+        local my=inp.Position.Y-RejoinBox.AbsolutePosition.Y
+        if my>42 then return end
+        autoRejoinEnabled=not autoRejoinEnabled; toggleStates.autorejoin=autoRejoinEnabled; SaveSettings()
+        if autoRejoinEnabled then
+            TweenService:Create(RTrack,TweenInfo.new(0.18),{BackgroundColor3=BLACK}):Play()
+            TweenService:Create(RCircle,TweenInfo.new(0.18),{Position=UDim2.new(0,24,0.5,-9),BackgroundColor3=WHITE}):Play()
+            RejoinStroke.Color=VIO
             task.spawn(function()
-                while autoRejoinEnabled do
-                    task.wait(rejoinDelay)
-                    pcall(function() TeleportSvc:Teleport(game.PlaceId,LocalPlayer) end)
-                end
+                while autoRejoinEnabled do task.wait(rejoinDelay) pcall(function() TeleportSvc:Teleport(game.PlaceId,LocalPlayer) end) end
             end)
-        else autoRejoinEnabled=false end
-    end,
-    function(v) rejoinDelay=v end, -- slider callback
-    "autorejoin"
-); Y=Y+80
+        else
+            TweenService:Create(RTrack,TweenInfo.new(0.18),{BackgroundColor3=Color3.fromRGB(45,45,60)}):Play()
+            TweenService:Create(RCircle,TweenInfo.new(0.18),{Position=UDim2.new(0,3,0.5,-9),BackgroundColor3=Color3.fromRGB(160,160,160)}):Play()
+            RejoinStroke.Color=VIO_D
+        end
+    end
+end)
+Y=Y+98
 
 -- ============================================
---   AUTO KIT (slider 0.1-2.0)
+--   KIT (slider + keybind)
 -- ============================================
 
 local autoKitEnabled=false
 local kitDelay=0.1
+local kitKey=nil
+local kitListening=false
 
-MakeSliderBox("KIT", Y, 0.1, 2.0, 0.1,
-    function(s, delay)
-        autoKitEnabled=s; toggleStates.autokit=s; SaveSettings()
-        if s then
+local KitBox=Instance.new("Frame"); KitBox.Size=UDim2.new(0,298,0,90); KitBox.Position=UDim2.new(0.5,-149,0,Y)
+KitBox.BackgroundColor3=BLACK; KitBox.BackgroundTransparency=0.6; KitBox.BorderSizePixel=0; KitBox.ZIndex=5; KitBox.Parent=MainFrame
+Instance.new("UICorner",KitBox).CornerRadius=UDim.new(0,9)
+local KitStroke=Instance.new("UIStroke"); KitStroke.Color=VIO_D; KitStroke.Thickness=1.2; KitStroke.Parent=KitBox
+toggleVisuals["autokit"]={track=nil,circle=nil,stroke=KitStroke}
+
+local KitNameLbl=Instance.new("TextLabel"); KitNameLbl.Size=UDim2.new(0.55,0,0,26); KitNameLbl.Position=UDim2.new(0,12,0,0)
+KitNameLbl.BackgroundTransparency=1; KitNameLbl.Text="KIT"; KitNameLbl.TextColor3=VIO
+KitNameLbl.Font=Enum.Font.GothamBold; KitNameLbl.TextSize=13; KitNameLbl.TextXAlignment=Enum.TextXAlignment.Left
+KitNameLbl.ZIndex=6; KitNameLbl.Parent=KitBox
+task.spawn(function() while KitNameLbl.Parent do TweenService:Create(KitNameLbl,TweenInfo.new(1.3,Enum.EasingStyle.Sine),{TextColor3=VIO_L}):Play() task.wait(1.3) TweenService:Create(KitNameLbl,TweenInfo.new(1.3,Enum.EasingStyle.Sine),{TextColor3=VIO}):Play() task.wait(1.3) end end)
+
+local KTrack=Instance.new("Frame"); KTrack.Size=UDim2.new(0,46,0,24); KTrack.Position=UDim2.new(1,-56,0,1)
+KTrack.BackgroundColor3=Color3.fromRGB(45,45,60); KTrack.BorderSizePixel=0; KTrack.ZIndex=6; KTrack.Parent=KitBox
+Instance.new("UICorner",KTrack).CornerRadius=UDim.new(1,0)
+local KCircle=Instance.new("Frame"); KCircle.Size=UDim2.new(0,18,0,18); KCircle.Position=UDim2.new(0,3,0.5,-9)
+KCircle.BackgroundColor3=Color3.fromRGB(160,160,160); KCircle.BorderSizePixel=0; KCircle.ZIndex=7; KCircle.Parent=KTrack
+Instance.new("UICorner",KCircle).CornerRadius=UDim.new(1,0)
+toggleVisuals["autokit"].track=KTrack; toggleVisuals["autokit"].circle=KCircle
+
+local KDelayLbl=Instance.new("TextLabel"); KDelayLbl.Size=UDim2.new(1,0,0,13); KDelayLbl.Position=UDim2.new(0,0,0,30)
+KDelayLbl.BackgroundTransparency=1; KDelayLbl.Text="Delay: 0.1s"; KDelayLbl.TextColor3=VIO
+KDelayLbl.Font=Enum.Font.Gotham; KDelayLbl.TextSize=11; KDelayLbl.TextXAlignment=Enum.TextXAlignment.Center; KDelayLbl.ZIndex=6; KDelayLbl.Parent=KitBox
+task.spawn(function() while KDelayLbl.Parent do TweenService:Create(KDelayLbl,TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO_L}):Play() task.wait(1.2) TweenService:Create(KDelayLbl,TweenInfo.new(1.2,Enum.EasingStyle.Sine),{TextColor3=VIO}):Play() task.wait(1.2) end end)
+
+local KSliderTrack=Instance.new("Frame"); KSliderTrack.Size=UDim2.new(1,-24,0,7); KSliderTrack.Position=UDim2.new(0,12,0,46)
+KSliderTrack.BackgroundColor3=Color3.fromRGB(38,38,52); KSliderTrack.BorderSizePixel=0; KSliderTrack.ZIndex=6; KSliderTrack.Parent=KitBox
+Instance.new("UICorner",KSliderTrack).CornerRadius=UDim.new(1,0)
+local KSliderFill=Instance.new("Frame"); KSliderFill.BackgroundColor3=VIO; KSliderFill.BorderSizePixel=0; KSliderFill.ZIndex=7; KSliderFill.Parent=KSliderTrack
+Instance.new("UICorner",KSliderFill).CornerRadius=UDim.new(1,0)
+local KSliderThumb=Instance.new("TextButton"); KSliderThumb.Size=UDim2.new(0,16,0,16); KSliderThumb.BackgroundColor3=WHITE
+KSliderThumb.Text=""; KSliderThumb.BorderSizePixel=0; KSliderThumb.ZIndex=8; KSliderThumb.Parent=KSliderTrack
+Instance.new("UICorner",KSliderThumb).CornerRadius=UDim.new(1,0)
+
+local draggingKSlider=false
+local function SetKitDelay(v)
+    v=math.clamp(math.floor(v*10+0.5)/10, 0.1, 2.0)
+    kitDelay=v
+    local pct=(v-0.1)/1.9
+    KSliderFill.Size=UDim2.new(pct,0,1,0); KSliderThumb.Position=UDim2.new(pct,-8,0.5,-8)
+    KDelayLbl.Text="Delay: "..string.format("%.1f",v).."s"
+end
+SetKitDelay(0.1)
+KSliderThumb.MouseButton1Down:Connect(function() draggingKSlider=true end)
+UserInputSvc.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then draggingKSlider=false end end)
+RunService.RenderStepped:Connect(function()
+    if draggingKSlider then
+        local pct=math.clamp((UserInputSvc:GetMouseLocation().X-KSliderTrack.AbsolutePosition.X)/KSliderTrack.AbsoluteSize.X,0,1)
+        SetKitDelay(0.1+pct*1.9)
+    end
+end)
+
+local KKeyBtn=Instance.new("TextButton"); KKeyBtn.Size=UDim2.new(1,-24,0,16); KKeyBtn.Position=UDim2.new(0,12,0,70)
+KKeyBtn.BackgroundColor3=Color3.fromRGB(30,0,50); KKeyBtn.BackgroundTransparency=0.4; KKeyBtn.Text="KEY: NONE (click to set)"; KKeyBtn.TextColor3=VIO
+KKeyBtn.Font=Enum.Font.Gotham; KKeyBtn.TextSize=10; KKeyBtn.BorderSizePixel=0; KKeyBtn.ZIndex=6; KKeyBtn.Parent=KitBox
+Instance.new("UICorner",KKeyBtn).CornerRadius=UDim.new(0,5)
+
+KKeyBtn.MouseButton1Click:Connect(function()
+    kitListening=true; KKeyBtn.Text="Press a key..."
+    local conn; conn=UserInputSvc.InputBegan:Connect(function(inp)
+        if inp.UserInputType==Enum.UserInputType.Keyboard then
+            kitKey=inp.KeyCode; kitListening=false
+            KKeyBtn.Text="KEY: "..inp.KeyCode.Name.." (click to change)"
+            conn:Disconnect()
+        end
+    end)
+end)
+
+UserInputSvc.InputBegan:Connect(function(inp)
+    if not kitListening and kitKey and inp.KeyCode==kitKey and autoKitEnabled then
+        local char=LocalPlayer.Character
+        if char then
+            for _,obj in ipairs(workspace:GetDescendants()) do
+                if obj:IsA("BasePart") and (obj.Name:lower():find("kit") or obj.Name:lower():find("spawn")) then
+                    local hrp=char:FindFirstChild("HumanoidRootPart")
+                    if hrp and (hrp.Position-obj.Position).Magnitude<25 then
+                        pcall(function() hrp.CFrame=CFrame.new(obj.Position+Vector3.new(0,3,0)) end)
+                    end
+                end
+            end
+        end
+    end
+end)
+
+KitBox.InputBegan:Connect(function(inp)
+    if inp.UserInputType==Enum.UserInputType.MouseButton1 then
+        local my=inp.Position.Y-KitBox.AbsolutePosition.Y
+        if my>42 then return end
+        autoKitEnabled=not autoKitEnabled; toggleStates.autokit=autoKitEnabled; SaveSettings()
+        if autoKitEnabled then
+            TweenService:Create(KTrack,TweenInfo.new(0.18),{BackgroundColor3=BLACK}):Play()
+            TweenService:Create(KCircle,TweenInfo.new(0.18),{Position=UDim2.new(0,24,0.5,-9),BackgroundColor3=WHITE}):Play()
+            KitStroke.Color=VIO
             task.spawn(function()
                 while autoKitEnabled do
                     task.wait(kitDelay)
@@ -696,11 +890,14 @@ MakeSliderBox("KIT", Y, 0.1, 2.0, 0.1,
                     end
                 end
             end)
-        else autoKitEnabled=false end
-    end,
-    function(v) kitDelay=v end,
-    "autokit"
-); Y=Y+80
+        else
+            TweenService:Create(KTrack,TweenInfo.new(0.18),{BackgroundColor3=Color3.fromRGB(45,45,60)}):Play()
+            TweenService:Create(KCircle,TweenInfo.new(0.18),{Position=UDim2.new(0,3,0.5,-9),BackgroundColor3=Color3.fromRGB(160,160,160)}):Play()
+            KitStroke.Color=VIO_D
+        end
+    end
+end)
+Y=Y+98
 
 -- ============================================
 --   AUTO LOAD
