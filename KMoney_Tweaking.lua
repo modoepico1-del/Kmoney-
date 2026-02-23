@@ -1,6 +1,10 @@
 -- ============================================
---         KMONEY TWEAKING HUB v6
+--         KMONEY TWEAKING HUB v7
 -- ============================================
+
+-- Auto-execute: wait for game to fully load before running
+if not game:IsLoaded() then game.Loaded:Wait() end
+task.wait(0.5)
 
 local Players      = game:GetService("Players")
 local RunService   = game:GetService("RunService")
@@ -106,7 +110,7 @@ RunService.Heartbeat:Connect(function(dt)
     if not LogoHolder.Visible then return end
     neonT=neonT+dt*1.2
     for i,lbl in ipairs(letterLabels) do
-        local b=math.floor(math.sin(neonT+i*0.8)*20+28)
+        local b=math.floor(math.sin(neonT+i*0.8)*12+16)
         lbl.TextColor3=Color3.fromRGB(b,b,b)
     end
 end)
@@ -299,7 +303,7 @@ local savedLighting={
     FogEnd=Lighting.FogEnd, FogStart=Lighting.FogStart
 }
 
--- DAY sky ID: 2083298847
+-- DAY sky ID: 75213778961746
 local dayConn=nil
 local function ApplyDaySky(state)
     if state then
@@ -312,8 +316,7 @@ local function ApplyDaySky(state)
         setDay()
         for _,v in ipairs(Lighting:GetChildren()) do if v:IsA("Sky") then v:Destroy() end end
         local sky=Instance.new("Sky")
-        -- Use the custom CIELO asset for all faces
-        local id="rbxassetid://11904277833"
+        local id="rbxassetid://75213778961746"
         sky.SkyboxBk=id; sky.SkyboxDn=id; sky.SkyboxFt=id
         sky.SkyboxLf=id; sky.SkyboxRt=id; sky.SkyboxUp=id
         sky.Parent=Lighting
@@ -329,7 +332,7 @@ local function ApplyDaySky(state)
     end
 end
 
--- NIGHT sky ID: 10608647954
+-- NIGHT sky ID: 94323559180006
 local nightConn=nil
 local function ApplyNightSky(state)
     if state then
@@ -342,7 +345,7 @@ local function ApplyNightSky(state)
         setNight()
         for _,v in ipairs(Lighting:GetChildren()) do if v:IsA("Sky") then v:Destroy() end end
         local sky=Instance.new("Sky")
-        local id="rbxassetid://9016402918"
+        local id="rbxassetid://94323559180006"
         sky.SkyboxBk=id; sky.SkyboxDn=id; sky.SkyboxFt=id
         sky.SkyboxLf=id; sky.SkyboxRt=id; sky.SkyboxUp=id
         sky.StarCount=3000; sky.Parent=Lighting
@@ -351,6 +354,35 @@ local function ApplyNightSky(state)
         end)
     else
         if nightConn then nightConn:Disconnect(); nightConn=nil end
+        for _,v in ipairs(Lighting:GetChildren()) do if v:IsA("Sky") then v:Destroy() end end
+        Lighting.ClockTime=savedLighting.ClockTime; Lighting.Brightness=savedLighting.Brightness
+        Lighting.Ambient=savedLighting.Ambient; Lighting.OutdoorAmbient=savedLighting.OutdoorAmbient
+        Lighting.FogEnd=savedLighting.FogEnd; Lighting.FogStart=savedLighting.FogStart
+    end
+end
+
+-- GALAXY sky ID: 126150693377405
+local galaxyConn=nil
+local function ApplyGalaxySky(state)
+    if state then
+        if galaxyConn then galaxyConn:Disconnect() end
+        local function setGalaxy()
+            Lighting.ClockTime=0; Lighting.Brightness=0.2
+            Lighting.Ambient=Color3.fromRGB(20,5,40); Lighting.OutdoorAmbient=Color3.fromRGB(30,10,60)
+            Lighting.FogEnd=200000; Lighting.FogStart=150000
+        end
+        setGalaxy()
+        for _,v in ipairs(Lighting:GetChildren()) do if v:IsA("Sky") then v:Destroy() end end
+        local sky=Instance.new("Sky")
+        local id="rbxassetid://126150693377405"
+        sky.SkyboxBk=id; sky.SkyboxDn=id; sky.SkyboxFt=id
+        sky.SkyboxLf=id; sky.SkyboxRt=id; sky.SkyboxUp=id
+        sky.StarCount=5000; sky.Parent=Lighting
+        galaxyConn=RunService.Heartbeat:Connect(function()
+            if Lighting.ClockTime>2 then Lighting.ClockTime=0 end
+        end)
+    else
+        if galaxyConn then galaxyConn:Disconnect(); galaxyConn=nil end
         for _,v in ipairs(Lighting:GetChildren()) do if v:IsA("Sky") then v:Destroy() end end
         Lighting.ClockTime=savedLighting.ClockTime; Lighting.Brightness=savedLighting.Brightness
         Lighting.Ambient=savedLighting.Ambient; Lighting.OutdoorAmbient=savedLighting.OutdoorAmbient
@@ -399,7 +431,7 @@ end
 
 local SAVE_FILE="kmoney_v6.txt"
 local currentFOV=70
-local toggleStates={lowgfx=false,fps=false,ping=false,day=false,night=false,brightness=false,autorejoin=false,autokit=false,autoload=false}
+local toggleStates={lowgfx=false,fps=false,ping=false,day=false,night=false,galaxy=false,brightness=false,autorejoin=false,autokit=false,autoload=false}
 
 local function SaveSettings()
     pcall(function()
@@ -528,6 +560,7 @@ MakeToggle("FPS BOOST",   Y,function(s) toggleStates.fps=s;     ApplyFPSBoost(s)
 MakeToggle("PING LOW",    Y,function(s) toggleStates.ping=s;    ApplyPingLow(s);     SaveSettings() end,36,"ping");    Y=Y+42
 MakeToggle("DAY",         Y,function(s) toggleStates.day=s;     ApplyDaySky(s);      SaveSettings() end,36,"day");     Y=Y+42
 MakeToggle("SKY",         Y,function(s) toggleStates.night=s;   ApplyNightSky(s);    SaveSettings() end,36,"night");   Y=Y+42
+MakeToggle("GALAXY",      Y,function(s) toggleStates.galaxy=s;  ApplyGalaxySky(s);   SaveSettings() end,36,"galaxy");  Y=Y+42
 MakeToggle("BRIGHT",  Y,function(s)
     toggleStates.brightness=s
     if s then Lighting.Brightness=6; Lighting.Ambient=Color3.fromRGB(200,200,200); Lighting.OutdoorAmbient=Color3.fromRGB(220,220,220)
@@ -592,7 +625,7 @@ SetFOV(70); Y=Y+60
 local autoRejoinEnabled=false
 local rejoinDelay=0.1
 
-MakeSliderBox("AUTO REJOIN", Y, 0.1, 2.0, 0.1,
+MakeSliderBox("REJOIN", Y, 0.1, 2.0, 0.1,
     function(s, delay) -- toggle callback
         autoRejoinEnabled=s; toggleStates.autorejoin=s; SaveSettings()
         if s then
@@ -615,7 +648,7 @@ MakeSliderBox("AUTO REJOIN", Y, 0.1, 2.0, 0.1,
 local autoKitEnabled=false
 local kitDelay=0.1
 
-MakeSliderBox("AUTO KIT", Y, 0.1, 2.0, 0.1,
+MakeSliderBox("KIT", Y, 0.1, 2.0, 0.1,
     function(s, delay)
         autoKitEnabled=s; toggleStates.autokit=s; SaveSettings()
         if s then
@@ -645,7 +678,7 @@ MakeSliderBox("AUTO KIT", Y, 0.1, 2.0, 0.1,
 --   AUTO LOAD
 -- ============================================
 
-MakeToggle("AUTO LOAD",Y,function(s)
+MakeToggle("LOAD",Y,function(s)
     toggleStates.autoload=s
     if s then
         local saved=LoadSettings()
@@ -657,6 +690,7 @@ MakeToggle("AUTO LOAD",Y,function(s)
                 if saved.ping     then ApplyPingLow(true);     toggleStates.ping=true;      ApplyToggleVisual("ping",true)      end
                 if saved.day      then ApplyDaySky(true);      toggleStates.day=true;       ApplyToggleVisual("day",true)       end
                 if saved.night    then ApplyNightSky(true);    toggleStates.night=true;     ApplyToggleVisual("night",true)     end
+                if saved.galaxy   then ApplyGalaxySky(true);   toggleStates.galaxy=true;    ApplyToggleVisual("galaxy",true)    end
                 if saved.brightness then
                     Lighting.Brightness=6; Lighting.Ambient=Color3.fromRGB(200,200,200); Lighting.OutdoorAmbient=Color3.fromRGB(220,220,220)
                     toggleStates.brightness=true; ApplyToggleVisual("brightness",true)
@@ -687,6 +721,7 @@ task.delay(0.3,function()
         if saved.ping     then ApplyPingLow(true);     toggleStates.ping=true;      ApplyToggleVisual("ping",true)      end
         if saved.day      then ApplyDaySky(true);      toggleStates.day=true;       ApplyToggleVisual("day",true)       end
         if saved.night    then ApplyNightSky(true);    toggleStates.night=true;     ApplyToggleVisual("night",true)     end
+        if saved.galaxy   then ApplyGalaxySky(true);   toggleStates.galaxy=true;    ApplyToggleVisual("galaxy",true)    end
         if saved.brightness then
             Lighting.Brightness=6; Lighting.Ambient=Color3.fromRGB(200,200,200); Lighting.OutdoorAmbient=Color3.fromRGB(220,220,220)
             toggleStates.brightness=true; ApplyToggleVisual("brightness",true)
