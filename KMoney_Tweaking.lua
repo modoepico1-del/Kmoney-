@@ -357,23 +357,36 @@ local dayConn = nil
 local function ApplyDaySky(state)
     if state then
         if dayConn then dayConn:Disconnect() end
-        -- Eliminar cualquier cielo/atmosfera de Roblox primero
+        -- Destruir TODO lo que Roblox tenga en Lighting
         for _, v in ipairs(Lighting:GetChildren()) do
-            if v:IsA("Sky") or v:IsA("Atmosphere") then v:Destroy() end
+            if v:IsA("Sky") or v:IsA("Atmosphere") or v:IsA("BlurEffect")
+            or v:IsA("SunRaysEffect") or v:IsA("ColorCorrectionEffect") then
+                v:Destroy()
+            end
         end
-        Lighting.ClockTime = 14; Lighting.Brightness = 2
+        Lighting.ClockTime = 14
+        Lighting.Brightness = 2
         Lighting.Ambient = Color3.fromRGB(100,120,160)
         Lighting.OutdoorAmbient = Color3.fromRGB(110,140,180)
         Lighting.FogEnd = 300000; Lighting.FogStart = 200000
         local sky = Instance.new("Sky")
-        local id = "rbxassetid://15351960832"  -- Clouds Sky
+        local id = "rbxassetid://2268183583"  -- Cartoon Night Skybox
         sky.SkyboxBk=id; sky.SkyboxDn=id; sky.SkyboxFt=id
         sky.SkyboxLf=id; sky.SkyboxRt=id; sky.SkyboxUp=id
         sky.CloudsEnabled = false
         sky.StarCount = 0
         sky.Parent = Lighting
+        -- Bloquear que alguien meta otro Sky
+        sky.AncestryChanged:Connect(function()
+            if not sky.Parent then
+                pcall(function() sky.Parent = Lighting end)
+            end
+        end)
+        -- Forzar hora y bloquear cambios
         dayConn = RunService.Heartbeat:Connect(function()
-            Lighting.ClockTime = 14
+            if Lighting.ClockTime ~= 14 then
+                Lighting.ClockTime = 14
+            end
         end)
     else
         if dayConn then dayConn:Disconnect(); dayConn = nil end
@@ -397,7 +410,7 @@ local function ApplyNightSky(state)
         Lighting.OutdoorAmbient = Color3.fromRGB(0,0,0)
         Lighting.FogEnd = 300000; Lighting.FogStart = 200000
         local sky = Instance.new("Sky")
-        local id = "rbxassetid://95946378845991"  -- Sparkling Night Sky
+        local id = "rbxassetid://4617617735"  -- Databrawl Sky
         sky.SkyboxBk=id; sky.SkyboxDn=id; sky.SkyboxFt=id
         sky.SkyboxLf=id; sky.SkyboxRt=id; sky.SkyboxUp=id
         sky.CloudsEnabled = false
