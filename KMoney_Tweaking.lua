@@ -363,12 +363,12 @@ local function ApplyDaySky(state)
         Lighting.FogEnd = 300000; Lighting.FogStart = 200000
         for _, v in ipairs(Lighting:GetChildren()) do if v:IsA("Sky") then v:Destroy() end end
         local sky = Instance.new("Sky")
-        local id = "rbxassetid://75213778961746"
+        local id = "rbxassetid://12468703060"  -- Sky day
         sky.SkyboxBk=id; sky.SkyboxDn=id; sky.SkyboxFt=id
         sky.SkyboxLf=id; sky.SkyboxRt=id; sky.SkyboxUp=id
         sky.Parent = Lighting
         dayConn = RunService.Heartbeat:Connect(function()
-            if Lighting.ClockTime < 12 or Lighting.ClockTime > 16 then Lighting.ClockTime = 14 end
+            Lighting.ClockTime = 14  -- forzar siempre de dia
         end)
     else
         if dayConn then dayConn:Disconnect(); dayConn = nil end
@@ -392,14 +392,14 @@ local function ApplyNightSky(state)
             if v:IsA("Sky") or v:IsA("Atmosphere") then v:Destroy() end
         end
         local sky = Instance.new("Sky")
-        local id = "rbxassetid://14934583360"
+        local id = "rbxassetid://9016402918"  -- Galaxy Skybox
         sky.SkyboxBk=id; sky.SkyboxDn=id; sky.SkyboxFt=id
         sky.SkyboxLf=id; sky.SkyboxRt=id; sky.SkyboxUp=id
         sky.StarCount = 0  -- sin estrellas extra, el skybox ya las tiene
         sky.CloudsEnabled = false
         sky.Parent = Lighting
         nightConn = RunService.Heartbeat:Connect(function()
-            if Lighting.ClockTime > 2 then Lighting.ClockTime = 0 end
+            Lighting.ClockTime = 0  -- forzar siempre de noche
         end)
     else
         if nightConn then nightConn:Disconnect(); nightConn = nil end
