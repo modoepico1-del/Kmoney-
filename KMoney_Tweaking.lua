@@ -14,9 +14,9 @@ local UserInputSvc = game:GetService("UserInputService")
 local TeleportSvc  = game:GetService("TeleportService")
 local LocalPlayer  = Players.LocalPlayer
 
-local VIO   = Color3.fromRGB(255, 0, 200)
-local VIO_D = Color3.fromRGB(110, 0, 80)
-local VIO_L = Color3.fromRGB(255, 100, 230)
+local VIO   = Color3.fromRGB(255, 0, 220)
+local VIO_D = Color3.fromRGB(120, 0, 90)
+local VIO_L = Color3.fromRGB(255, 80, 240)
 local BLACK = Color3.fromRGB(6, 6, 8)
 local WHITE = Color3.fromRGB(255, 255, 255)
 
