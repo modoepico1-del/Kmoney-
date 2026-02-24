@@ -14,10 +14,10 @@ local UserInputSvc = game:GetService("UserInputService")
 local TeleportSvc  = game:GetService("TeleportService")
 local LocalPlayer  = Players.LocalPlayer
 
-local VIO   = Color3.fromRGB(255, 0, 220)
-local VIO_D = Color3.fromRGB(120, 0, 90)
-local VIO_L = Color3.fromRGB(255, 80, 240)
-local BLACK = Color3.fromRGB(6, 6, 8)
+local VIO   = Color3.fromRGB(210, 0, 255)   -- violeta-magenta exacto de la foto
+local VIO_D = Color3.fromRGB(90,  0, 130)   -- oscuro para bordes apagados
+local VIO_L = Color3.fromRGB(255, 80, 255)  -- claro brillante para glow y pulso
+local BLACK = Color3.fromRGB(6, 6, 9)
 local WHITE = Color3.fromRGB(255, 255, 255)
 
 -- ============================================
@@ -81,7 +81,7 @@ LogoBtn.Parent = LogoHolder
 Instance.new("UICorner", LogoBtn).CornerRadius = UDim.new(1,0)
 
 local LogoStroke = Instance.new("UIStroke")
-LogoStroke.Color = VIO; LogoStroke.Thickness = 2; LogoStroke.Parent = LogoBtn
+LogoStroke.Color = VIO; LogoStroke.Thickness = 2.5; LogoStroke.Parent = LogoBtn
 
 -- drag logo
 local logoDragging, logoDragStart, logoStartPos = false, nil, nil
@@ -152,12 +152,12 @@ MainFrame.Parent = ScreenGui
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0,12)
 
 local MainStroke = Instance.new("UIStroke")
-MainStroke.Color = VIO; MainStroke.Thickness = 2; MainStroke.Parent = MainFrame
+MainStroke.Color = VIO; MainStroke.Thickness = 2.5; MainStroke.Parent = MainFrame
 task.spawn(function()
     while true do
-        TweenService:Create(MainStroke, TweenInfo.new(1.8,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {Thickness=3.5, Color=VIO_L}):Play()
+        TweenService:Create(MainStroke, TweenInfo.new(1.8,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {Thickness=4.5, Color=VIO_L}):Play()
         task.wait(1.8)
-        TweenService:Create(MainStroke, TweenInfo.new(1.8,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {Thickness=1.5, Color=VIO}):Play()
+        TweenService:Create(MainStroke, TweenInfo.new(1.8,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {Thickness=2, Color=VIO}):Play()
         task.wait(1.8)
     end
 end)
