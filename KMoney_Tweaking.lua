@@ -266,6 +266,7 @@ LogoBtn.MouseButton1Click:Connect(function() LogoHolder.Visible = false; MainFra
 -- ============================================
 local SAVE_FILE = "kmoney_v9.txt"
 local currentFOV = 70
+local currentOpacity = 0  -- 0 = transparente, 100 = negro
 local toggleStates = {
     lowgfx=false, fps=false, ping=false, delay=false,
     day=false, night=false, brightness=false
@@ -274,6 +275,7 @@ local toggleStates = {
 local function SaveSettings()
     pcall(function()
         local d = "fov=" .. tostring(math.floor(currentFOV)) .. "\n"
+        d = d .. "opacity=" .. tostring(math.floor(currentOpacity)) .. "\n"
         for k, v in pairs(toggleStates) do
             d = d .. k .. "=" .. tostring(v) .. "\n"
         end
@@ -285,8 +287,10 @@ local function LoadSettings()
     local ok, d = pcall(function() return readfile(SAVE_FILE) end)
     if ok and d and d ~= "" then
         local t = {}
-        for k, v in string.gmatch(d, "([%a]+)=([%w%.]+)") do
-            if k == "fov" then t.fov = tonumber(v) else t[k] = (v == "true") end
+        for k, v in string.gmatch(d, "([%w]+)=([%w%.]+)") do
+            if k == "fov" then t.fov = tonumber(v)
+            elseif k == "opacity" then t.opacity = tonumber(v)
+            else t[k] = (v == "true") end
         end
         return t
     end
@@ -383,16 +387,16 @@ local nightConn = nil
 local function ApplyNightSky(state)
     if state then
         if nightConn then nightConn:Disconnect() end
-        Lighting.ClockTime = 0; Lighting.Brightness = 0
-        Lighting.Ambient = Color3.fromRGB(0,0,0)
-        Lighting.OutdoorAmbient = Color3.fromRGB(0,0,0)
+        Lighting.ClockTime = 0; Lighting.Brightness = 0.1
+        Lighting.Ambient = Color3.fromRGB(10,10,30)
+        Lighting.OutdoorAmbient = Color3.fromRGB(15,15,40)
         Lighting.FogEnd = 100000; Lighting.FogStart = 80000
         for _, v in ipairs(Lighting:GetChildren()) do if v:IsA("Sky") then v:Destroy() end end
         local sky = Instance.new("Sky")
-        local id = "rbxassetid://6444884337" -- negro puro sin estrellas
+        local id = "rbxassetid://5347804161"
         sky.SkyboxBk=id; sky.SkyboxDn=id; sky.SkyboxFt=id
         sky.SkyboxLf=id; sky.SkyboxRt=id; sky.SkyboxUp=id
-        sky.StarCount = 0; sky.Parent = Lighting
+        sky.StarCount = 3000; sky.Parent = Lighting
         nightConn = RunService.Heartbeat:Connect(function()
             if Lighting.ClockTime > 2 then Lighting.ClockTime = 0 end
         end)
@@ -571,6 +575,85 @@ end)
 SetFOV(70); Y = Y + 50
 
 -- ============================================
+-- OPACITY SLIDER (0 transparente → 100 negro)
+-- ============================================
+local SetOpacity
+
+local OPBox = Instance.new("Frame")
+OPBox.Size = UDim2.new(0,BW,0,42); OPBox.Position = UDim2.new(0.5,-(BW/2),0,Y)
+OPBox.BackgroundTransparency = 0.55; OPBox.BackgroundColor3 = BLACK
+OPBox.BorderSizePixel = 0; OPBox.ZIndex = 5; OPBox.Parent = MainFrame
+Instance.new("UICorner", OPBox).CornerRadius = UDim.new(0,7)
+local OPS = Instance.new("UIStroke"); OPS.Color = VIO_D; OPS.Thickness = 1.2; OPS.Parent = OPBox
+
+local OPTit = Instance.new("TextLabel")
+OPTit.Size = UDim2.new(0.6,0,0,18); OPTit.Position = UDim2.new(0,9,0,3)
+OPTit.BackgroundTransparency = 1; OPTit.Text = "OPACIDAD"; OPTit.TextColor3 = VIO
+OPTit.Font = Enum.Font.GothamBold; OPTit.TextSize = 11
+OPTit.TextXAlignment = Enum.TextXAlignment.Left; OPTit.ZIndex = 6; OPTit.Parent = OPBox
+task.spawn(function()
+    while OPTit.Parent do
+        TweenService:Create(OPTit, TweenInfo.new(1.2,Enum.EasingStyle.Sine), {TextColor3=VIO_L}):Play(); task.wait(1.2)
+        TweenService:Create(OPTit, TweenInfo.new(1.2,Enum.EasingStyle.Sine), {TextColor3=VIO}):Play();   task.wait(1.2)
+    end
+end)
+
+local OPVal = Instance.new("TextLabel")
+OPVal.Size = UDim2.new(0.35,0,0,18); OPVal.Position = UDim2.new(0.63,0,0,3)
+OPVal.BackgroundTransparency = 1; OPVal.Text = "0"; OPVal.TextColor3 = VIO
+OPVal.Font = Enum.Font.GothamBold; OPVal.TextSize = 11
+OPVal.TextXAlignment = Enum.TextXAlignment.Right; OPVal.ZIndex = 6; OPVal.Parent = OPBox
+task.spawn(function()
+    while OPVal.Parent do
+        TweenService:Create(OPVal, TweenInfo.new(1.2,Enum.EasingStyle.Sine), {TextColor3=VIO_L}):Play(); task.wait(1.2)
+        TweenService:Create(OPVal, TweenInfo.new(1.2,Enum.EasingStyle.Sine), {TextColor3=VIO}):Play();   task.wait(1.2)
+    end
+end)
+
+local OPTrack = Instance.new("Frame")
+OPTrack.Size = UDim2.new(1,-16,0,6); OPTrack.Position = UDim2.new(0,8,0,28)
+OPTrack.BackgroundColor3 = Color3.fromRGB(38,38,52); OPTrack.BorderSizePixel = 0
+OPTrack.ZIndex = 6; OPTrack.Parent = OPBox
+Instance.new("UICorner", OPTrack).CornerRadius = UDim.new(1,0)
+
+local OPFill = Instance.new("Frame")
+OPFill.Size = UDim2.new(0,0,1,0); OPFill.BackgroundColor3 = Color3.fromRGB(0,0,0)
+OPFill.BorderSizePixel = 0; OPFill.ZIndex = 7; OPFill.Parent = OPTrack
+Instance.new("UICorner", OPFill).CornerRadius = UDim.new(1,0)
+
+local OPThumb = Instance.new("TextButton")
+OPThumb.Size = UDim2.new(0,16,0,16); OPThumb.Position = UDim2.new(0,-8,0.5,-8)
+OPThumb.BackgroundColor3 = WHITE; OPThumb.Text = ""; OPThumb.BorderSizePixel = 0
+OPThumb.ZIndex = 8; OPThumb.Parent = OPTrack
+Instance.new("UICorner", OPThumb).CornerRadius = UDim.new(1,0)
+
+local draggingOP = false
+
+SetOpacity = function(val)
+    val = math.clamp(val, 0, 100)
+    currentOpacity = val
+    local pct = val / 100
+    -- 0 = completamente transparente, 100 = negro sólido
+    MainFrame.BackgroundTransparency = 1 - (pct * 0.95)
+    OPFill.Size = UDim2.new(pct, 0, 1, 0)
+    OPThumb.Position = UDim2.new(pct, -8, 0.5, -8)
+    OPVal.Text = math.floor(val) .. ""
+    SaveSettings()
+end
+
+OPThumb.MouseButton1Down:Connect(function() draggingOP = true end)
+UserInputSvc.InputEnded:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.MouseButton1 then draggingOP = false end
+end)
+RunService.RenderStepped:Connect(function()
+    if draggingOP then
+        local pct = math.clamp((UserInputSvc:GetMouseLocation().X - OPTrack.AbsolutePosition.X) / OPTrack.AbsoluteSize.X, 0, 1)
+        SetOpacity(pct * 100)
+    end
+end)
+SetOpacity(0); Y = Y + 50
+
+-- ============================================
 -- REJOIN (boton simple)
 -- ============================================
 local RejoinBtn = Instance.new("TextButton")
@@ -608,6 +691,7 @@ task.delay(0.3, function()
     if not saved then return end
 
     if saved.fov        then SetFOV(saved.fov) end
+    if saved.opacity    then SetOpacity(saved.opacity) end
     if saved.lowgfx     then ApplyLowGraphics(true); toggleStates.lowgfx=true;     ApplyToggleVisual("lowgfx",true)     end
     if saved.fps        then ApplyFPSBoost(true);    toggleStates.fps=true;        ApplyToggleVisual("fps",true)        end
     if saved.ping       then ApplyPingLow(true);     toggleStates.ping=true;       ApplyToggleVisual("ping",true)       end
