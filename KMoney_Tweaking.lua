@@ -14,9 +14,9 @@ local UserInputSvc = game:GetService("UserInputService")
 local TeleportSvc  = game:GetService("TeleportService")
 local LocalPlayer  = Players.LocalPlayer
 
-local VIO   = Color3.fromRGB(210, 0, 255)
-local VIO_D = Color3.fromRGB(90,  0, 130)
-local VIO_L = Color3.fromRGB(255, 80, 255)
+local VIO   = Color3.fromRGB(255, 255, 255)
+local VIO_D = Color3.fromRGB(180, 180, 180)
+local VIO_L = Color3.fromRGB(255, 255, 255)
 local BLACK = Color3.fromRGB(6, 6, 9)
 local WHITE = Color3.fromRGB(255, 255, 255)
 
@@ -140,7 +140,7 @@ local HW = 220
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0,HW,0,400)
-MainFrame.Position = UDim2.new(1,-HW-4,0,4)
+MainFrame.Position = UDim2.new(1,-224,0,4)
 MainFrame.BackgroundColor3 = Color3.fromRGB(10,10,12)
 MainFrame.BackgroundTransparency = 0.45
 MainFrame.BorderSizePixel = 0
@@ -302,7 +302,7 @@ local BW = HW - 24
 local function ApplyToggleVisual(key, state)
     local v = toggleVisuals[key]; if not v then return end
     if state then
-        TweenService:Create(v.btn,   TweenInfo.new(0.15), {BackgroundColor3=Color3.fromRGB(40,0,70), BackgroundTransparency=0.1}):Play()
+        TweenService:Create(v.btn,   TweenInfo.new(0.15), {BackgroundColor3=Color3.fromRGB(50,50,50), BackgroundTransparency=0.1}):Play()
         v.stroke.Color = VIO_L; v.stroke.Thickness = 2
     else
         TweenService:Create(v.btn,   TweenInfo.new(0.15), {BackgroundColor3=BLACK, BackgroundTransparency=0.55}):Play()
@@ -693,7 +693,7 @@ task.spawn(function()
     end
 end)
 RejoinBtn.MouseButton1Click:Connect(function()
-    TweenService:Create(RejoinBtn, TweenInfo.new(0.1), {BackgroundColor3=Color3.fromRGB(40,0,70), BackgroundTransparency=0.1}):Play()
+    TweenService:Create(RejoinBtn, TweenInfo.new(0.1), {BackgroundColor3=Color3.fromRGB(50,50,50), BackgroundTransparency=0.1}):Play()
     RejoinStroke.Color = VIO_L; RejoinStroke.Thickness = 2
     task.wait(0.15)
     pcall(function() TeleportSvc:Teleport(game.PlaceId, LocalPlayer) end)
@@ -702,7 +702,7 @@ Y = Y + 34
 
 -- resize
 MainFrame.Size = UDim2.new(0,HW,0,Y+12)
-MainFrame.Position = UDim2.new(1,-HW-4,0,4)
+MainFrame.Position = UDim2.new(1,-224,0,4)
 
 -- ============================================
 -- AUTO LOAD al ejecutar
