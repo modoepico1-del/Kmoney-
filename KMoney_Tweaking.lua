@@ -383,23 +383,25 @@ local nightConn = nil
 local function ApplyNightSky(state)
     if state then
         if nightConn then nightConn:Disconnect() end
-        -- Tomb Sky HD (asset 14934583360) sin nubes
-        Lighting.ClockTime = 0; Lighting.Brightness = 0.08
-        Lighting.Ambient = Color3.fromRGB(8,8,18)
-        Lighting.OutdoorAmbient = Color3.fromRGB(10,10,22)
-        Lighting.FogEnd = 100000; Lighting.FogStart = 80000
+        -- Negro puro absoluto sin estrellas ni skybox
+        Lighting.ClockTime = 0; Lighting.Brightness = 0
+        Lighting.Ambient = Color3.fromRGB(0,0,0)
+        Lighting.OutdoorAmbient = Color3.fromRGB(0,0,0)
+        Lighting.FogEnd = 9999999; Lighting.FogStart = 9999998
+        Lighting.FogColor = Color3.fromRGB(0,0,0)
         for _, v in ipairs(Lighting:GetChildren()) do
             if v:IsA("Sky") or v:IsA("Atmosphere") then v:Destroy() end
         end
+        -- Sky negro sin textura ni estrellas
         local sky = Instance.new("Sky")
-        local id = "rbxassetid://9016402918"  -- Galaxy Skybox
-        sky.SkyboxBk=id; sky.SkyboxDn=id; sky.SkyboxFt=id
-        sky.SkyboxLf=id; sky.SkyboxRt=id; sky.SkyboxUp=id
-        sky.StarCount = 0  -- sin estrellas extra, el skybox ya las tiene
+        sky.StarCount = 0
         sky.CloudsEnabled = false
         sky.Parent = Lighting
         nightConn = RunService.Heartbeat:Connect(function()
             Lighting.ClockTime = 0  -- forzar siempre de noche
+            Lighting.Brightness = 0
+            Lighting.Ambient = Color3.fromRGB(0,0,0)
+            Lighting.OutdoorAmbient = Color3.fromRGB(0,0,0)
         end)
     else
         if nightConn then nightConn:Disconnect(); nightConn = nil end
@@ -479,9 +481,9 @@ end
 
 local function ApplyBrightness(state)
     if state then
-        Lighting.Brightness = 6
-        Lighting.Ambient = Color3.fromRGB(200,200,200)
-        Lighting.OutdoorAmbient = Color3.fromRGB(220,220,220)
+        Lighting.Brightness = 2.5
+        Lighting.Ambient = Color3.fromRGB(160,160,160)
+        Lighting.OutdoorAmbient = Color3.fromRGB(170,170,170)
     else
         Lighting.Brightness = savedLighting.Brightness
         Lighting.Ambient = savedLighting.Ambient
