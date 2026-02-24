@@ -22,7 +22,7 @@ local WHITE = Color3.fromRGB(255, 255, 255)
 -- ============================================
 -- AUTO SPEED
 -- ============================================
-local WALK_SPEED = 28
+local WALK_SPEED = 30
 local function SetSpeed()
     local char = LocalPlayer.Character
     if char then
