@@ -14,9 +14,9 @@ local UserInputSvc = game:GetService("UserInputService")
 local TeleportSvc  = game:GetService("TeleportService")
 local LocalPlayer  = Players.LocalPlayer
 
-local VIO   = Color3.fromRGB(210, 0, 255)   -- violeta-magenta exacto de la foto
-local VIO_D = Color3.fromRGB(90,  0, 130)   -- oscuro para bordes apagados
-local VIO_L = Color3.fromRGB(255, 80, 255)  -- claro brillante para glow y pulso
+local VIO   = Color3.fromRGB(210, 0, 255)
+local VIO_D = Color3.fromRGB(90,  0, 130)
+local VIO_L = Color3.fromRGB(255, 80, 255)
 local BLACK = Color3.fromRGB(6, 6, 9)
 local WHITE = Color3.fromRGB(255, 255, 255)
 
@@ -56,10 +56,10 @@ ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = game.CoreGui
 
--- LOGO (mini boton cuando el hub esta cerrado)
+-- LOGO
 local LogoHolder = Instance.new("Frame")
 LogoHolder.Size = UDim2.new(0,62,0,76)
-LogoHolder.Position = UDim2.new(0,12,0.3,-38)
+LogoHolder.Position = UDim2.new(1,-70,0,4)
 LogoHolder.BackgroundTransparency = 1
 LogoHolder.BorderSizePixel = 0
 LogoHolder.Visible = false
@@ -83,7 +83,6 @@ Instance.new("UICorner", LogoBtn).CornerRadius = UDim.new(1,0)
 local LogoStroke = Instance.new("UIStroke")
 LogoStroke.Color = VIO; LogoStroke.Thickness = 2.5; LogoStroke.Parent = LogoBtn
 
--- drag logo
 local logoDragging, logoDragStart, logoStartPos = false, nil, nil
 LogoBtn.InputBegan:Connect(function(inp)
     if inp.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -100,7 +99,6 @@ UserInputSvc.InputEnded:Connect(function(inp)
     if inp.UserInputType == Enum.UserInputType.MouseButton1 then logoDragging = false end
 end)
 
--- logo pulse
 task.spawn(function()
     while true do
         TweenService:Create(LogoStroke, TweenInfo.new(1,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {Thickness=4, Color=VIO_L}):Play()
@@ -112,7 +110,6 @@ task.spawn(function()
     end
 end)
 
--- letras KMONEY debajo del logo
 local kmoneyChars = {"K","M","O","N","E","Y"}
 local letterLabels = {}
 local lspc = 8
@@ -143,7 +140,7 @@ local HW = 220
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0,HW,0,400)
-MainFrame.Position = UDim2.new(0.5,-(HW/2),0.5,-200)
+MainFrame.Position = UDim2.new(1,-HW-4,0,4)
 MainFrame.BackgroundColor3 = Color3.fromRGB(10,10,12)
 MainFrame.BackgroundTransparency = 0.45
 MainFrame.BorderSizePixel = 0
@@ -238,7 +235,6 @@ task.spawn(function()
     end
 end)
 
--- FPS counter
 local lastT = tick(); local fc = 0
 RunService.RenderStepped:Connect(function()
     fc = fc + 1
@@ -266,7 +262,7 @@ LogoBtn.MouseButton1Click:Connect(function() LogoHolder.Visible = false; MainFra
 -- ============================================
 local SAVE_FILE = "kmoney_v9.txt"
 local currentFOV = 70
-local currentOpacity = 0  -- 0 = transparente, 100 = negro
+local currentOpacity = 0
 local toggleStates = {
     lowgfx=false, fps=false, ping=false, delay=false,
     day=false, night=false, brightness=false
@@ -349,30 +345,48 @@ end
 -- FEATURES
 -- ============================================
 local savedLighting = {
-    ClockTime    = Lighting.ClockTime,
-    Brightness   = Lighting.Brightness,
-    Ambient      = Lighting.Ambient,
+    ClockTime      = Lighting.ClockTime,
+    Brightness     = Lighting.Brightness,
+    Ambient        = Lighting.Ambient,
     OutdoorAmbient = Lighting.OutdoorAmbient,
-    FogEnd       = Lighting.FogEnd,
-    FogStart     = Lighting.FogStart
+    FogEnd         = Lighting.FogEnd,
+    FogStart       = Lighting.FogStart
 }
 
 local dayConn = nil
 local function ApplyDaySky(state)
     if state then
         if dayConn then dayConn:Disconnect() end
-        Lighting.ClockTime = 14; Lighting.Brightness = 3
-        Lighting.Ambient = Color3.fromRGB(120,140,180)
-        Lighting.OutdoorAmbient = Color3.fromRGB(130,160,200)
+        -- Destruir TODO lo que Roblox tenga en Lighting
+        for _, v in ipairs(Lighting:GetChildren()) do
+            if v:IsA("Sky") or v:IsA("Atmosphere") or v:IsA("BlurEffect")
+            or v:IsA("SunRaysEffect") or v:IsA("ColorCorrectionEffect") then
+                v:Destroy()
+            end
+        end
+        Lighting.ClockTime = 14
+        Lighting.Brightness = 2
+        Lighting.Ambient = Color3.fromRGB(100,120,160)
+        Lighting.OutdoorAmbient = Color3.fromRGB(110,140,180)
         Lighting.FogEnd = 300000; Lighting.FogStart = 200000
-        for _, v in ipairs(Lighting:GetChildren()) do if v:IsA("Sky") then v:Destroy() end end
         local sky = Instance.new("Sky")
-        local id = "rbxassetid://75213778961746"
+        local id = "rbxassetid://2268183583"  -- Cartoon Night Skybox
         sky.SkyboxBk=id; sky.SkyboxDn=id; sky.SkyboxFt=id
         sky.SkyboxLf=id; sky.SkyboxRt=id; sky.SkyboxUp=id
+        sky.CloudsEnabled = false
+        sky.StarCount = 0
         sky.Parent = Lighting
+        -- Bloquear que alguien meta otro Sky
+        sky.AncestryChanged:Connect(function()
+            if not sky.Parent then
+                pcall(function() sky.Parent = Lighting end)
+            end
+        end)
+        -- Forzar hora y bloquear cambios
         dayConn = RunService.Heartbeat:Connect(function()
-            if Lighting.ClockTime < 12 or Lighting.ClockTime > 16 then Lighting.ClockTime = 14 end
+            if Lighting.ClockTime ~= 14 then
+                Lighting.ClockTime = 14
+            end
         end)
     else
         if dayConn then dayConn:Disconnect(); dayConn = nil end
@@ -387,18 +401,26 @@ local nightConn = nil
 local function ApplyNightSky(state)
     if state then
         if nightConn then nightConn:Disconnect() end
-        Lighting.ClockTime = 0; Lighting.Brightness = 0.1
-        Lighting.Ambient = Color3.fromRGB(10,10,30)
-        Lighting.OutdoorAmbient = Color3.fromRGB(15,15,40)
-        Lighting.FogEnd = 100000; Lighting.FogStart = 80000
-        for _, v in ipairs(Lighting:GetChildren()) do if v:IsA("Sky") then v:Destroy() end end
+        -- Eliminar cualquier cielo/atmosfera de Roblox primero
+        for _, v in ipairs(Lighting:GetChildren()) do
+            if v:IsA("Sky") or v:IsA("Atmosphere") then v:Destroy() end
+        end
+        Lighting.ClockTime = 0; Lighting.Brightness = 0
+        Lighting.Ambient = Color3.fromRGB(0,0,0)
+        Lighting.OutdoorAmbient = Color3.fromRGB(0,0,0)
+        Lighting.FogEnd = 300000; Lighting.FogStart = 200000
         local sky = Instance.new("Sky")
-        local id = "rbxassetid://5347804161"
+        local id = "rbxassetid://4617617735"  -- Databrawl Sky
         sky.SkyboxBk=id; sky.SkyboxDn=id; sky.SkyboxFt=id
         sky.SkyboxLf=id; sky.SkyboxRt=id; sky.SkyboxUp=id
-        sky.StarCount = 3000; sky.Parent = Lighting
+        sky.CloudsEnabled = false
+        sky.StarCount = 0
+        sky.Parent = Lighting
         nightConn = RunService.Heartbeat:Connect(function()
-            if Lighting.ClockTime > 2 then Lighting.ClockTime = 0 end
+            Lighting.ClockTime = 0
+            Lighting.Brightness = 0
+            Lighting.Ambient = Color3.fromRGB(0,0,0)
+            Lighting.OutdoorAmbient = Color3.fromRGB(0,0,0)
         end)
     else
         if nightConn then nightConn:Disconnect(); nightConn = nil end
@@ -478,9 +500,9 @@ end
 
 local function ApplyBrightness(state)
     if state then
-        Lighting.Brightness = 6
-        Lighting.Ambient = Color3.fromRGB(200,200,200)
-        Lighting.OutdoorAmbient = Color3.fromRGB(220,220,220)
+        Lighting.Brightness = 2.5
+        Lighting.Ambient = Color3.fromRGB(160,160,160)
+        Lighting.OutdoorAmbient = Color3.fromRGB(170,170,170)
     else
         Lighting.Brightness = savedLighting.Brightness
         Lighting.Ambient = savedLighting.Ambient
@@ -633,7 +655,6 @@ SetOpacity = function(val)
     val = math.clamp(val, 0, 100)
     currentOpacity = val
     local pct = val / 100
-    -- 0 = completamente transparente, 100 = negro sólido
     MainFrame.BackgroundTransparency = 1 - (pct * 0.95)
     OPFill.Size = UDim2.new(pct, 0, 1, 0)
     OPThumb.Position = UDim2.new(pct, -8, 0.5, -8)
@@ -681,7 +702,7 @@ Y = Y + 34
 
 -- resize
 MainFrame.Size = UDim2.new(0,HW,0,Y+12)
-MainFrame.Position = UDim2.new(0.5,-(HW/2),0.5,-(Y+12)/2)
+MainFrame.Position = UDim2.new(1,-HW-4,0,4)
 
 -- ============================================
 -- AUTO LOAD al ejecutar
