@@ -371,11 +371,18 @@ local function ApplyNightSky(state)
         Lighting.FogStart                = 0
         Lighting.FogColor                = Color3.fromRGB(0, 0, 0)
 
-        -- PASO 3: Sky con cuerpos celestes ocultos
+        -- PASO 3: Sky negro con asset ID real + cuerpos celestes ocultos
+        local blackId = "rbxassetid://14934583360"
         nightSky = Instance.new("Sky")
-        nightSky.StarCount       = 0     -- sin estrellas
-        nightSky.SunAngularSize  = 0     -- sol invisible
-        nightSky.MoonAngularSize = 0     -- luna invisible
+        nightSky.SkyboxBk        = blackId
+        nightSky.SkyboxDn        = blackId
+        nightSky.SkyboxFt        = blackId
+        nightSky.SkyboxLf        = blackId
+        nightSky.SkyboxRt        = blackId
+        nightSky.SkyboxUp        = blackId
+        nightSky.StarCount       = 0
+        nightSky.SunAngularSize  = 0
+        nightSky.MoonAngularSize = 0
         nightSky.CloudsEnabled   = false
         nightSky.Parent          = Lighting
 
@@ -410,7 +417,10 @@ local function ApplyNightSky(state)
             end
             -- Mantener Sky con cuerpos celestes ocultos
             if not nightSky or not nightSky.Parent then
+                local bId = "rbxassetid://14934583360"
                 nightSky = Instance.new("Sky")
+                nightSky.SkyboxBk=bId; nightSky.SkyboxDn=bId; nightSky.SkyboxFt=bId
+                nightSky.SkyboxLf=bId; nightSky.SkyboxRt=bId; nightSky.SkyboxUp=bId
                 nightSky.StarCount=0; nightSky.SunAngularSize=0
                 nightSky.MoonAngularSize=0; nightSky.CloudsEnabled=false
                 nightSky.Parent = Lighting
