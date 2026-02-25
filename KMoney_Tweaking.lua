@@ -1,6 +1,3 @@
--- ============================================
---         KMONEY TWEAKING HUB v9
--- ============================================
 if not game:IsLoaded() then game.Loaded:Wait() end
 task.wait(0.5)
 
@@ -19,9 +16,7 @@ local VIO_L = Color3.fromRGB(255, 80, 255)
 local BLACK = Color3.fromRGB(6, 6, 9)
 local WHITE = Color3.fromRGB(255, 255, 255)
 
--- ============================================
 -- AUTO SPEED
--- ============================================
 local WALK_SPEED = 30
 local function SetSpeed()
     local char = LocalPlayer.Character
@@ -40,18 +35,14 @@ LocalPlayer.CharacterAdded:Connect(function(char)
 end)
 SetSpeed()
 
--- ============================================
 -- GUI ROOT
--- ============================================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "KMoneyHub"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = game.CoreGui
 
--- ============================================
--- LOGO (visible cuando hub cerrado)
--- ============================================
+-- LOGO (cuando hub cerrado)
 local LogoHolder = Instance.new("Frame")
 LogoHolder.Size = UDim2.new(0,62,0,76)
 LogoHolder.Position = UDim2.new(1,-70,0,4)
@@ -78,7 +69,6 @@ Instance.new("UICorner", LogoBtn).CornerRadius = UDim.new(1,0)
 local LogoStroke = Instance.new("UIStroke")
 LogoStroke.Color = VIO; LogoStroke.Thickness = 2.5; LogoStroke.Parent = LogoBtn
 
--- Drag logo
 local logoDragging, logoDragStart, logoStartPos = false, nil, nil
 LogoBtn.InputBegan:Connect(function(inp)
     if inp.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -106,7 +96,6 @@ task.spawn(function()
     end
 end)
 
--- Letras KMONEY
 local kmoneyChars = {"K","M","O","N","E","Y"}
 local letterLabels = {}
 local lspc = 8
@@ -132,9 +121,7 @@ RunService.Heartbeat:Connect(function(dt)
     end
 end)
 
--- ============================================
--- MAIN FRAME
--- ============================================
+-- MAIN FRAME (fijo, sin Draggable)
 local HW = 220
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
@@ -143,7 +130,9 @@ MainFrame.Position = UDim2.new(1,-224,0,4)
 MainFrame.BackgroundColor3 = Color3.fromRGB(10,10,12)
 MainFrame.BackgroundTransparency = 0.45
 MainFrame.BorderSizePixel = 0
-MainFrame.Active = true; MainFrame.Draggable = false; MainFrame.ClipsDescendants = true
+MainFrame.Active = true
+MainFrame.Draggable = false
+MainFrame.ClipsDescendants = true
 MainFrame.Parent = ScreenGui
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0,12)
 
@@ -158,12 +147,11 @@ task.spawn(function()
     end
 end)
 
--- Nieve
+-- Particulas
 local SnowCanvas = Instance.new("Frame")
 SnowCanvas.Size = UDim2.new(1,0,1,0)
 SnowCanvas.BackgroundTransparency = 1; SnowCanvas.BorderSizePixel = 0
 SnowCanvas.ZIndex = 1; SnowCanvas.Parent = MainFrame
-
 local snowballs = {}
 for i = 1, 22 do
     local s = math.random(3,9)
@@ -192,9 +180,7 @@ RunService.RenderStepped:Connect(function(dt)
     end
 end)
 
--- ============================================
 -- TITLE BAR
--- ============================================
 local TitleBar = Instance.new("Frame")
 TitleBar.Size = UDim2.new(1,0,0,42)
 TitleBar.BackgroundTransparency = 1; TitleBar.BorderSizePixel = 0
@@ -257,14 +243,11 @@ Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0,5)
 CloseBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false; LogoHolder.Visible = true end)
 LogoBtn.MouseButton1Click:Connect(function() LogoHolder.Visible = false; MainFrame.Visible = true end)
 
--- ============================================
 -- SAVE / LOAD
--- ============================================
 local SAVE_FILE = "kmoney_v9.txt"
 local currentFOV = 70
 local currentOpacity = 0
--- NOTA: Se eliminó "day" de los toggleStates. "night" ahora = cielo negro total.
-local toggleStates = {lowgfx=false, fps=false, ping=false, delay=false, night=false, brightness=false}
+local toggleStates = {lowgfx=false, fps=false, ping=false, night=false, brightness=false}
 
 local function SaveSettings()
     pcall(function()
@@ -286,9 +269,7 @@ local function LoadSettings()
     return t
 end
 
--- ============================================
 -- TOGGLE HELPER
--- ============================================
 local toggleVisuals = {}
 local BW = HW - 24
 
@@ -327,33 +308,39 @@ local function MakeToggle(name, yPos, callback, saveKey)
     end)
 end
 
--- ============================================
--- FEATURES
--- ============================================
+-- ILUMINACION ORIGINAL
 local savedLighting = {
-    ClockTime=Lighting.ClockTime, Brightness=Lighting.Brightness,
-    Ambient=Lighting.Ambient, OutdoorAmbient=Lighting.OutdoorAmbient,
-    FogEnd=Lighting.FogEnd, FogStart=Lighting.FogStart
+    ClockTime      = Lighting.ClockTime,
+    Brightness     = Lighting.Brightness,
+    Ambient        = Lighting.Ambient,
+    OutdoorAmbient = Lighting.OutdoorAmbient,
+    FogEnd         = Lighting.FogEnd,
+    FogStart       = Lighting.FogStart,
 }
 
--- ============================================
--- NIGHT (CIELO NEGRO: borra Sky completamente)
--- ============================================
-local nightConn = nil
+-- NIGHT: sky Hollow Realm oscuro, sin sol/luna/estrellas
+local HOLLOW_SKY = "rbxassetid://93756493920633"
+local nightConn  = nil
 
 local function ApplyNightSky(state)
     if state then
         if nightConn then nightConn:Disconnect(); nightConn = nil end
 
-        -- Borrar Sky, Atmosphere y nubes del juego
         for _, v in ipairs(Lighting:GetChildren()) do
             if v:IsA("Sky") or v:IsA("Atmosphere") or v:IsA("Clouds") then
                 pcall(function() v:Destroy() end)
             end
         end
 
-        -- Sin Sky = fondo negro puro en Roblox
-        -- Iluminacion totalmente oscura
+        local sky = Instance.new("Sky")
+        sky.SkyboxBk = HOLLOW_SKY; sky.SkyboxDn = HOLLOW_SKY; sky.SkyboxFt = HOLLOW_SKY
+        sky.SkyboxLf = HOLLOW_SKY; sky.SkyboxRt = HOLLOW_SKY; sky.SkyboxUp = HOLLOW_SKY
+        sky.StarCount       = 0
+        sky.SunAngularSize  = 0
+        sky.MoonAngularSize = 0
+        sky.CloudsEnabled   = false
+        sky.Parent          = Lighting
+
         Lighting.ClockTime               = 0
         Lighting.Brightness              = 0
         Lighting.Ambient                 = Color3.fromRGB(0, 0, 0)
@@ -362,22 +349,27 @@ local function ApplyNightSky(state)
         Lighting.EnvironmentalDiffuseScale  = 0
         Lighting.EnvironmentalSpecularScale = 0
 
-        -- Loop: destruir cualquier Sky que el juego intente agregar
         nightConn = RunService.Heartbeat:Connect(function()
             Lighting.Brightness              = 0
             Lighting.Ambient                 = Color3.fromRGB(0, 0, 0)
             Lighting.OutdoorAmbient          = Color3.fromRGB(0, 0, 0)
             Lighting.EnvironmentalDiffuseScale  = 0
             Lighting.EnvironmentalSpecularScale = 0
-            for _, v in ipairs(Lighting:GetChildren()) do
-                if v:IsA("Sky") or v:IsA("Atmosphere") then
-                    pcall(function() v:Destroy() end)
-                end
+            local s = Lighting:FindFirstChildOfClass("Sky")
+            if not s then
+                s = Instance.new("Sky")
+                s.SkyboxBk=HOLLOW_SKY; s.SkyboxDn=HOLLOW_SKY; s.SkyboxFt=HOLLOW_SKY
+                s.SkyboxLf=HOLLOW_SKY; s.SkyboxRt=HOLLOW_SKY; s.SkyboxUp=HOLLOW_SKY
+                s.Parent = Lighting
             end
+            s.StarCount=0; s.SunAngularSize=0; s.MoonAngularSize=0; s.CloudsEnabled=false
         end)
 
     else
         if nightConn then nightConn:Disconnect(); nightConn = nil end
+        for _, v in ipairs(Lighting:GetChildren()) do
+            if v:IsA("Sky") then pcall(function() v:Destroy() end) end
+        end
         Lighting.ClockTime               = savedLighting.ClockTime
         Lighting.Brightness              = savedLighting.Brightness
         Lighting.Ambient                 = savedLighting.Ambient
@@ -390,28 +382,72 @@ local function ApplyNightSky(state)
     end
 end
 
+-- LOW GRAPHICS (look: cielo negro, colores vivos, sin sombras ni efectos)
+local lowConn = nil
 local function ApplyLowGraphics(state)
     if state then
         if setfpscap then setfpscap(0) end
         settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-        Lighting.GlobalShadows = false; Lighting.FogEnd = 100000
+
+        -- Cielo negro: borrar Sky y Atmosphere
+        for _, v in ipairs(Lighting:GetChildren()) do
+            if v:IsA("Sky") or v:IsA("Atmosphere") or v:IsA("Clouds")
+            or v:IsA("BloomEffect") or v:IsA("SunRaysEffect")
+            or v:IsA("DepthOfFieldEffect") or v:IsA("BlurEffect") then
+                pcall(function() v:Destroy() end)
+            end
+        end
+
+        -- Iluminacion plana y brillante (colores vivos como en la foto)
+        Lighting.GlobalShadows           = false
+        Lighting.Brightness              = 2
+        Lighting.Ambient                 = Color3.fromRGB(178, 178, 178)
+        Lighting.OutdoorAmbient          = Color3.fromRGB(178, 178, 178)
+        Lighting.EnvironmentalDiffuseScale  = 0
+        Lighting.EnvironmentalSpecularScale = 0
+        Lighting.FogEnd                  = 100000
+        Lighting.FogStart                = 99000
+
+        -- Desactivar particulas y efectos visuales
         for _, v in ipairs(workspace:GetDescendants()) do
-            if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
+            if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke")
+            or v:IsA("Fire") or v:IsA("Sparkles") then
                 v.Enabled = false
             end
         end
-        pcall(function() settings().Physics.PhysicsEnvironmentalThrottle = Enum.EnviromentalPhysicsThrottle.Disabled end)
+
+        -- Loop: mantener cielo negro y sin efectos
+        lowConn = RunService.Heartbeat:Connect(function()
+            Lighting.GlobalShadows = false
+            if Lighting:FindFirstChildOfClass("Sky") then
+                for _, v in ipairs(Lighting:GetChildren()) do
+                    if v:IsA("Sky") or v:IsA("Atmosphere") then
+                        pcall(function() v:Destroy() end)
+                    end
+                end
+            end
+        end)
     else
+        if lowConn then lowConn:Disconnect(); lowConn = nil end
         settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
-        Lighting.GlobalShadows = true
+        Lighting.GlobalShadows           = true
+        Lighting.Brightness              = savedLighting.Brightness
+        Lighting.Ambient                 = savedLighting.Ambient
+        Lighting.OutdoorAmbient          = savedLighting.OutdoorAmbient
+        Lighting.FogEnd                  = savedLighting.FogEnd
+        Lighting.FogStart                = savedLighting.FogStart
+        Lighting.EnvironmentalDiffuseScale  = 1
+        Lighting.EnvironmentalSpecularScale = 1
         for _, v in ipairs(workspace:GetDescendants()) do
-            if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
+            if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke")
+            or v:IsA("Fire") or v:IsA("Sparkles") then
                 v.Enabled = true
             end
         end
     end
 end
 
+-- FPS BOOST
 local function ApplyFPSBoost(state)
     if state then
         if setfpscap then setfpscap(0) end
@@ -424,6 +460,7 @@ local function ApplyFPSBoost(state)
     end
 end
 
+-- PING LOW
 local pingConn = nil
 local function ApplyPingLow(state)
     if state then
@@ -433,63 +470,36 @@ local function ApplyPingLow(state)
     end
 end
 
-local delayConn = nil
-local function ApplyDelay(state)
-    if state then
-        pcall(function()
-            settings().Physics.PhysicsEnvironmentalThrottle = Enum.EnviromentalPhysicsThrottle.Disabled
-            settings().Physics.AllowSleep = false
-        end)
-        if setfpscap then setfpscap(0) end
-        for _, fx in ipairs(Lighting:GetChildren()) do
-            if fx:IsA("BlurEffect") then fx.Size = 0
-            elseif fx:IsA("DepthOfFieldEffect") then fx.Enabled = false
-            elseif fx:IsA("SunRaysEffect") then fx.Intensity = 0 end
-        end
-        delayConn = RunService.Heartbeat:Connect(function() end)
-    else
-        if delayConn then delayConn:Disconnect(); delayConn = nil end
-        pcall(function() settings().Physics.AllowSleep = true end)
-        for _, fx in ipairs(Lighting:GetChildren()) do
-            if fx:IsA("DepthOfFieldEffect") then fx.Enabled = true
-            elseif fx:IsA("SunRaysEffect") then fx.Intensity = 0.25 end
-        end
-    end
-end
 
+-- BRIGHT
 local function ApplyBrightness(state)
     if state then
-        Lighting.Brightness = 2.5
-        Lighting.Ambient = Color3.fromRGB(160,160,160)
+        Lighting.Brightness     = 2.5
+        Lighting.Ambient        = Color3.fromRGB(160,160,160)
         Lighting.OutdoorAmbient = Color3.fromRGB(170,170,170)
     else
-        Lighting.Brightness=savedLighting.Brightness
-        Lighting.Ambient=savedLighting.Ambient
-        Lighting.OutdoorAmbient=savedLighting.OutdoorAmbient
+        Lighting.Brightness     = savedLighting.Brightness
+        Lighting.Ambient        = savedLighting.Ambient
+        Lighting.OutdoorAmbient = savedLighting.OutdoorAmbient
     end
 end
 
--- ============================================
--- BUILD TOGGLES  (sin DAY)
--- ============================================
+-- TOGGLES
 local Y = 48
 MakeToggle("LOW GRAPHICS", Y, function(s) toggleStates.lowgfx=s;     ApplyLowGraphics(s); SaveSettings() end, "lowgfx");    Y=Y+34
 MakeToggle("FPS BOOST",    Y, function(s) toggleStates.fps=s;        ApplyFPSBoost(s);    SaveSettings() end, "fps");       Y=Y+34
 MakeToggle("PING LOW",     Y, function(s) toggleStates.ping=s;       ApplyPingLow(s);     SaveSettings() end, "ping");      Y=Y+34
-MakeToggle("DELAY 0",      Y, function(s) toggleStates.delay=s;      ApplyDelay(s);       SaveSettings() end, "delay");     Y=Y+34
 MakeToggle("NIGHT",        Y, function(s) toggleStates.night=s;      ApplyNightSky(s);    SaveSettings() end, "night");     Y=Y+34
 MakeToggle("BRIGHT",       Y, function(s) toggleStates.brightness=s; ApplyBrightness(s);  SaveSettings() end, "brightness"); Y=Y+34
 
--- ============================================
 -- FOV SLIDER
--- ============================================
 local SetFOV
 local FOVBox = Instance.new("Frame")
 FOVBox.Size = UDim2.new(0,BW,0,42); FOVBox.Position = UDim2.new(0.5,-(BW/2),0,Y)
 FOVBox.BackgroundTransparency = 0.55; FOVBox.BackgroundColor3 = BLACK
 FOVBox.BorderSizePixel = 0; FOVBox.ZIndex = 5; FOVBox.Parent = MainFrame
 Instance.new("UICorner", FOVBox).CornerRadius = UDim.new(0,7)
-local FOVS = Instance.new("UIStroke"); FOVS.Color = VIO_D; FOVS.Thickness = 1.2; FOVS.Parent = FOVBox
+Instance.new("UIStroke", FOVBox).Color = VIO_D
 
 local FOVTit = Instance.new("TextLabel")
 FOVTit.Size = UDim2.new(0.5,0,0,18); FOVTit.Position = UDim2.new(0,9,0,3)
@@ -528,7 +538,6 @@ Instance.new("UICorner", FovThumb).CornerRadius = UDim.new(1,0)
 
 local FOV_MIN, FOV_MAX = 40, 200
 local draggingFOV = false
-
 SetFOV = function(fov)
     fov = math.clamp(fov, FOV_MIN, FOV_MAX)
     local cam = workspace.CurrentCamera
@@ -539,7 +548,6 @@ SetFOV = function(fov)
     FOVVal.Text = math.floor(fov)..""
     currentFOV = fov; SaveSettings()
 end
-
 FovThumb.MouseButton1Down:Connect(function() draggingFOV = true end)
 UserInputSvc.InputEnded:Connect(function(inp)
     if inp.UserInputType == Enum.UserInputType.MouseButton1 then draggingFOV = false end
@@ -552,16 +560,14 @@ RunService.RenderStepped:Connect(function()
 end)
 SetFOV(70); Y = Y + 50
 
--- ============================================
 -- OPACITY SLIDER
--- ============================================
 local SetOpacity
 local OPBox = Instance.new("Frame")
 OPBox.Size = UDim2.new(0,BW,0,42); OPBox.Position = UDim2.new(0.5,-(BW/2),0,Y)
 OPBox.BackgroundTransparency = 0.55; OPBox.BackgroundColor3 = BLACK
 OPBox.BorderSizePixel = 0; OPBox.ZIndex = 5; OPBox.Parent = MainFrame
 Instance.new("UICorner", OPBox).CornerRadius = UDim.new(0,7)
-local OPS = Instance.new("UIStroke"); OPS.Color = VIO_D; OPS.Thickness = 1.2; OPS.Parent = OPBox
+Instance.new("UIStroke", OPBox).Color = VIO_D
 
 local OPTit = Instance.new("TextLabel")
 OPTit.Size = UDim2.new(0.6,0,0,18); OPTit.Position = UDim2.new(0,9,0,3)
@@ -615,7 +621,6 @@ SetOpacity = function(val)
     OPVal.Text = math.floor(val)..""
     SaveSettings()
 end
-
 OPThumb.MouseButton1Down:Connect(function() draggingOP = true end)
 UserInputSvc.InputEnded:Connect(function(inp)
     if inp.UserInputType == Enum.UserInputType.MouseButton1 then draggingOP = false end
@@ -628,9 +633,7 @@ RunService.RenderStepped:Connect(function()
 end)
 SetOpacity(0); Y = Y + 50
 
--- ============================================
 -- REJOIN
--- ============================================
 local RejoinBtn = Instance.new("TextButton")
 RejoinBtn.Size = UDim2.new(0,BW,0,28); RejoinBtn.Position = UDim2.new(0.5,-(BW/2),0,Y)
 RejoinBtn.BackgroundColor3 = BLACK; RejoinBtn.BackgroundTransparency = 0.55
@@ -654,13 +657,9 @@ RejoinBtn.MouseButton1Click:Connect(function()
 end)
 Y = Y + 34
 
--- Resize final
 MainFrame.Size = UDim2.new(0,HW,0,Y+12)
-MainFrame.Position = UDim2.new(1,-224,0,4)
 
--- ============================================
 -- AUTO LOAD
--- ============================================
 task.delay(0.3, function()
     local saved = LoadSettings()
     if not saved then return end
@@ -669,11 +668,10 @@ task.delay(0.3, function()
     if saved.lowgfx     then ApplyLowGraphics(true); toggleStates.lowgfx=true;     ApplyToggleVisual("lowgfx",true)     end
     if saved.fps        then ApplyFPSBoost(true);    toggleStates.fps=true;        ApplyToggleVisual("fps",true)        end
     if saved.ping       then ApplyPingLow(true);     toggleStates.ping=true;       ApplyToggleVisual("ping",true)       end
-    if saved.delay      then ApplyDelay(true);       toggleStates.delay=true;      ApplyToggleVisual("delay",true)      end
     if saved.night      then ApplyNightSky(true);    toggleStates.night=true;      ApplyToggleVisual("night",true)      end
     if saved.brightness then ApplyBrightness(true);  toggleStates.brightness=true; ApplyToggleVisual("brightness",true) end
     pcall(function() StarterGui:SetCore("SendNotification",{Title="KMoney",Text="Config cargada!",Duration=3}) end)
 end)
 
 pcall(function() StarterGui:SetCore("SendNotification",{Title="KMoney Tweaking",Text="Hub v9 listo!",Duration=4}) end)
-print("[KMoney v9] Hub loaded!")
+print("[KMoney v9] Loaded!")
