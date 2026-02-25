@@ -337,29 +337,33 @@ local savedLighting = {
 }
 
 -- ============================================
--- NIGHT (NEGRO TOTAL - METODO NUCLEAR)
+-- NIGHT
 -- ============================================
 local nightConn = nil
-local nightCCE  = nil   -- ColorCorrectionEffect (aplasta todo a negro)
-local nightSky  = nil   -- Sky sin sol/luna/estrellas
 
 local function ApplyNightSky(state)
     if state then
         if nightConn then nightConn:Disconnect(); nightConn = nil end
 
-        -- PASO 1: Destruir absolutamente todo efecto de iluminacion
+        -- Limpiar Sky y Atmosphere existentes
         for _, v in ipairs(Lighting:GetChildren()) do
-            pcall(function()
-                if v:IsA("Sky") or v:IsA("Atmosphere") or v:IsA("Clouds")
-                or v:IsA("BloomEffect") or v:IsA("SunRaysEffect")
-                or v:IsA("ColorCorrectionEffect") or v:IsA("DepthOfFieldEffect")
-                or v:IsA("BlurEffect") then
-                    v:Destroy()
-                end
-            end)
+            if v:IsA("Sky") or v:IsA("Atmosphere") then
+                pcall(function() v:Destroy() end)
+            end
         end
 
-        -- PASO 2: Iluminacion completamente negra
+        -- Cielo oscuro con skybox negro
+        local blackId = "rbxassetid://14934583360"
+        local sky = Instance.new("Sky")
+        sky.SkyboxBk = blackId; sky.SkyboxDn = blackId; sky.SkyboxFt = blackId
+        sky.SkyboxLf = blackId; sky.SkyboxRt = blackId; sky.SkyboxUp = blackId
+        sky.StarCount       = 0
+        sky.SunAngularSize  = 0
+        sky.MoonAngularSize = 0
+        sky.CloudsEnabled   = false
+        sky.Parent          = Lighting
+
+        -- Iluminacion oscura
         Lighting.ClockTime               = 0
         Lighting.Brightness              = 0
         Lighting.Ambient                 = Color3.fromRGB(0, 0, 0)
@@ -367,75 +371,23 @@ local function ApplyNightSky(state)
         Lighting.GlobalShadows           = false
         Lighting.EnvironmentalDiffuseScale  = 0
         Lighting.EnvironmentalSpecularScale = 0
-        Lighting.FogEnd                  = 9999
-        Lighting.FogStart                = 0
-        Lighting.FogColor                = Color3.fromRGB(0, 0, 0)
 
-        -- PASO 3: Sky negro con asset ID real + cuerpos celestes ocultos
-        local blackId = "rbxassetid://14934583360"
-        nightSky = Instance.new("Sky")
-        nightSky.SkyboxBk        = blackId
-        nightSky.SkyboxDn        = blackId
-        nightSky.SkyboxFt        = blackId
-        nightSky.SkyboxLf        = blackId
-        nightSky.SkyboxRt        = blackId
-        nightSky.SkyboxUp        = blackId
-        nightSky.StarCount       = 0
-        nightSky.SunAngularSize  = 0
-        nightSky.MoonAngularSize = 0
-        nightSky.CloudsEnabled   = false
-        nightSky.Parent          = Lighting
-
-        -- PASO 4: ColorCorrectionEffect al minimo = NEGRO ABSOLUTO
-        -- Esto aplasta TODO el color renderizado del cielo a negro puro
-        nightCCE = Instance.new("ColorCorrectionEffect")
-        nightCCE.Brightness = -1    -- minimo posible: negro total
-        nightCCE.Contrast   = 1
-        nightCCE.Saturation = -1
-        nightCCE.Enabled    = true
-        nightCCE.Parent     = Lighting
-
-        -- PASO 5: Heartbeat loop, impide que el juego revierta cualquier valor
+        -- Loop para mantener los valores oscuros
         nightConn = RunService.Heartbeat:Connect(function()
             Lighting.ClockTime               = 0
             Lighting.Brightness              = 0
             Lighting.Ambient                 = Color3.fromRGB(0, 0, 0)
             Lighting.OutdoorAmbient          = Color3.fromRGB(0, 0, 0)
-            Lighting.GlobalShadows           = false
             Lighting.EnvironmentalDiffuseScale  = 0
             Lighting.EnvironmentalSpecularScale = 0
-            Lighting.FogColor                = Color3.fromRGB(0, 0, 0)
-            -- Mantener CCE activo
-            if not nightCCE or not nightCCE.Parent then
-                nightCCE = Instance.new("ColorCorrectionEffect")
-                nightCCE.Brightness=-1; nightCCE.Contrast=1
-                nightCCE.Saturation=-1; nightCCE.Enabled=true
-                nightCCE.Parent = Lighting
-            else
-                nightCCE.Brightness = -1
-                nightCCE.Enabled    = true
-            end
-            -- Mantener Sky con cuerpos celestes ocultos
-            if not nightSky or not nightSky.Parent then
-                local bId = "rbxassetid://14934583360"
-                nightSky = Instance.new("Sky")
-                nightSky.SkyboxBk=bId; nightSky.SkyboxDn=bId; nightSky.SkyboxFt=bId
-                nightSky.SkyboxLf=bId; nightSky.SkyboxRt=bId; nightSky.SkyboxUp=bId
-                nightSky.StarCount=0; nightSky.SunAngularSize=0
-                nightSky.MoonAngularSize=0; nightSky.CloudsEnabled=false
-                nightSky.Parent = Lighting
-            else
-                nightSky.StarCount=0
-                nightSky.SunAngularSize=0
-                nightSky.MoonAngularSize=0
+            local s = Lighting:FindFirstChildOfClass("Sky")
+            if s then
+                s.StarCount = 0; s.SunAngularSize = 0; s.MoonAngularSize = 0
             end
         end)
 
     else
-        -- RESTAURAR TODO AL ESTADO ORIGINAL
         if nightConn then nightConn:Disconnect(); nightConn = nil end
-        if nightCCE and nightCCE.Parent then nightCCE:Destroy() end; nightCCE = nil
-        if nightSky and nightSky.Parent then nightSky:Destroy() end; nightSky = nil
         for _, v in ipairs(Lighting:GetChildren()) do
             if v:IsA("Sky") then pcall(function() v:Destroy() end) end
         end
@@ -445,7 +397,6 @@ local function ApplyNightSky(state)
         Lighting.OutdoorAmbient          = savedLighting.OutdoorAmbient
         Lighting.FogEnd                  = savedLighting.FogEnd
         Lighting.FogStart                = savedLighting.FogStart
-        Lighting.FogColor                = Color3.fromRGB(191, 191, 191)
         Lighting.GlobalShadows           = true
         Lighting.EnvironmentalDiffuseScale  = 1
         Lighting.EnvironmentalSpecularScale = 1
