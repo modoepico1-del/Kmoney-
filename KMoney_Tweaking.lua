@@ -337,66 +337,58 @@ local savedLighting = {
 }
 
 -- ============================================
--- NIGHT (CIELO 100% NEGRO - OSCURIDAD TOTAL)
+-- NIGHT (NEGRO TOTAL - METODO NUCLEAR)
 -- ============================================
 local nightConn = nil
-local savedTechnology = nil
+local nightCCE  = nil   -- ColorCorrectionEffect (aplasta todo a negro)
+local nightSky  = nil   -- Sky sin sol/luna/estrellas
 
 local function ApplyNightSky(state)
     if state then
-        if nightConn then nightConn:Disconnect() end
+        if nightConn then nightConn:Disconnect(); nightConn = nil end
 
-        -- Guardar Technology original
-        savedTechnology = Lighting.Technology
-
-        -- Destruir TODOS los efectos visuales del cielo
+        -- PASO 1: Destruir absolutamente todo efecto de iluminacion
         for _, v in ipairs(Lighting:GetChildren()) do
-            if  v:IsA("Sky")
-            or  v:IsA("Atmosphere")
-            or  v:IsA("Clouds")
-            or  v:IsA("BloomEffect")
-            or  v:IsA("SunRaysEffect")
-            or  v:IsA("ColorCorrectionEffect")
-            or  v:IsA("DepthOfFieldEffect")
-            or  v:IsA("BlurEffect")
-            or  v:IsA("BillboardGui") then
-                pcall(function() v:Destroy() end)
-            end
+            pcall(function()
+                if v:IsA("Sky") or v:IsA("Atmosphere") or v:IsA("Clouds")
+                or v:IsA("BloomEffect") or v:IsA("SunRaysEffect")
+                or v:IsA("ColorCorrectionEffect") or v:IsA("DepthOfFieldEffect")
+                or v:IsA("BlurEffect") then
+                    v:Destroy()
+                end
+            end)
         end
 
-        -- ── ILUMINACIÓN AMBIENTAL NEGRA ──────────────────────
-        Lighting.Brightness              = 0       -- sin brillo de sol
+        -- PASO 2: Iluminacion completamente negra
+        Lighting.ClockTime               = 0
+        Lighting.Brightness              = 0
         Lighting.Ambient                 = Color3.fromRGB(0, 0, 0)
         Lighting.OutdoorAmbient          = Color3.fromRGB(0, 0, 0)
         Lighting.GlobalShadows           = false
         Lighting.EnvironmentalDiffuseScale  = 0
         Lighting.EnvironmentalSpecularScale = 0
+        Lighting.FogEnd                  = 9999
+        Lighting.FogStart                = 0
+        Lighting.FogColor                = Color3.fromRGB(0, 0, 0)
 
-        -- ── CUERPOS CELESTES OCULTOS ─────────────────────────
-        -- Hora 0 = medianoche, pero además anulamos sol y luna
-        Lighting.ClockTime = 0
+        -- PASO 3: Sky con cuerpos celestes ocultos
+        nightSky = Instance.new("Sky")
+        nightSky.StarCount       = 0     -- sin estrellas
+        nightSky.SunAngularSize  = 0     -- sol invisible
+        nightSky.MoonAngularSize = 0     -- luna invisible
+        nightSky.CloudsEnabled   = false
+        nightSky.Parent          = Lighting
 
-        -- ── FOG = lejos (no interfiere con la oscuridad) ─────
-        Lighting.FogEnd   = 300000
-        Lighting.FogStart = 200000
-        Lighting.FogColor = Color3.fromRGB(0, 0, 0)
+        -- PASO 4: ColorCorrectionEffect al minimo = NEGRO ABSOLUTO
+        -- Esto aplasta TODO el color renderizado del cielo a negro puro
+        nightCCE = Instance.new("ColorCorrectionEffect")
+        nightCCE.Brightness = -1    -- minimo posible: negro total
+        nightCCE.Contrast   = 1
+        nightCCE.Saturation = -1
+        nightCCE.Enabled    = true
+        nightCCE.Parent     = Lighting
 
-        -- ── SKYBOX: 6 CARAS NEGRAS + SIN SOL/LUNA/ESTRELLAS ─
-        local sky = Instance.new("Sky")
-        local blackId = "rbxassetid://6578366644"  -- textura negra sólida
-        sky.SkyboxBk        = blackId   -- Back
-        sky.SkyboxDn        = blackId   -- Down
-        sky.SkyboxFt        = blackId   -- Front
-        sky.SkyboxLf        = blackId   -- Left
-        sky.SkyboxRt        = blackId   -- Right
-        sky.SkyboxUp        = blackId   -- Up
-        sky.StarCount       = 0         -- sin estrellas
-        sky.SunAngularSize  = 0         -- sol invisible
-        sky.MoonAngularSize = 0         -- luna invisible
-        sky.CloudsEnabled   = false     -- sin nubes
-        sky.Parent          = Lighting
-
-        -- ── LOOP: evita que el juego revierta los valores ────
+        -- PASO 5: Heartbeat loop, impide que el juego revierta cualquier valor
         nightConn = RunService.Heartbeat:Connect(function()
             Lighting.ClockTime               = 0
             Lighting.Brightness              = 0
@@ -406,22 +398,34 @@ local function ApplyNightSky(state)
             Lighting.EnvironmentalDiffuseScale  = 0
             Lighting.EnvironmentalSpecularScale = 0
             Lighting.FogColor                = Color3.fromRGB(0, 0, 0)
-            -- Mantener sky hijo de Lighting si algo lo elimina
-            if not Lighting:FindFirstChildOfClass("Sky") then
-                local s2 = Instance.new("Sky")
-                s2.SkyboxBk=blackId; s2.SkyboxDn=blackId; s2.SkyboxFt=blackId
-                s2.SkyboxLf=blackId; s2.SkyboxRt=blackId; s2.SkyboxUp=blackId
-                s2.StarCount=0; s2.SunAngularSize=0; s2.MoonAngularSize=0
-                s2.CloudsEnabled=false; s2.Parent=Lighting
+            -- Mantener CCE activo
+            if not nightCCE or not nightCCE.Parent then
+                nightCCE = Instance.new("ColorCorrectionEffect")
+                nightCCE.Brightness=-1; nightCCE.Contrast=1
+                nightCCE.Saturation=-1; nightCCE.Enabled=true
+                nightCCE.Parent = Lighting
             else
-                local s2 = Lighting:FindFirstChildOfClass("Sky")
-                s2.StarCount=0; s2.SunAngularSize=0; s2.MoonAngularSize=0
+                nightCCE.Brightness = -1
+                nightCCE.Enabled    = true
+            end
+            -- Mantener Sky con cuerpos celestes ocultos
+            if not nightSky or not nightSky.Parent then
+                nightSky = Instance.new("Sky")
+                nightSky.StarCount=0; nightSky.SunAngularSize=0
+                nightSky.MoonAngularSize=0; nightSky.CloudsEnabled=false
+                nightSky.Parent = Lighting
+            else
+                nightSky.StarCount=0
+                nightSky.SunAngularSize=0
+                nightSky.MoonAngularSize=0
             end
         end)
 
     else
-        -- ── RESTAURAR TODO ───────────────────────────────────
+        -- RESTAURAR TODO AL ESTADO ORIGINAL
         if nightConn then nightConn:Disconnect(); nightConn = nil end
+        if nightCCE and nightCCE.Parent then nightCCE:Destroy() end; nightCCE = nil
+        if nightSky and nightSky.Parent then nightSky:Destroy() end; nightSky = nil
         for _, v in ipairs(Lighting:GetChildren()) do
             if v:IsA("Sky") then pcall(function() v:Destroy() end) end
         end
