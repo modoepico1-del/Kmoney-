@@ -10,9 +10,9 @@ local UserInputSvc = game:GetService("UserInputService")
 local TeleportSvc  = game:GetService("TeleportService")
 local LocalPlayer  = Players.LocalPlayer
 
-local VIO   = Color3.fromRGB(210, 0, 255)
-local VIO_D = Color3.fromRGB(90,  0, 130)
-local VIO_L = Color3.fromRGB(255, 80, 255)
+local VIO   = Color3.fromRGB(255, 255, 255)
+local VIO_D = Color3.fromRGB(160, 160, 160)
+local VIO_L = Color3.fromRGB(230, 230, 230)
 local BLACK = Color3.fromRGB(6, 6, 9)
 local WHITE = Color3.fromRGB(255, 255, 255)
 
@@ -247,7 +247,7 @@ LogoBtn.MouseButton1Click:Connect(function() LogoHolder.Visible = false; MainFra
 local SAVE_FILE = "kmoney_v9.txt"
 local currentFOV = 70
 local currentOpacity = 0
-local toggleStates = {lowgfx=false, fps=false, ping=false, night=false, brightness=false}
+local toggleStates = {lowgfx=false, fps=false, ping=false, clearsky=false, night=false, brightness=false}
 
 local function SaveSettings()
     pcall(function()
@@ -318,6 +318,57 @@ local savedLighting = {
     FogStart       = Lighting.FogStart,
 }
 
+-- CLEAR SKY (cielo negro como en la foto, sin efectos)
+local clearSkyConn = nil
+
+local function ApplyClearSky(state)
+    if state then
+        if clearSkyConn then clearSkyConn:Disconnect(); clearSkyConn = nil end
+
+        for _, v in ipairs(Lighting:GetChildren()) do
+            if v:IsA("Sky") or v:IsA("Atmosphere") or v:IsA("Clouds")
+            or v:IsA("BloomEffect") or v:IsA("SunRaysEffect")
+            or v:IsA("DepthOfFieldEffect") or v:IsA("BlurEffect")
+            or v:IsA("ColorCorrectionEffect") then
+                pcall(function() v:Destroy() end)
+            end
+        end
+
+        -- Sin Sky = fondo negro puro, luz plana y viva como en la foto
+        Lighting.ClockTime               = 12
+        Lighting.Brightness              = 2
+        Lighting.Ambient                 = Color3.fromRGB(178, 178, 178)
+        Lighting.OutdoorAmbient          = Color3.fromRGB(178, 178, 178)
+        Lighting.GlobalShadows           = false
+        Lighting.EnvironmentalDiffuseScale  = 0
+        Lighting.EnvironmentalSpecularScale = 0
+        Lighting.FogEnd                  = 300000
+        Lighting.FogStart                = 299000
+
+        clearSkyConn = RunService.Heartbeat:Connect(function()
+            Lighting.GlobalShadows              = false
+            Lighting.EnvironmentalDiffuseScale  = 0
+            Lighting.EnvironmentalSpecularScale = 0
+            for _, v in ipairs(Lighting:GetChildren()) do
+                if v:IsA("Sky") or v:IsA("Atmosphere") then
+                    pcall(function() v:Destroy() end)
+                end
+            end
+        end)
+    else
+        if clearSkyConn then clearSkyConn:Disconnect(); clearSkyConn = nil end
+        Lighting.ClockTime               = savedLighting.ClockTime
+        Lighting.Brightness              = savedLighting.Brightness
+        Lighting.Ambient                 = savedLighting.Ambient
+        Lighting.OutdoorAmbient          = savedLighting.OutdoorAmbient
+        Lighting.FogEnd                  = savedLighting.FogEnd
+        Lighting.FogStart                = savedLighting.FogStart
+        Lighting.GlobalShadows           = true
+        Lighting.EnvironmentalDiffuseScale  = 1
+        Lighting.EnvironmentalSpecularScale = 1
+    end
+end
+
 -- NIGHT: sky Hollow Realm oscuro, sin sol/luna/estrellas
 local HOLLOW_SKY = "rbxassetid://93756493920633"
 local nightConn  = nil
@@ -382,71 +433,78 @@ local function ApplyNightSky(state)
     end
 end
 
--- LOW GRAPHICS (look: cielo negro, colores vivos, sin sombras ni efectos)
+-- LOW GRAPHICS - POTATO MODE (max FPS, cielo negro, colores planos)
 local lowConn = nil
 local function ApplyLowGraphics(state)
     if state then
         if setfpscap then setfpscap(0) end
+        -- Calidad minima absoluta
         settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+        pcall(function()
+            settings().Physics.PhysicsEnvironmentalThrottle = Enum.EnviromentalPhysicsThrottle.Disabled
+            settings().Physics.AllowSleep = false
+        end)
 
-        -- Cielo negro: borrar Sky y Atmosphere
+        -- Borrar Sky, Atmosphere y todos los efectos de lighting
         for _, v in ipairs(Lighting:GetChildren()) do
             if v:IsA("Sky") or v:IsA("Atmosphere") or v:IsA("Clouds")
             or v:IsA("BloomEffect") or v:IsA("SunRaysEffect")
-            or v:IsA("DepthOfFieldEffect") or v:IsA("BlurEffect") then
+            or v:IsA("DepthOfFieldEffect") or v:IsA("BlurEffect")
+            or v:IsA("ColorCorrectionEffect") then
                 pcall(function() v:Destroy() end)
             end
         end
 
-        -- Iluminacion plana y brillante (colores vivos como en la foto)
-        Lighting.GlobalShadows           = false
-        Lighting.Brightness              = 2
-        Lighting.Ambient                 = Color3.fromRGB(178, 178, 178)
-        Lighting.OutdoorAmbient          = Color3.fromRGB(178, 178, 178)
+        -- Iluminacion plana: colores vivos, sin sombras (igual que la foto)
+        Lighting.GlobalShadows              = false
+        Lighting.Brightness                 = 2
+        Lighting.Ambient                    = Color3.fromRGB(178, 178, 178)
+        Lighting.OutdoorAmbient             = Color3.fromRGB(178, 178, 178)
         Lighting.EnvironmentalDiffuseScale  = 0
         Lighting.EnvironmentalSpecularScale = 0
-        Lighting.FogEnd                  = 100000
-        Lighting.FogStart                = 99000
+        Lighting.FogEnd                     = 300000
+        Lighting.FogStart                   = 299000
 
-        -- Desactivar particulas y efectos visuales
+        -- Desactivar todas las particulas y efectos de objetos
         for _, v in ipairs(workspace:GetDescendants()) do
             if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke")
-            or v:IsA("Fire") or v:IsA("Sparkles") then
-                v.Enabled = false
+            or v:IsA("Fire") or v:IsA("Sparkles") or v:IsA("SelectionBox")
+            or v:IsA("SpecialMesh") then
+                pcall(function() v.Enabled = false end)
             end
         end
 
-        -- Loop: mantener cielo negro y sin efectos
+        -- Loop: mantener potato mode y cielo negro
         lowConn = RunService.Heartbeat:Connect(function()
-            Lighting.GlobalShadows = false
-            if Lighting:FindFirstChildOfClass("Sky") then
-                for _, v in ipairs(Lighting:GetChildren()) do
-                    if v:IsA("Sky") or v:IsA("Atmosphere") then
-                        pcall(function() v:Destroy() end)
-                    end
+            Lighting.GlobalShadows              = false
+            Lighting.EnvironmentalDiffuseScale  = 0
+            Lighting.EnvironmentalSpecularScale = 0
+            for _, v in ipairs(Lighting:GetChildren()) do
+                if v:IsA("Sky") or v:IsA("Atmosphere") then
+                    pcall(function() v:Destroy() end)
                 end
             end
         end)
     else
         if lowConn then lowConn:Disconnect(); lowConn = nil end
-        settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
-        Lighting.GlobalShadows           = true
-        Lighting.Brightness              = savedLighting.Brightness
-        Lighting.Ambient                 = savedLighting.Ambient
-        Lighting.OutdoorAmbient          = savedLighting.OutdoorAmbient
-        Lighting.FogEnd                  = savedLighting.FogEnd
-        Lighting.FogStart                = savedLighting.FogStart
-        Lighting.EnvironmentalDiffuseScale  = 1
-        Lighting.EnvironmentalSpecularScale = 1
+        settings().Rendering.QualityLevel      = Enum.QualityLevel.Automatic
+        Lighting.GlobalShadows                 = true
+        Lighting.Brightness                    = savedLighting.Brightness
+        Lighting.Ambient                       = savedLighting.Ambient
+        Lighting.OutdoorAmbient                = savedLighting.OutdoorAmbient
+        Lighting.FogEnd                        = savedLighting.FogEnd
+        Lighting.FogStart                      = savedLighting.FogStart
+        Lighting.EnvironmentalDiffuseScale     = 1
+        Lighting.EnvironmentalSpecularScale    = 1
         for _, v in ipairs(workspace:GetDescendants()) do
             if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke")
             or v:IsA("Fire") or v:IsA("Sparkles") then
-                v.Enabled = true
+                pcall(function() v.Enabled = true end)
             end
         end
+        pcall(function() settings().Physics.AllowSleep = true end)
     end
 end
-
 -- FPS BOOST
 local function ApplyFPSBoost(state)
     if state then
@@ -489,6 +547,7 @@ local Y = 48
 MakeToggle("LOW GRAPHICS", Y, function(s) toggleStates.lowgfx=s;     ApplyLowGraphics(s); SaveSettings() end, "lowgfx");    Y=Y+34
 MakeToggle("FPS BOOST",    Y, function(s) toggleStates.fps=s;        ApplyFPSBoost(s);    SaveSettings() end, "fps");       Y=Y+34
 MakeToggle("PING LOW",     Y, function(s) toggleStates.ping=s;       ApplyPingLow(s);     SaveSettings() end, "ping");      Y=Y+34
+MakeToggle("CLEAR SKY",    Y, function(s) toggleStates.clearsky=s;   ApplyClearSky(s);    SaveSettings() end, "clearsky");  Y=Y+34
 MakeToggle("NIGHT",        Y, function(s) toggleStates.night=s;      ApplyNightSky(s);    SaveSettings() end, "night");     Y=Y+34
 MakeToggle("BRIGHT",       Y, function(s) toggleStates.brightness=s; ApplyBrightness(s);  SaveSettings() end, "brightness"); Y=Y+34
 
@@ -668,6 +727,7 @@ task.delay(0.3, function()
     if saved.lowgfx     then ApplyLowGraphics(true); toggleStates.lowgfx=true;     ApplyToggleVisual("lowgfx",true)     end
     if saved.fps        then ApplyFPSBoost(true);    toggleStates.fps=true;        ApplyToggleVisual("fps",true)        end
     if saved.ping       then ApplyPingLow(true);     toggleStates.ping=true;       ApplyToggleVisual("ping",true)       end
+    if saved.clearsky   then ApplyClearSky(true);   toggleStates.clearsky=true;   ApplyToggleVisual("clearsky",true)   end
     if saved.night      then ApplyNightSky(true);    toggleStates.night=true;      ApplyToggleVisual("night",true)      end
     if saved.brightness then ApplyBrightness(true);  toggleStates.brightness=true; ApplyToggleVisual("brightness",true) end
     pcall(function() StarterGui:SetCore("SendNotification",{Title="KMoney",Text="Config cargada!",Duration=3}) end)
