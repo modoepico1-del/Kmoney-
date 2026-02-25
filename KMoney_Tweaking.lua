@@ -147,7 +147,9 @@ task.spawn(function()
     end
 end)
 
--- Particulas
+-- =============================================
+-- PARTICULAS - AHORA BLANCO PURO (igual al hub)
+-- =============================================
 local SnowCanvas = Instance.new("Frame")
 SnowCanvas.Size = UDim2.new(1,0,1,0)
 SnowCanvas.BackgroundTransparency = 1; SnowCanvas.BorderSizePixel = 0
@@ -157,26 +159,30 @@ for i = 1, 22 do
     local s = math.random(3,9)
     local ball = Instance.new("Frame")
     ball.Size = UDim2.new(0,s,0,s)
-    ball.BackgroundColor3 = VIO
-    ball.BackgroundTransparency = math.random(1,3) * 0.2
+    -- COLOR BLANCO PURO igual que el hub
+    ball.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    ball.BackgroundTransparency = math.random(2,5) * 0.15
     ball.BorderSizePixel = 0; ball.ZIndex = 2; ball.Parent = SnowCanvas
     Instance.new("UICorner", ball).CornerRadius = UDim.new(1,0)
-    local st = Instance.new("UIStroke"); st.Color = VIO_L; st.Thickness = 1.5; st.Parent = ball
+    local st = Instance.new("UIStroke")
+    -- Stroke blanco ligeramente brillante
+    st.Color = Color3.fromRGB(255, 255, 255); st.Thickness = 1.2; st.Parent = ball
     snowballs[i] = {frame=ball, stroke=st, speed=math.random(5,12)/1000, xBase=math.random(), progress=math.random()}
 end
 local snowT = 0
 RunService.RenderStepped:Connect(function(dt)
     snowT = snowT + dt * 0.9
     local pulse = math.abs(math.sin(snowT * 1.6))
-    local nr = math.floor(170 + pulse*50)
-    local nb = math.floor(210 + pulse*45)
+    -- Blanco pulsante: de blanco puro a blanco ligeramente grisaceo
+    local brightness = math.floor(200 + pulse * 55)
     for _, s in ipairs(snowballs) do
         s.progress = s.progress + s.speed
         if s.progress > 1.1 then s.progress = -0.05; s.xBase = math.random() end
         local xOff = math.sin(s.progress * math.pi * 2.5) * 0.022
         s.frame.Position = UDim2.new(math.clamp(s.xBase+xOff,0,0.95), 0, s.progress, 0)
-        s.frame.BackgroundColor3 = Color3.fromRGB(nr,0,nb)
-        s.stroke.Color = Color3.fromRGB(math.min(nr+50,255), 0, math.min(nb+40,255))
+        -- Blanco con ligero pulso de brillo
+        s.frame.BackgroundColor3 = Color3.fromRGB(brightness, brightness, brightness)
+        s.stroke.Color = Color3.fromRGB(255, 255, 255)
     end
 end)
 
@@ -269,18 +275,66 @@ local function LoadSettings()
     return t
 end
 
--- TOGGLE HELPER
+-- =============================================
+-- TOGGLE HELPER - NEGRO CON EFECTO NEON BLANCO
+-- =============================================
 local toggleVisuals = {}
+-- Tabla para guardar los loops de neon activos por toggle
+local neonLoops = {}
 local BW = HW - 24
 
 local function ApplyToggleVisual(key, state)
     local v = toggleVisuals[key]; if not v then return end
+
+    -- Cancelar loop neon previo si existe
+    if neonLoops[key] then
+        neonLoops[key] = false
+    end
+
     if state then
-        TweenService:Create(v.btn, TweenInfo.new(0.15), {BackgroundColor3=Color3.fromRGB(40,0,70), BackgroundTransparency=0.1}):Play()
-        v.stroke.Color = VIO_L; v.stroke.Thickness = 2
+        -- ACTIVADO: fondo negro puro con stroke neon blanco pulsante
+        TweenService:Create(v.btn, TweenInfo.new(0.2), {
+            BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+            BackgroundTransparency = 0.0
+        }):Play()
+        TweenService:Create(v.btn, TweenInfo.new(0.2), {
+            TextColor3 = Color3.fromRGB(255, 255, 255)
+        }):Play()
+
+        -- Iniciar loop neon blanco pulsante en el stroke
+        neonLoops[key] = true
+        local loopKey = key
+        task.spawn(function()
+            while neonLoops[loopKey] and v.btn.Parent do
+                -- Pico brillante: stroke muy grueso y blanco puro
+                TweenService:Create(v.stroke, TweenInfo.new(0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                    Thickness = 3.5,
+                    Color = Color3.fromRGB(255, 255, 255)
+                }):Play()
+                task.wait(0.6)
+                if not neonLoops[loopKey] then break end
+                -- Baja: stroke fino y gris claro
+                TweenService:Create(v.stroke, TweenInfo.new(0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                    Thickness = 1.5,
+                    Color = Color3.fromRGB(180, 180, 180)
+                }):Play()
+                task.wait(0.6)
+            end
+        end)
+
     else
-        TweenService:Create(v.btn, TweenInfo.new(0.15), {BackgroundColor3=BLACK, BackgroundTransparency=0.55}):Play()
-        v.stroke.Color = VIO_D; v.stroke.Thickness = 1.2
+        -- DESACTIVADO: vuelve al estado normal apagado
+        TweenService:Create(v.btn, TweenInfo.new(0.2), {
+            BackgroundColor3 = BLACK,
+            BackgroundTransparency = 0.55
+        }):Play()
+        TweenService:Create(v.btn, TweenInfo.new(0.2), {
+            TextColor3 = VIO
+        }):Play()
+        TweenService:Create(v.stroke, TweenInfo.new(0.2), {
+            Thickness = 1.2,
+            Color = VIO_D
+        }):Play()
     end
 end
 
@@ -294,15 +348,28 @@ local function MakeToggle(name, yPos, callback, saveKey)
     local BtnStroke = Instance.new("UIStroke")
     BtnStroke.Color = VIO_D; BtnStroke.Thickness = 1.2; BtnStroke.Parent = Btn
     toggleVisuals[saveKey] = {btn=Btn, stroke=BtnStroke}
+
+    -- Animacion idle solo cuando esta DESACTIVADO
     task.spawn(function()
         while Btn.Parent do
-            TweenService:Create(Btn, TweenInfo.new(1.3,Enum.EasingStyle.Sine), {TextColor3=VIO_L}):Play(); task.wait(1.3)
-            TweenService:Create(Btn, TweenInfo.new(1.3,Enum.EasingStyle.Sine), {TextColor3=VIO}):Play();   task.wait(1.3)
+            -- Solo animar si no esta activado
+            if not toggleStates[saveKey] then
+                TweenService:Create(Btn, TweenInfo.new(1.3,Enum.EasingStyle.Sine), {TextColor3=VIO_L}):Play()
+                task.wait(1.3)
+                if not toggleStates[saveKey] then
+                    TweenService:Create(Btn, TweenInfo.new(1.3,Enum.EasingStyle.Sine), {TextColor3=VIO}):Play()
+                end
+                task.wait(1.3)
+            else
+                task.wait(0.5)
+            end
         end
     end)
+
     local enabled = false
     Btn.MouseButton1Click:Connect(function()
         enabled = not enabled
+        toggleStates[saveKey] = enabled
         ApplyToggleVisual(saveKey, enabled)
         callback(enabled)
     end)
@@ -318,13 +385,11 @@ local savedLighting = {
     FogStart       = Lighting.FogStart,
 }
 
--- CLEAR SKY (cielo negro como en la foto, sin efectos)
+-- CLEAR SKY
 local clearSkyConn = nil
-
 local function ApplyClearSky(state)
     if state then
         if clearSkyConn then clearSkyConn:Disconnect(); clearSkyConn = nil end
-
         for _, v in ipairs(Lighting:GetChildren()) do
             if v:IsA("Sky") or v:IsA("Atmosphere") or v:IsA("Clouds")
             or v:IsA("BloomEffect") or v:IsA("SunRaysEffect")
@@ -333,8 +398,6 @@ local function ApplyClearSky(state)
                 pcall(function() v:Destroy() end)
             end
         end
-
-        -- Sin Sky = fondo negro puro, luz plana y viva como en la foto
         Lighting.ClockTime               = 12
         Lighting.Brightness              = 2
         Lighting.Ambient                 = Color3.fromRGB(178, 178, 178)
@@ -344,7 +407,6 @@ local function ApplyClearSky(state)
         Lighting.EnvironmentalSpecularScale = 0
         Lighting.FogEnd                  = 300000
         Lighting.FogStart                = 299000
-
         clearSkyConn = RunService.Heartbeat:Connect(function()
             Lighting.GlobalShadows              = false
             Lighting.EnvironmentalDiffuseScale  = 0
@@ -369,20 +431,17 @@ local function ApplyClearSky(state)
     end
 end
 
--- NIGHT: sky Hollow Realm oscuro, sin sol/luna/estrellas
+-- NIGHT
 local HOLLOW_SKY = "rbxassetid://93756493920633"
 local nightConn  = nil
-
 local function ApplyNightSky(state)
     if state then
         if nightConn then nightConn:Disconnect(); nightConn = nil end
-
         for _, v in ipairs(Lighting:GetChildren()) do
             if v:IsA("Sky") or v:IsA("Atmosphere") or v:IsA("Clouds") then
                 pcall(function() v:Destroy() end)
             end
         end
-
         local sky = Instance.new("Sky")
         sky.SkyboxBk = HOLLOW_SKY; sky.SkyboxDn = HOLLOW_SKY; sky.SkyboxFt = HOLLOW_SKY
         sky.SkyboxLf = HOLLOW_SKY; sky.SkyboxRt = HOLLOW_SKY; sky.SkyboxUp = HOLLOW_SKY
@@ -391,7 +450,6 @@ local function ApplyNightSky(state)
         sky.MoonAngularSize = 0
         sky.CloudsEnabled   = false
         sky.Parent          = Lighting
-
         Lighting.ClockTime               = 0
         Lighting.Brightness              = 0
         Lighting.Ambient                 = Color3.fromRGB(0, 0, 0)
@@ -399,7 +457,6 @@ local function ApplyNightSky(state)
         Lighting.GlobalShadows           = false
         Lighting.EnvironmentalDiffuseScale  = 0
         Lighting.EnvironmentalSpecularScale = 0
-
         nightConn = RunService.Heartbeat:Connect(function()
             Lighting.Brightness              = 0
             Lighting.Ambient                 = Color3.fromRGB(0, 0, 0)
@@ -415,7 +472,6 @@ local function ApplyNightSky(state)
             end
             s.StarCount=0; s.SunAngularSize=0; s.MoonAngularSize=0; s.CloudsEnabled=false
         end)
-
     else
         if nightConn then nightConn:Disconnect(); nightConn = nil end
         for _, v in ipairs(Lighting:GetChildren()) do
@@ -433,19 +489,16 @@ local function ApplyNightSky(state)
     end
 end
 
--- LOW GRAPHICS - POTATO MODE (max FPS, cielo negro, colores planos)
+-- LOW GRAPHICS
 local lowConn = nil
 local function ApplyLowGraphics(state)
     if state then
         if setfpscap then setfpscap(0) end
-        -- Calidad minima absoluta
         settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
         pcall(function()
             settings().Physics.PhysicsEnvironmentalThrottle = Enum.EnviromentalPhysicsThrottle.Disabled
             settings().Physics.AllowSleep = false
         end)
-
-        -- Borrar Sky, Atmosphere y todos los efectos de lighting
         for _, v in ipairs(Lighting:GetChildren()) do
             if v:IsA("Sky") or v:IsA("Atmosphere") or v:IsA("Clouds")
             or v:IsA("BloomEffect") or v:IsA("SunRaysEffect")
@@ -454,8 +507,6 @@ local function ApplyLowGraphics(state)
                 pcall(function() v:Destroy() end)
             end
         end
-
-        -- Iluminacion plana: colores vivos, sin sombras (igual que la foto)
         Lighting.GlobalShadows              = false
         Lighting.Brightness                 = 2
         Lighting.Ambient                    = Color3.fromRGB(178, 178, 178)
@@ -464,8 +515,6 @@ local function ApplyLowGraphics(state)
         Lighting.EnvironmentalSpecularScale = 0
         Lighting.FogEnd                     = 300000
         Lighting.FogStart                   = 299000
-
-        -- Desactivar todas las particulas y efectos de objetos
         for _, v in ipairs(workspace:GetDescendants()) do
             if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke")
             or v:IsA("Fire") or v:IsA("Sparkles") or v:IsA("SelectionBox")
@@ -473,8 +522,6 @@ local function ApplyLowGraphics(state)
                 pcall(function() v.Enabled = false end)
             end
         end
-
-        -- Loop: mantener potato mode y cielo negro
         lowConn = RunService.Heartbeat:Connect(function()
             Lighting.GlobalShadows              = false
             Lighting.EnvironmentalDiffuseScale  = 0
@@ -505,6 +552,7 @@ local function ApplyLowGraphics(state)
         pcall(function() settings().Physics.AllowSleep = true end)
     end
 end
+
 -- FPS BOOST
 local function ApplyFPSBoost(state)
     if state then
@@ -527,7 +575,6 @@ local function ApplyPingLow(state)
         if pingConn then pingConn:Disconnect(); pingConn = nil end
     end
 end
-
 
 -- BRIGHT
 local function ApplyBrightness(state)
