@@ -143,7 +143,7 @@ MainFrame.Position = UDim2.new(1,-224,0,4)
 MainFrame.BackgroundColor3 = Color3.fromRGB(10,10,12)
 MainFrame.BackgroundTransparency = 0.45
 MainFrame.BorderSizePixel = 0
-MainFrame.Active = true; MainFrame.Draggable = true; MainFrame.ClipsDescendants = true
+MainFrame.Active = true; MainFrame.Draggable = false; MainFrame.ClipsDescendants = true
 MainFrame.Parent = ScreenGui
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0,12)
 
@@ -337,7 +337,7 @@ local savedLighting = {
 }
 
 -- ============================================
--- NIGHT
+-- NIGHT (CIELO NEGRO: borra Sky completamente)
 -- ============================================
 local nightConn = nil
 
@@ -345,25 +345,15 @@ local function ApplyNightSky(state)
     if state then
         if nightConn then nightConn:Disconnect(); nightConn = nil end
 
-        -- Limpiar Sky y Atmosphere existentes
+        -- Borrar Sky, Atmosphere y nubes del juego
         for _, v in ipairs(Lighting:GetChildren()) do
-            if v:IsA("Sky") or v:IsA("Atmosphere") then
+            if v:IsA("Sky") or v:IsA("Atmosphere") or v:IsA("Clouds") then
                 pcall(function() v:Destroy() end)
             end
         end
 
-        -- Cielo oscuro con skybox negro
-        local blackId = "rbxassetid://14934583360"
-        local sky = Instance.new("Sky")
-        sky.SkyboxBk = blackId; sky.SkyboxDn = blackId; sky.SkyboxFt = blackId
-        sky.SkyboxLf = blackId; sky.SkyboxRt = blackId; sky.SkyboxUp = blackId
-        sky.StarCount       = 0
-        sky.SunAngularSize  = 0
-        sky.MoonAngularSize = 0
-        sky.CloudsEnabled   = false
-        sky.Parent          = Lighting
-
-        -- Iluminacion oscura
+        -- Sin Sky = fondo negro puro en Roblox
+        -- Iluminacion totalmente oscura
         Lighting.ClockTime               = 0
         Lighting.Brightness              = 0
         Lighting.Ambient                 = Color3.fromRGB(0, 0, 0)
@@ -372,25 +362,22 @@ local function ApplyNightSky(state)
         Lighting.EnvironmentalDiffuseScale  = 0
         Lighting.EnvironmentalSpecularScale = 0
 
-        -- Loop para mantener los valores oscuros
+        -- Loop: destruir cualquier Sky que el juego intente agregar
         nightConn = RunService.Heartbeat:Connect(function()
-            Lighting.ClockTime               = 0
             Lighting.Brightness              = 0
             Lighting.Ambient                 = Color3.fromRGB(0, 0, 0)
             Lighting.OutdoorAmbient          = Color3.fromRGB(0, 0, 0)
             Lighting.EnvironmentalDiffuseScale  = 0
             Lighting.EnvironmentalSpecularScale = 0
-            local s = Lighting:FindFirstChildOfClass("Sky")
-            if s then
-                s.StarCount = 0; s.SunAngularSize = 0; s.MoonAngularSize = 0
+            for _, v in ipairs(Lighting:GetChildren()) do
+                if v:IsA("Sky") or v:IsA("Atmosphere") then
+                    pcall(function() v:Destroy() end)
+                end
             end
         end)
 
     else
         if nightConn then nightConn:Disconnect(); nightConn = nil end
-        for _, v in ipairs(Lighting:GetChildren()) do
-            if v:IsA("Sky") then pcall(function() v:Destroy() end) end
-        end
         Lighting.ClockTime               = savedLighting.ClockTime
         Lighting.Brightness              = savedLighting.Brightness
         Lighting.Ambient                 = savedLighting.Ambient
