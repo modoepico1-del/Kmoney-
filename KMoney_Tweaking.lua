@@ -263,7 +263,8 @@ LogoBtn.MouseButton1Click:Connect(function() LogoHolder.Visible = false; MainFra
 local SAVE_FILE = "kmoney_v9.txt"
 local currentFOV = 70
 local currentOpacity = 0
-local toggleStates = {lowgfx=false, fps=false, ping=false, delay=false, day=false, night=false, brightness=false}
+-- NOTA: Se eliminó "day" de los toggleStates. "night" ahora = cielo negro total.
+local toggleStates = {lowgfx=false, fps=false, ping=false, delay=false, night=false, brightness=false}
 
 local function SaveSettings()
     pcall(function()
@@ -335,65 +336,67 @@ local savedLighting = {
     FogEnd=Lighting.FogEnd, FogStart=Lighting.FogStart
 }
 
-local dayConn = nil
-local function ApplyDaySky(state)
-    if state then
-        if dayConn then dayConn:Disconnect() end
-        for _, v in ipairs(Lighting:GetChildren()) do
-            if v:IsA("Sky") or v:IsA("Atmosphere") then v:Destroy() end
-        end
-        Lighting.ClockTime = 14; Lighting.Brightness = 2
-        Lighting.Ambient = Color3.fromRGB(100,120,160)
-        Lighting.OutdoorAmbient = Color3.fromRGB(110,140,180)
-        Lighting.FogEnd = 300000; Lighting.FogStart = 200000
-        local sky = Instance.new("Sky")
-        local id = "rbxassetid://2268183583"
-        sky.SkyboxBk=id; sky.SkyboxDn=id; sky.SkyboxFt=id
-        sky.SkyboxLf=id; sky.SkyboxRt=id; sky.SkyboxUp=id
-        sky.CloudsEnabled = false; sky.StarCount = 0; sky.Parent = Lighting
-        sky.AncestryChanged:Connect(function()
-            if not sky.Parent then pcall(function() sky.Parent = Lighting end) end
-        end)
-        dayConn = RunService.Heartbeat:Connect(function()
-            if Lighting.ClockTime ~= 14 then Lighting.ClockTime = 14 end
-        end)
-    else
-        if dayConn then dayConn:Disconnect(); dayConn = nil end
-        for _, v in ipairs(Lighting:GetChildren()) do if v:IsA("Sky") then v:Destroy() end end
-        Lighting.ClockTime=savedLighting.ClockTime; Lighting.Brightness=savedLighting.Brightness
-        Lighting.Ambient=savedLighting.Ambient; Lighting.OutdoorAmbient=savedLighting.OutdoorAmbient
-        Lighting.FogEnd=savedLighting.FogEnd; Lighting.FogStart=savedLighting.FogStart
-    end
-end
-
+-- ============================================
+-- NIGHT (CIELO NEGRO TOTAL - SIN DAY)
+-- ============================================
 local nightConn = nil
 local function ApplyNightSky(state)
     if state then
         if nightConn then nightConn:Disconnect() end
+
+        -- Destruir Sky, Atmosphere, BloomEffect, SunRays, todo efecto visual
         for _, v in ipairs(Lighting:GetChildren()) do
-            if v:IsA("Sky") or v:IsA("Atmosphere") then v:Destroy() end
+            if v:IsA("Sky") or v:IsA("Atmosphere") or v:IsA("BloomEffect")
+            or v:IsA("SunRaysEffect") or v:IsA("ColorCorrectionEffect")
+            or v:IsA("DepthOfFieldEffect") or v:IsA("BlurEffect") then
+                v:Destroy()
+            end
         end
-        Lighting.ClockTime = 0; Lighting.Brightness = 0
-        Lighting.Ambient = Color3.fromRGB(0,0,0)
-        Lighting.OutdoorAmbient = Color3.fromRGB(0,0,0)
-        Lighting.FogEnd = 300000; Lighting.FogStart = 200000
+
+        -- Cielo negro puro
+        Lighting.ClockTime      = 0
+        Lighting.Brightness     = 0
+        Lighting.Ambient        = Color3.fromRGB(0, 0, 0)
+        Lighting.OutdoorAmbient = Color3.fromRGB(0, 0, 0)
+        Lighting.FogEnd         = 300000
+        Lighting.FogStart       = 200000
+        Lighting.GlobalShadows  = false
+        Lighting.EnvironmentalDiffuseScale = 0
+        Lighting.EnvironmentalSpecularScale = 0
+
+        -- Sky negro sólido (todas las caras en negro)
         local sky = Instance.new("Sky")
-        local id = "rbxassetid://4617617735"
-        sky.SkyboxBk=id; sky.SkyboxDn=id; sky.SkyboxFt=id
-        sky.SkyboxLf=id; sky.SkyboxRt=id; sky.SkyboxUp=id
-        sky.CloudsEnabled = false; sky.StarCount = 0; sky.Parent = Lighting
+        local blackId = "rbxassetid://6578366644" -- textura negra sólida de Roblox
+        sky.SkyboxBk = blackId; sky.SkyboxDn = blackId; sky.SkyboxFt = blackId
+        sky.SkyboxLf = blackId; sky.SkyboxRt = blackId; sky.SkyboxUp = blackId
+        sky.CloudsEnabled = false
+        sky.StarCount = 0
+        sky.SunAngularSize = 0
+        sky.MoonAngularSize = 0
+        sky.Parent = Lighting
+
+        -- Loop para mantener todo negro (previene que el juego lo revierta)
         nightConn = RunService.Heartbeat:Connect(function()
-            Lighting.ClockTime = 0
-            Lighting.Brightness = 0
-            Lighting.Ambient = Color3.fromRGB(0,0,0)
-            Lighting.OutdoorAmbient = Color3.fromRGB(0,0,0)
+            Lighting.ClockTime      = 0
+            Lighting.Brightness     = 0
+            Lighting.Ambient        = Color3.fromRGB(0, 0, 0)
+            Lighting.OutdoorAmbient = Color3.fromRGB(0, 0, 0)
+            Lighting.GlobalShadows  = false
+            Lighting.EnvironmentalDiffuseScale  = 0
+            Lighting.EnvironmentalSpecularScale = 0
         end)
     else
         if nightConn then nightConn:Disconnect(); nightConn = nil end
         for _, v in ipairs(Lighting:GetChildren()) do if v:IsA("Sky") then v:Destroy() end end
-        Lighting.ClockTime=savedLighting.ClockTime; Lighting.Brightness=savedLighting.Brightness
-        Lighting.Ambient=savedLighting.Ambient; Lighting.OutdoorAmbient=savedLighting.OutdoorAmbient
-        Lighting.FogEnd=savedLighting.FogEnd; Lighting.FogStart=savedLighting.FogStart
+        Lighting.ClockTime      = savedLighting.ClockTime
+        Lighting.Brightness     = savedLighting.Brightness
+        Lighting.Ambient        = savedLighting.Ambient
+        Lighting.OutdoorAmbient = savedLighting.OutdoorAmbient
+        Lighting.FogEnd         = savedLighting.FogEnd
+        Lighting.FogStart       = savedLighting.FogStart
+        Lighting.GlobalShadows  = true
+        Lighting.EnvironmentalDiffuseScale  = 1
+        Lighting.EnvironmentalSpecularScale = 1
     end
 end
 
@@ -477,14 +480,13 @@ local function ApplyBrightness(state)
 end
 
 -- ============================================
--- BUILD TOGGLES
+-- BUILD TOGGLES  (sin DAY)
 -- ============================================
 local Y = 48
 MakeToggle("LOW GRAPHICS", Y, function(s) toggleStates.lowgfx=s;     ApplyLowGraphics(s); SaveSettings() end, "lowgfx");    Y=Y+34
 MakeToggle("FPS BOOST",    Y, function(s) toggleStates.fps=s;        ApplyFPSBoost(s);    SaveSettings() end, "fps");       Y=Y+34
 MakeToggle("PING LOW",     Y, function(s) toggleStates.ping=s;       ApplyPingLow(s);     SaveSettings() end, "ping");      Y=Y+34
 MakeToggle("DELAY 0",      Y, function(s) toggleStates.delay=s;      ApplyDelay(s);       SaveSettings() end, "delay");     Y=Y+34
-MakeToggle("DAY",          Y, function(s) toggleStates.day=s;        ApplyDaySky(s);      SaveSettings() end, "day");       Y=Y+34
 MakeToggle("NIGHT",        Y, function(s) toggleStates.night=s;      ApplyNightSky(s);    SaveSettings() end, "night");     Y=Y+34
 MakeToggle("BRIGHT",       Y, function(s) toggleStates.brightness=s; ApplyBrightness(s);  SaveSettings() end, "brightness"); Y=Y+34
 
@@ -678,7 +680,6 @@ task.delay(0.3, function()
     if saved.fps        then ApplyFPSBoost(true);    toggleStates.fps=true;        ApplyToggleVisual("fps",true)        end
     if saved.ping       then ApplyPingLow(true);     toggleStates.ping=true;       ApplyToggleVisual("ping",true)       end
     if saved.delay      then ApplyDelay(true);       toggleStates.delay=true;      ApplyToggleVisual("delay",true)      end
-    if saved.day        then ApplyDaySky(true);      toggleStates.day=true;        ApplyToggleVisual("day",true)        end
     if saved.night      then ApplyNightSky(true);    toggleStates.night=true;      ApplyToggleVisual("night",true)      end
     if saved.brightness then ApplyBrightness(true);  toggleStates.brightness=true; ApplyToggleVisual("brightness",true) end
     pcall(function() StarterGui:SetCore("SendNotification",{Title="KMoney",Text="Config cargada!",Duration=3}) end)
