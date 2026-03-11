@@ -169,6 +169,7 @@ local unwalkDescConn       = nil
 local unwalkCharConn       = nil
 
 local function startUnwalk()
+    -- Optimizer
     pcall(function()
         settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
         Lighting.GlobalShadows = false
@@ -187,6 +188,24 @@ local function startUnwalk()
             end)
         end
     end)
+    -- Character Clean
+    local function cleanCharacter(char)
+        if char == player.Character then return end
+        pcall(function()
+            for _, a in ipairs(char:GetChildren()) do
+                if a:IsA("Accessory") then a:Destroy() end
+            end
+            char.ChildAdded:Connect(function(c)
+                if unwalkEnabled and c:IsA("Accessory") then c:Destroy() end
+            end)
+        end)
+    end
+    pcall(function()
+        for _, h in ipairs(workspace:GetDescendants()) do
+            if h:IsA("Humanoid") then cleanCharacter(h.Parent) end
+        end
+    end)
+    -- XRay: bases semitransparentes
     pcall(function()
         for _, obj in ipairs(workspace:GetDescendants()) do
             if obj:IsA("BasePart") and obj.Anchored and
