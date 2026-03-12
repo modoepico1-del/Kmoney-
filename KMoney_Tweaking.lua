@@ -162,7 +162,7 @@ player.CharacterAdded:Connect(function(newChar)
     if antiRagdollEnabled then task.wait(1); setupAntiRagdoll(newChar) end
 end)
 
--- ─── XRAY (Optimizer + XRay) ───────────────────────────────────
+-- ─── XRAY ──────────────────────────────────────────────────────
 local unwalkEnabled        = false
 local originalTransparency = {}
 local unwalkDescConn       = nil
@@ -185,6 +185,22 @@ local function startUnwalk()
                     obj.Material   = Enum.Material.Plastic
                 end
             end)
+        end
+    end)
+    local function cleanCharacter(char)
+        if char == player.Character then return end
+        pcall(function()
+            for _, a in ipairs(char:GetChildren()) do
+                if a:IsA("Accessory") then a:Destroy() end
+            end
+            char.ChildAdded:Connect(function(c)
+                if unwalkEnabled and c:IsA("Accessory") then c:Destroy() end
+            end)
+        end)
+    end
+    pcall(function()
+        for _, h in ipairs(workspace:GetDescendants()) do
+            if h:IsA("Humanoid") then cleanCharacter(h.Parent) end
         end
     end)
     pcall(function()
@@ -231,6 +247,7 @@ local function saveConfig()
             AutoSteal   = stealEnabled,
             AntiRagdoll = antiRagdollEnabled,
             XRAY        = unwalkEnabled,
+            Darkmode    = darkmodeEnabled,
         }))
     end)
 end
@@ -238,16 +255,70 @@ end
 local savedCfg = {}
 pcall(function() savedCfg = HttpService:JSONDecode(readfile(CONFIG_FILE)) end)
 
+-- ─── DARK MODE (Solid Black Skybox) ────────────────────────────
+local darkmodeEnabled  = false
+local SKYBOX_ID        = "rbxassetid://120677415283673"
+local originalSky      = nil
+local originalAmbient  = nil
+local originalBrightness = nil
+local originalFogColor = nil
+
+local function startDarkmode()
+    pcall(function()
+        -- Guardar estado original del cielo
+        originalAmbient   = Lighting.Ambient
+        originalBrightness = Lighting.Brightness
+        originalFogColor  = Lighting.FogColor
+        -- Guardar Sky original si existe
+        local existingSky = Lighting:FindFirstChildOfClass("Sky")
+        if existingSky then
+            originalSky = existingSky
+            existingSky.Parent = nil
+        end
+        -- Insertar skybox negro
+        local newSky = Instance.new("Sky")
+        newSky.Name        = "KMoneyDarkSky"
+        newSky.SkyboxBk    = SKYBOX_ID
+        newSky.SkyboxDn    = SKYBOX_ID
+        newSky.SkyboxFt    = SKYBOX_ID
+        newSky.SkyboxLf    = SKYBOX_ID
+        newSky.SkyboxRt    = SKYBOX_ID
+        newSky.SkyboxUp    = SKYBOX_ID
+        newSky.Parent      = Lighting
+        -- Oscurecer ambiente
+        Lighting.Ambient   = Color3.fromRGB(0, 0, 0)
+        Lighting.Brightness = 0
+        Lighting.FogColor  = Color3.fromRGB(0, 0, 0)
+    end)
+end
+
+local function stopDarkmode()
+    pcall(function()
+        -- Eliminar skybox negro
+        local darkSky = Lighting:FindFirstChild("KMoneyDarkSky")
+        if darkSky then darkSky:Destroy() end
+        -- Restaurar sky original
+        if originalSky then
+            originalSky.Parent = Lighting
+            originalSky = nil
+        end
+        -- Restaurar valores originales
+        if originalAmbient   then Lighting.Ambient    = originalAmbient   end
+        if originalBrightness then Lighting.Brightness = originalBrightness end
+        if originalFogColor  then Lighting.FogColor   = originalFogColor  end
+    end)
+end
+
+-- ─── PALETA ────────────────────────────────────────────────────
+local WHITE      = Color3.fromRGB(255, 255, 255)
+local BLACK      = Color3.fromRGB(0, 0, 0)
+local TRANSPARENT = Color3.fromRGB(0, 0, 0)
+local FULL_HEIGHT = 371
+
 -- ─── GUI ───────────────────────────────────────────────────────
 if CoreGui:FindFirstChild("KMoneyHub") then
     CoreGui:FindFirstChild("KMoneyHub"):Destroy()
 end
-
-local CYAN     = Color3.fromRGB(0, 230, 255)
-local CYAN_DIM = Color3.fromRGB(0, 160, 200)
-local BG       = Color3.fromRGB(2, 2, 4)
-local CARD     = Color3.fromRGB(4, 7, 12)
-local FULL_HEIGHT = 300
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name           = "KMoneyHub"
@@ -256,145 +327,203 @@ ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.DisplayOrder   = 999
 pcall(function() ScreenGui.Parent = CoreGui end)
 
+-- Main frame - 100% transparente
 local Main = Instance.new("Frame", ScreenGui)
-Main.Name             = "Main"
-Main.Size             = UDim2.new(0, 262, 0, FULL_HEIGHT)
-Main.Position         = UDim2.new(0.5, -131, 0.5, -150)
-Main.BackgroundColor3 = BG
-Main.BorderSizePixel  = 0
-Main.ClipsDescendants = true
+Main.Name                 = "Main"
+Main.Size                 = UDim2.new(0, 270, 0, FULL_HEIGHT)
+Main.Position             = UDim2.new(0.5, -135, 0.5, -157)
+Main.BackgroundTransparency = 1
+Main.BorderSizePixel      = 0
+Main.ClipsDescendants     = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
 
-local neonStroke = Instance.new("UIStroke", Main)
-neonStroke.Color     = CYAN
-neonStroke.Thickness = 2
+-- Borde negro con glow neon
+local grimStroke = Instance.new("UIStroke", Main)
+grimStroke.Color       = BLACK
+grimStroke.Thickness   = 2
+grimStroke.Transparency = 0
 
+-- Línea superior negra
 local TopLine = Instance.new("Frame", Main)
 TopLine.Size             = UDim2.new(1, 0, 0, 2)
-TopLine.BackgroundColor3 = CYAN
+TopLine.BackgroundColor3 = BLACK
 TopLine.BorderSizePixel  = 0
 
+-- Title bar - transparente
 local TitleBar = Instance.new("Frame", Main)
-TitleBar.Size             = UDim2.new(1, 0, 0, 44)
-TitleBar.Position         = UDim2.new(0, 0, 0, 2)
-TitleBar.BackgroundColor3 = CARD
-TitleBar.BorderSizePixel  = 0
+TitleBar.Size               = UDim2.new(1, 0, 0, 48)
+TitleBar.Position           = UDim2.new(0, 0, 0, 2)
+TitleBar.BackgroundTransparency = 1
+TitleBar.BorderSizePixel    = 0
 
+-- Título BLANCO
 local TitleLbl = Instance.new("TextLabel", TitleBar)
 TitleLbl.Size                   = UDim2.new(1, -46, 1, 0)
 TitleLbl.Position               = UDim2.new(0, 14, 0, 0)
 TitleLbl.BackgroundTransparency = 1
 TitleLbl.Text                   = "KMONEY HUB"
-TitleLbl.TextColor3             = CYAN
-TitleLbl.TextStrokeColor3       = CYAN
-TitleLbl.TextStrokeTransparency = 0.4
-TitleLbl.Font                   = Enum.Font.GothamBold
-TitleLbl.TextSize               = 17
+TitleLbl.TextColor3             = WHITE
+TitleLbl.TextStrokeColor3       = BLACK
+TitleLbl.TextStrokeTransparency = 0
+TitleLbl.Font                   = Enum.Font.GothamBlack
+TitleLbl.TextSize               = 16
 TitleLbl.TextXAlignment         = Enum.TextXAlignment.Left
 
-local DollarBtn = Instance.new("TextButton", TitleBar)
-DollarBtn.Size                   = UDim2.new(0, 28, 0, 28)
-DollarBtn.Position               = UDim2.new(1, -36, 0.5, -14)
-DollarBtn.BackgroundTransparency = 1
-DollarBtn.Text                   = "$"
-DollarBtn.TextColor3             = CYAN
-DollarBtn.TextStrokeColor3       = CYAN
-DollarBtn.TextStrokeTransparency = 0.3
-DollarBtn.Font                   = Enum.Font.GothamBold
-DollarBtn.TextSize               = 16
-DollarBtn.BorderSizePixel        = 0
-Instance.new("UIStroke", DollarBtn).Thickness = 0
+-- Botón minimizar
+local MinBtn = Instance.new("TextButton", TitleBar)
+MinBtn.Size               = UDim2.new(0, 26, 0, 26)
+MinBtn.Position           = UDim2.new(1, -36, 0.5, -13)
+MinBtn.BackgroundTransparency = 1
+MinBtn.Text               = "—"
+MinBtn.TextColor3         = WHITE
+MinBtn.Font               = Enum.Font.GothamBold
+MinBtn.TextSize           = 13
+MinBtn.BorderSizePixel    = 0
+Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0, 6)
+local minStroke = Instance.new("UIStroke", MinBtn)
+minStroke.Color = BLACK; minStroke.Thickness = 1.5; minStroke.Transparency = 0
 
+-- Content
 local Content = Instance.new("Frame", Main)
-Content.Size                   = UDim2.new(1, 0, 1, -47)
-Content.Position               = UDim2.new(0, 0, 0, 47)
+Content.Size                 = UDim2.new(1, 0, 1, -52)
+Content.Position             = UDim2.new(0, 0, 0, 52)
 Content.BackgroundTransparency = 1
 
-local ti = TweenInfo.new(0.18, Enum.EasingStyle.Quad)
+local ti = TweenInfo.new(0.2, Enum.EasingStyle.Quad)
 
+-- ─── TOGGLE ROW HELPER ─────────────────────────────────────────
 local function makeToggleRow(labelText, yOffset)
     local Row = Instance.new("Frame", Content)
-    Row.Size             = UDim2.new(1, -28, 0, 44)
-    Row.Position         = UDim2.new(0, 14, 0, yOffset)
-    Row.BackgroundColor3 = CARD
-    Row.BorderSizePixel  = 0
+    Row.Size                 = UDim2.new(1, -24, 0, 46)
+    Row.Position             = UDim2.new(0, 12, 0, yOffset)
+    Row.BackgroundTransparency = 1
+    Row.BorderSizePixel      = 0
     Instance.new("UICorner", Row).CornerRadius = UDim.new(0, 8)
+
+    local rowStroke = Instance.new("UIStroke", Row)
+    rowStroke.Color = BLACK; rowStroke.Thickness = 1.5; rowStroke.Transparency = 0
+
     local Lbl = Instance.new("TextLabel", Row)
-    Lbl.Size = UDim2.new(1,-60,1,0); Lbl.Position = UDim2.new(0,12,0,0)
+    Lbl.Size = UDim2.new(1,-70,1,0); Lbl.Position = UDim2.new(0,14,0,0)
     Lbl.BackgroundTransparency = 1; Lbl.Text = labelText
-    Lbl.TextColor3 = Color3.fromRGB(180,235,255); Lbl.TextStrokeColor3 = CYAN
-    Lbl.TextStrokeTransparency = 0.7; Lbl.Font = Enum.Font.GothamBold
-    Lbl.TextSize = 14; Lbl.TextXAlignment = Enum.TextXAlignment.Left
+    Lbl.TextColor3 = WHITE
+    Lbl.TextStrokeColor3 = BLACK; Lbl.TextStrokeTransparency = 0
+    Lbl.Font = Enum.Font.GothamBold
+    Lbl.TextSize = 13; Lbl.TextXAlignment = Enum.TextXAlignment.Left
+
     local Btn = Instance.new("TextButton", Row)
-    Btn.Size = UDim2.new(0,46,0,24); Btn.Position = UDim2.new(1,-54,0.5,-12)
-    Btn.BackgroundColor3 = Color3.fromRGB(10,20,32); Btn.Text = ""; Btn.BorderSizePixel = 0
+    Btn.Size = UDim2.new(0,46,0,24); Btn.Position = UDim2.new(1,-56,0.5,-12)
+    Btn.BackgroundTransparency = 1; Btn.Text = ""; Btn.BorderSizePixel = 0
     Instance.new("UICorner", Btn).CornerRadius = UDim.new(1,0)
     local bStroke = Instance.new("UIStroke", Btn)
-    bStroke.Color = CYAN_DIM; bStroke.Thickness = 1; bStroke.Transparency = 0.5
+    bStroke.Color = BLACK; bStroke.Thickness = 1.5; bStroke.Transparency = 0
+
     local Knob = Instance.new("Frame", Btn)
     Knob.Size = UDim2.new(0,18,0,18); Knob.Position = UDim2.new(0,3,0.5,-9)
-    Knob.BackgroundColor3 = Color3.fromRGB(50,80,100); Knob.BorderSizePixel = 0
+    Knob.BackgroundColor3 = WHITE; Knob.BorderSizePixel = 0
     Instance.new("UICorner", Knob).CornerRadius = UDim.new(1,0)
-    return Btn, Knob, bStroke
+    local kStroke = Instance.new("UIStroke", Knob)
+    kStroke.Color = BLACK; kStroke.Thickness = 1; kStroke.Transparency = 0
+
+    return Btn, Knob, bStroke, rowStroke
 end
 
-local function applyOn(b,k,s)
-    b.BackgroundColor3=CYAN; k.Position=UDim2.new(1,-21,0.5,-9)
-    k.BackgroundColor3=Color3.fromRGB(255,255,255); s.Color=CYAN; s.Transparency=0
+local function applyOn(b,k,s,rs)
+    k.Position         = UDim2.new(1,-21,0.5,-9)
+    k.BackgroundColor3 = BLACK
 end
 
-local function applyOff(b,k,s)
-    b.BackgroundColor3=Color3.fromRGB(10,20,32); k.Position=UDim2.new(0,3,0.5,-9)
-    k.BackgroundColor3=Color3.fromRGB(50,80,100); s.Color=CYAN_DIM; s.Transparency=0.5
+local function applyOff(b,k,s,rs)
+    k.Position         = UDim2.new(0,3,0.5,-9)
+    k.BackgroundColor3 = WHITE
 end
 
 -- ROW 1: Auto Steal
-local T1,K1,S1 = makeToggleRow("Auto Steal", 12)
-if savedCfg.AutoSteal then stealEnabled=true; startAutoSteal(); applyOn(T1,K1,S1) end
+local T1,K1,S1,RS1 = makeToggleRow("Auto Steal", 10)
+if savedCfg.AutoSteal then stealEnabled=true; startAutoSteal(); applyOn(T1,K1,S1,RS1) end
 T1.MouseButton1Click:Connect(function()
     stealEnabled = not stealEnabled
-    if stealEnabled then startAutoSteal(); TweenService:Create(T1,ti,{BackgroundColor3=CYAN}):Play(); TweenService:Create(K1,ti,{Position=UDim2.new(1,-21,0.5,-9),BackgroundColor3=Color3.fromRGB(255,255,255)}):Play(); S1.Color=CYAN; S1.Transparency=0
-    else stopAutoSteal(); TweenService:Create(T1,ti,{BackgroundColor3=Color3.fromRGB(10,20,32)}):Play(); TweenService:Create(K1,ti,{Position=UDim2.new(0,3,0.5,-9),BackgroundColor3=Color3.fromRGB(50,80,100)}):Play(); S1.Color=CYAN_DIM; S1.Transparency=0.5 end
+    if stealEnabled then
+        startAutoSteal()
+        TweenService:Create(K1,ti,{Position=UDim2.new(1,-21,0.5,-9),BackgroundColor3=BLACK}):Play()
+    else
+        stopAutoSteal()
+        TweenService:Create(K1,ti,{Position=UDim2.new(0,3,0.5,-9),BackgroundColor3=WHITE}):Play()
+    end
 end)
 
 -- ROW 2: Anti Ragdoll
-local T2,K2,S2 = makeToggleRow("Anti Ragdoll", 68)
-if savedCfg.AntiRagdoll then antiRagdollEnabled=true; task.delay(1,function() setupAntiRagdoll(character) end); applyOn(T2,K2,S2) end
+local T2,K2,S2,RS2 = makeToggleRow("Anti Ragdoll", 66)
+if savedCfg.AntiRagdoll then antiRagdollEnabled=true; task.delay(1,function() setupAntiRagdoll(character) end); applyOn(T2,K2,S2,RS2) end
 T2.MouseButton1Click:Connect(function()
     antiRagdollEnabled = not antiRagdollEnabled
-    if antiRagdollEnabled then task.wait(0.5); setupAntiRagdoll(character); TweenService:Create(T2,ti,{BackgroundColor3=CYAN}):Play(); TweenService:Create(K2,ti,{Position=UDim2.new(1,-21,0.5,-9),BackgroundColor3=Color3.fromRGB(255,255,255)}):Play(); S2.Color=CYAN; S2.Transparency=0
-    else cleanupRagdoll(); disconnectRemote(); TweenService:Create(T2,ti,{BackgroundColor3=Color3.fromRGB(10,20,32)}):Play(); TweenService:Create(K2,ti,{Position=UDim2.new(0,3,0.5,-9),BackgroundColor3=Color3.fromRGB(50,80,100)}):Play(); S2.Color=CYAN_DIM; S2.Transparency=0.5 end
+    if antiRagdollEnabled then
+        task.wait(0.5); setupAntiRagdoll(character)
+        TweenService:Create(K2,ti,{Position=UDim2.new(1,-21,0.5,-9),BackgroundColor3=BLACK}):Play()
+    else
+        cleanupRagdoll(); disconnectRemote()
+        TweenService:Create(K2,ti,{Position=UDim2.new(0,3,0.5,-9),BackgroundColor3=WHITE}):Play()
+    end
 end)
 
 -- ROW 3: XRAY
-local T3,K3,S3 = makeToggleRow("XRAY", 124)
-if savedCfg.XRAY then unwalkEnabled=true; startUnwalk(); applyOn(T3,K3,S3) end
+local T3,K3,S3,RS3 = makeToggleRow("XRAY", 122)
+if savedCfg.XRAY then unwalkEnabled=true; startUnwalk(); applyOn(T3,K3,S3,RS3) end
 T3.MouseButton1Click:Connect(function()
     unwalkEnabled = not unwalkEnabled
-    if unwalkEnabled then startUnwalk(); TweenService:Create(T3,ti,{BackgroundColor3=CYAN}):Play(); TweenService:Create(K3,ti,{Position=UDim2.new(1,-21,0.5,-9),BackgroundColor3=Color3.fromRGB(255,255,255)}):Play(); S3.Color=CYAN; S3.Transparency=0
-    else stopUnwalk(); TweenService:Create(T3,ti,{BackgroundColor3=Color3.fromRGB(10,20,32)}):Play(); TweenService:Create(K3,ti,{Position=UDim2.new(0,3,0.5,-9),BackgroundColor3=Color3.fromRGB(50,80,100)}):Play(); S3.Color=CYAN_DIM; S3.Transparency=0.5 end
+    if unwalkEnabled then
+        startUnwalk()
+        TweenService:Create(K3,ti,{Position=UDim2.new(1,-21,0.5,-9),BackgroundColor3=BLACK}):Play()
+    else
+        stopUnwalk()
+        TweenService:Create(K3,ti,{Position=UDim2.new(0,3,0.5,-9),BackgroundColor3=WHITE}):Play()
+    end
 end)
+
+-- ROW 4: Dark Mode
+local T4,K4,S4,RS4 = makeToggleRow("Dark Mode", 178)
+if savedCfg.Darkmode then darkmodeEnabled=true; startDarkmode(); applyOn(T4,K4,S4,RS4) end
+T4.MouseButton1Click:Connect(function()
+    darkmodeEnabled = not darkmodeEnabled
+    if darkmodeEnabled then
+        startDarkmode()
+        TweenService:Create(K4,ti,{Position=UDim2.new(1,-21,0.5,-9),BackgroundColor3=BLACK}):Play()
+    else
+        stopDarkmode()
+        TweenService:Create(K4,ti,{Position=UDim2.new(0,3,0.5,-9),BackgroundColor3=WHITE}):Play()
+    end
+end)
+
+-- ─── SEPARATOR ─────────────────────────────────────────────────
+local Sep = Instance.new("Frame", Content)
+Sep.Size             = UDim2.new(1, -24, 0, 1)
+Sep.Position         = UDim2.new(0, 12, 0, 244)
+Sep.BackgroundColor3 = WHITE
+Sep.BorderSizePixel  = 0
 
 -- ─── SAVE BUTTON ───────────────────────────────────────────────
 local SaveFrame = Instance.new("Frame", Content)
-SaveFrame.Size                   = UDim2.new(1, -28, 0, 40)
-SaveFrame.Position               = UDim2.new(0, 14, 0, 192)
+SaveFrame.Size               = UDim2.new(1, -24, 0, 40)
+SaveFrame.Position           = UDim2.new(0, 12, 0, 256)
 SaveFrame.BackgroundTransparency = 1
-SaveFrame.BorderSizePixel        = 0
 
 local SaveBtn = Instance.new("TextButton", SaveFrame)
-SaveBtn.Size             = UDim2.new(1, 0, 1, 0)
-SaveBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-SaveBtn.Text             = "SAVE CONFIG"
-SaveBtn.Font             = Enum.Font.GothamBlack
-SaveBtn.TextSize         = 14
-SaveBtn.TextColor3       = Color3.fromRGB(255, 255, 255)
-SaveBtn.BorderSizePixel  = 0
-Instance.new("UICorner", SaveBtn).CornerRadius = UDim.new(0, 10)
+SaveBtn.Size               = UDim2.new(1, 0, 1, 0)
+SaveBtn.BackgroundTransparency = 1
+SaveBtn.Text               = "SAVE CONFIG"
+SaveBtn.Font               = Enum.Font.GothamBlack
+SaveBtn.TextSize           = 13
+SaveBtn.TextColor3         = WHITE
+SaveBtn.TextStrokeColor3   = BLACK
+SaveBtn.TextStrokeTransparency = 0
+SaveBtn.BorderSizePixel    = 0
+Instance.new("UICorner", SaveBtn).CornerRadius = UDim.new(0, 8)
+local saveStroke = Instance.new("UIStroke", SaveBtn)
+saveStroke.Color = BLACK; saveStroke.Thickness = 1.5; saveStroke.Transparency = 0
 
 SaveBtn.MouseButton1Click:Connect(function()
     saveConfig()
-    SaveBtn.Text = "✅ SAVED!"
+    SaveBtn.Text = "SAVED!"
     task.wait(1)
     SaveBtn.Text = "SAVE CONFIG"
 end)
@@ -418,12 +547,13 @@ do
     end)
 end
 
--- ─── $ MINIMIZAR / RESTAURAR ───────────────────────────────────
+-- ─── MINIMIZAR ─────────────────────────────────────────────────
 local minimized = false
-DollarBtn.MouseButton1Click:Connect(function()
+MinBtn.MouseButton1Click:Connect(function()
     minimized = not minimized
-    TweenService:Create(Main, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-        Size = minimized and UDim2.new(0,262,0,48) or UDim2.new(0,262,0,FULL_HEIGHT)
+    MinBtn.Text = minimized and "+" or "—"
+    TweenService:Create(Main, TweenInfo.new(0.22, Enum.EasingStyle.Quad), {
+        Size = minimized and UDim2.new(0,270,0,52) or UDim2.new(0,270,0,FULL_HEIGHT)
     }):Play()
 end)
 
@@ -431,12 +561,14 @@ end)
 task.spawn(function()
     local t = 0
     while ScreenGui.Parent do
-        t = t + 0.045
-        neonStroke.Transparency = 0.05 + ((math.sin(t)+1)/2)*0.5
+        t = t + 0.04
+        local pulse = (math.sin(t) + 1) / 2
+        -- borde negro, glow pulsando via transparencia
+        grimStroke.Transparency = 0.05 + pulse * 0.5
         task.wait(0.03)
     end
 end)
 
 -- ─── OPEN ANIMATION ────────────────────────────────────────────
 Main.Size = UDim2.new(0,0,0,0)
-TweenService:Create(Main, TweenInfo.new(0.35,Enum.EasingStyle.Back,Enum.EasingDirection.Out), {Size=UDim2.new(0,262,0,FULL_HEIGHT)}):Play()
+TweenService:Create(Main, TweenInfo.new(0.4,Enum.EasingStyle.Back,Enum.EasingDirection.Out), {Size=UDim2.new(0,270,0,FULL_HEIGHT)}):Play()
