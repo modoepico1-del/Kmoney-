@@ -283,6 +283,9 @@ local function startDarkMode()
     sky.CelestialBodiesShown = false
     sky.Parent               = Lighting
     table.insert(darkModeObjects, sky)
+
+    -- Quitar niebla para que el juego se vea mas brilloso
+    Lighting.FogStart = 10000
 end
 
 local function stopDarkMode()
@@ -296,6 +299,9 @@ local function stopDarkMode()
         end)
     end
     darkModeObjects = {}
+    pcall(function()
+        Lighting.FogStart = originalLighting.FogStart or 0
+    end)
 end
 
 -- ─── SAVE / LOAD ───────────────────────────────────────────────
