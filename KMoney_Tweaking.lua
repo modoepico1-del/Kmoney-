@@ -314,6 +314,7 @@ local function saveConfig()
             AntiRagdoll = antiRagdollEnabled,
             XRAY        = unwalkEnabled,
             DarkMode    = darkModeEnabled,
+            FOV         = currentFOV,
         }))
     end)
 end
@@ -324,7 +325,7 @@ pcall(function() savedCfg = HttpService:JSONDecode(readfile(CONFIG_FILE)) end)
 -- ─── PALETA ────────────────────────────────────────────────────
 local WHITE       = Color3.fromRGB(255, 255, 255)
 local BLACK       = Color3.fromRGB(0, 0, 0)
-local FULL_HEIGHT = 371
+local FULL_HEIGHT = 440
 
 -- ─── GUI ───────────────────────────────────────────────────────
 if CoreGui:FindFirstChild("KMoneyHub") then
@@ -498,17 +499,109 @@ T4.MouseButton1Click:Connect(function()
     end
 end)
 
+-- ROW 5: FOV Slider
+local currentFOV = 70
+local FOV_MIN    = 60
+local FOV_MAX    = 120
+local sliderDragging = false
+
+local FovRow = Instance.new("Frame", Content)
+FovRow.Size                 = UDim2.new(1, -24, 0, 62)
+FovRow.Position             = UDim2.new(0, 12, 0, 234)
+FovRow.BackgroundTransparency = 1
+FovRow.BorderSizePixel      = 0
+Instance.new("UICorner", FovRow).CornerRadius = UDim.new(0, 8)
+local fovRowStroke = Instance.new("UIStroke", FovRow)
+fovRowStroke.Color = BLACK; fovRowStroke.Thickness = 1.5; fovRowStroke.Transparency = 0
+
+local FovLabel = Instance.new("TextLabel", FovRow)
+FovLabel.Size                   = UDim2.new(1, -10, 0, 22)
+FovLabel.Position               = UDim2.new(0, 14, 0, 6)
+FovLabel.BackgroundTransparency = 1
+FovLabel.Text                   = "FOV: " .. currentFOV
+FovLabel.TextColor3             = WHITE
+FovLabel.TextStrokeColor3       = BLACK
+FovLabel.TextStrokeTransparency = 0
+FovLabel.Font                   = Enum.Font.GothamBold
+FovLabel.TextSize               = 13
+FovLabel.TextXAlignment         = Enum.TextXAlignment.Left
+
+-- Track (fondo del slider)
+local SliderTrack = Instance.new("Frame", FovRow)
+SliderTrack.Size             = UDim2.new(1, -28, 0, 6)
+SliderTrack.Position         = UDim2.new(0, 14, 0, 36)
+SliderTrack.BackgroundColor3 = BLACK
+SliderTrack.BorderSizePixel  = 0
+Instance.new("UICorner", SliderTrack).CornerRadius = UDim.new(1, 0)
+local trackStroke = Instance.new("UIStroke", SliderTrack)
+trackStroke.Color = WHITE; trackStroke.Thickness = 1; trackStroke.Transparency = 0.5
+
+-- Fill (parte rellena)
+local SliderFill = Instance.new("Frame", SliderTrack)
+SliderFill.Size             = UDim2.new((currentFOV - FOV_MIN) / (FOV_MAX - FOV_MIN), 0, 1, 0)
+SliderFill.BackgroundColor3 = WHITE
+SliderFill.BorderSizePixel  = 0
+Instance.new("UICorner", SliderFill).CornerRadius = UDim.new(1, 0)
+
+-- Knob del slider
+local SliderKnob = Instance.new("Frame", SliderTrack)
+SliderKnob.Size             = UDim2.new(0, 14, 0, 14)
+SliderKnob.AnchorPoint      = Vector2.new(0.5, 0.5)
+SliderKnob.Position         = UDim2.new((currentFOV - FOV_MIN) / (FOV_MAX - FOV_MIN), 0, 0.5, 0)
+SliderKnob.BackgroundColor3 = WHITE
+SliderKnob.BorderSizePixel  = 0
+Instance.new("UICorner", SliderKnob).CornerRadius = UDim.new(1, 0)
+local knobStroke = Instance.new("UIStroke", SliderKnob)
+knobStroke.Color = BLACK; knobStroke.Thickness = 1.5; knobStroke.Transparency = 0
+
+local function updateFOV(pct)
+    pct = math.clamp(pct, 0, 1)
+    currentFOV = math.floor(FOV_MIN + pct * (FOV_MAX - FOV_MIN) + 0.5)
+    SliderFill.Size     = UDim2.new(pct, 0, 1, 0)
+    SliderKnob.Position = UDim2.new(pct, 0, 0.5, 0)
+    FovLabel.Text       = "FOV: " .. currentFOV
+    Camera.FieldOfView  = currentFOV
+end
+
+-- Inicializar FOV guardado
+if savedCfg.FOV then
+    updateFOV((savedCfg.FOV - FOV_MIN) / (FOV_MAX - FOV_MIN))
+end
+
+SliderTrack.InputBegan:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+        sliderDragging = true
+        local absPos  = SliderTrack.AbsolutePosition.X
+        local absSize = SliderTrack.AbsoluteSize.X
+        updateFOV((inp.Position.X - absPos) / absSize)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+        sliderDragging = false
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(inp)
+    if sliderDragging and (inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch) then
+        local absPos  = SliderTrack.AbsolutePosition.X
+        local absSize = SliderTrack.AbsoluteSize.X
+        updateFOV((inp.Position.X - absPos) / absSize)
+    end
+end)
+
 -- ─── SEPARATOR ─────────────────────────────────────────────────
 local Sep = Instance.new("Frame", Content)
 Sep.Size             = UDim2.new(1, -24, 0, 1)
-Sep.Position         = UDim2.new(0, 12, 0, 244)
+Sep.Position         = UDim2.new(0, 12, 0, 314)
 Sep.BackgroundColor3 = WHITE
 Sep.BorderSizePixel  = 0
 
 -- ─── SAVE BUTTON ───────────────────────────────────────────────
 local SaveFrame = Instance.new("Frame", Content)
 SaveFrame.Size               = UDim2.new(1, -24, 0, 40)
-SaveFrame.Position           = UDim2.new(0, 12, 0, 256)
+SaveFrame.Position           = UDim2.new(0, 12, 0, 326)
 SaveFrame.BackgroundTransparency = 1
 
 local SaveBtn = Instance.new("TextButton", SaveFrame)
