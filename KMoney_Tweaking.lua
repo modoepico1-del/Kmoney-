@@ -256,18 +256,13 @@ local savedCfg = {}
 pcall(function() savedCfg = HttpService:JSONDecode(readfile(CONFIG_FILE)) end)
 
 
--- ─── DARK MODE (Galaxy Skybox + Floating Text) ────────────────
-local darkmodeEnabled    = false
-local originalSky        = nil
-local originalAmbient    = nil
-local originalBrightness = nil
-local dmParts            = {}
+-- ─── DARK MODE ────────────────────────────────────────────────
+local darkmodeEnabled = false
+local originalSky     = nil
 
 local function startDarkmode()
     pcall(function()
-        originalAmbient    = Lighting.Ambient
-        originalBrightness = Lighting.Brightness
-        local existingSky  = Lighting:FindFirstChildOfClass("Sky")
+        local existingSky = Lighting:FindFirstChildOfClass("Sky")
         if existingSky then
             originalSky = existingSky
             existingSky.Parent = nil
@@ -283,30 +278,8 @@ local function startDarkmode()
         sky.SunStyle  = Enum.SunStyle.None
         sky.MoonStyle = Enum.MoonStyle.None
         sky.Parent    = Lighting
-        Lighting.Ambient    = Color3.fromRGB(10, 0, 20)
-        Lighting.Brightness = 0.5
-        -- Floating "Nova hub" text parts
-        for i = 1, 15 do
-            local part = Instance.new("Part", workspace)
-            part.Size        = Vector3.new(1, 1, 1)
-            part.Position    = Vector3.new(math.random(-300,300), math.random(60,160), math.random(-300,300))
-            part.Anchored    = true
-            part.CanCollide  = false
-            part.Transparency = 1
-            local bg = Instance.new("BillboardGui", part)
-            bg.Size        = UDim2.new(0, 500, 0, 100)
-            bg.AlwaysOnTop = true
-            local tl = Instance.new("TextLabel", bg)
-            tl.Size                    = UDim2.new(1, 0, 1, 0)
-            tl.BackgroundTransparency  = 1
-            tl.Text                    = "Nova hub"
-            tl.TextColor3              = Color3.fromRGB(255, 0, 0)
-            tl.Font                    = Enum.Font.GothamBold
-            tl.TextSize                = 65
-            tl.TextStrokeTransparency  = 0
-            tl.TextStrokeColor3        = Color3.fromRGB(40, 0, 40)
-            table.insert(dmParts, part)
-        end
+        Lighting.Ambient    = Color3.fromRGB(0, 0, 0)
+        Lighting.Brightness = 0
     end)
 end
 
@@ -314,12 +287,7 @@ local function stopDarkmode()
     pcall(function()
         local s = Lighting:FindFirstChild("NovaGalaxySky")
         if s then s:Destroy() end
-        if originalSky        then originalSky.Parent      = Lighting          end
-        if originalAmbient    then Lighting.Ambient        = originalAmbient   end
-        if originalBrightness then Lighting.Brightness     = originalBrightness end
-        originalSky = nil
-        for _, p in ipairs(dmParts) do pcall(function() p:Destroy() end) end
-        dmParts = {}
+        if originalSky then originalSky.Parent = Lighting; originalSky = nil end
     end)
 end
 
