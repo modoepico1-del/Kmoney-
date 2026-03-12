@@ -294,9 +294,9 @@ local function startDarkMode()
     local bloom = Instance.new("BloomEffect")
     bloom.Name      = "BlackBloom"
     bloom.Enabled   = true
-    bloom.Intensity = 1
-    bloom.Size      = 24
-    bloom.Threshold = 2
+    bloom.Intensity = 3
+    bloom.Size      = 56
+    bloom.Threshold = 0.5
     bloom.Parent    = Lighting
     table.insert(darkModeObjects, bloom)
 
