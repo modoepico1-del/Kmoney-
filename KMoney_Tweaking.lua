@@ -264,18 +264,17 @@ local function startDarkmode()
         local existing = Lighting:FindFirstChildOfClass("Sky")
         if existing then originalSky = existing; existing.Parent = nil end
         local sky = Instance.new("Sky")
-        sky.Name              = "KMoneyDarkSky"
-        sky.SkyboxUp          = "rbxassetid://6412503613"
-        sky.SkyboxDn          = "rbxassetid://6444884785"
-        sky.SkyboxFt          = "rbxassetid://6444884337"
-        sky.SkyboxBk          = "rbxassetid://6444884337"
-        sky.SkyboxLf          = "rbxassetid://6444884337"
-        sky.SkyboxRt          = "rbxassetid://6444884337"
-        sky.MoonTextureId     = "rbxassetid://6444320592"
-        sky.SunTextureId      = "rbxassetid://6196665106"
-        sky.StarCount         = 3000
-        sky.CelestialBodiesShown = true
-        sky.Parent            = Lighting
+        sky.Name                 = "KMoneyDarkSky"
+        sky.SkyboxUp             = "rbxassetid://6282319545"
+        sky.SkyboxDn             = "rbxassetid://6282310865"
+        sky.SkyboxFt             = "rbxassetid://6282312922"
+        sky.SkyboxBk             = "rbxassetid://6282309069"
+        sky.SkyboxRt             = "rbxassetid://6282317224"
+        sky.SkyboxLf             = "rbxassetid://6282312922"
+        sky.MoonTextureId        = "rbxasset://sky/moon.jpg"
+        sky.SunTextureId         = "rbxasset://sky/sun.jpg"
+        sky.CelestialBodiesShown = false
+        sky.Parent               = Lighting
     end)
 end
 
