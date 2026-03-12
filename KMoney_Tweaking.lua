@@ -247,6 +247,7 @@ local function saveConfig()
             AutoSteal   = stealEnabled,
             AntiRagdoll = antiRagdollEnabled,
             XRAY        = unwalkEnabled,
+            Darkmode    = darkmodeEnabled,
         }))
     end)
 end
@@ -254,11 +255,54 @@ end
 local savedCfg = {}
 pcall(function() savedCfg = HttpService:JSONDecode(readfile(CONFIG_FILE)) end)
 
+
+-- ─── DARK MODE (Galaxy Skybox) ─────────────────────────────────
+local darkmodeEnabled    = false
+local originalSky        = nil
+local originalAmbient    = nil
+local originalBrightness = nil
+
+local function startDarkmode()
+    pcall(function()
+        originalAmbient    = Lighting.Ambient
+        originalBrightness = Lighting.Brightness
+        local existingSky  = Lighting:FindFirstChildOfClass("Sky")
+        if existingSky then
+            originalSky = existingSky
+            existingSky.Parent = nil
+        end
+        local sky = Instance.new("Sky")
+        sky.Name      = "KMoneyGalaxySky"
+        sky.SkyboxBk  = "rbxassetid://12450520111"
+        sky.SkyboxDn  = "rbxassetid://12450519395"
+        sky.SkyboxFt  = "rbxassetid://12450518712"
+        sky.SkyboxLf  = "rbxassetid://12450518063"
+        sky.SkyboxRt  = "rbxassetid://12450517417"
+        sky.SkyboxUp  = "rbxassetid://12450516616"
+        sky.SunStyle  = Enum.SunStyle.None
+        sky.MoonStyle = Enum.MoonStyle.None
+        sky.Parent    = Lighting
+        Lighting.Ambient    = Color3.fromRGB(10, 0, 20)
+        Lighting.Brightness = 0.5
+    end)
+end
+
+local function stopDarkmode()
+    pcall(function()
+        local s = Lighting:FindFirstChild("KMoneyGalaxySky")
+        if s then s:Destroy() end
+        if originalSky        then originalSky.Parent    = Lighting  end
+        if originalAmbient    then Lighting.Ambient      = originalAmbient   end
+        if originalBrightness then Lighting.Brightness   = originalBrightness end
+        originalSky = nil
+    end)
+end
+
 -- ─── PALETA ────────────────────────────────────────────────────
 local WHITE      = Color3.fromRGB(255, 255, 255)
 local BLACK      = Color3.fromRGB(0, 0, 0)
 local TRANSPARENT = Color3.fromRGB(0, 0, 0)
-local FULL_HEIGHT = 315
+local FULL_HEIGHT = 371
 
 -- ─── GUI ───────────────────────────────────────────────────────
 if CoreGui:FindFirstChild("KMoneyHub") then
@@ -425,17 +469,31 @@ T3.MouseButton1Click:Connect(function()
     end
 end)
 
+-- ROW 4: Dark Mode
+local T4,K4,S4,RS4 = makeToggleRow("Dark Mode", 178)
+if savedCfg.Darkmode then darkmodeEnabled=true; startDarkmode(); applyOn(T4,K4,S4,RS4) end
+T4.MouseButton1Click:Connect(function()
+    darkmodeEnabled = not darkmodeEnabled
+    if darkmodeEnabled then
+        startDarkmode()
+        TweenService:Create(K4,ti,{Position=UDim2.new(1,-21,0.5,-9),BackgroundColor3=BLACK}):Play()
+    else
+        stopDarkmode()
+        TweenService:Create(K4,ti,{Position=UDim2.new(0,3,0.5,-9),BackgroundColor3=WHITE}):Play()
+    end
+end)
+
 -- ─── SEPARATOR ─────────────────────────────────────────────────
 local Sep = Instance.new("Frame", Content)
 Sep.Size             = UDim2.new(1, -24, 0, 1)
-Sep.Position         = UDim2.new(0, 12, 0, 188)
+Sep.Position         = UDim2.new(0, 12, 0, 244)
 Sep.BackgroundColor3 = WHITE
 Sep.BorderSizePixel  = 0
 
 -- ─── SAVE BUTTON ───────────────────────────────────────────────
 local SaveFrame = Instance.new("Frame", Content)
 SaveFrame.Size               = UDim2.new(1, -24, 0, 40)
-SaveFrame.Position           = UDim2.new(0, 12, 0, 200)
+SaveFrame.Position           = UDim2.new(0, 12, 0, 256)
 SaveFrame.BackgroundTransparency = 1
 
 local SaveBtn = Instance.new("TextButton", SaveFrame)
