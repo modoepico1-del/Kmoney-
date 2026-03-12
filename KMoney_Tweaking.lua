@@ -256,22 +256,22 @@ local savedCfg = {}
 pcall(function() savedCfg = HttpService:JSONDecode(readfile(CONFIG_FILE)) end)
 
 -- ─── DARK SKY ──────────────────────────────────────────────────
-local darkEnabled = false
-local originalSky = nil
+local darkEnabled    = false
+local originalSky    = nil
+local InsertService  = game:GetService("InsertService")
 
 local function startDark()
     pcall(function()
         local existing = Lighting:FindFirstChildOfClass("Sky")
         if existing then originalSky = existing; existing.Parent = nil end
-        local sky = Instance.new("Sky")
-        sky.SkyboxBk = "rbxassetid://14940021683"
-        sky.SkyboxDn = "rbxassetid://14940021683"
-        sky.SkyboxFt = "rbxassetid://14940021683"
-        sky.SkyboxLf = "rbxassetid://14940021683"
-        sky.SkyboxRt = "rbxassetid://14940021683"
-        sky.SkyboxUp = "rbxassetid://14940021683"
-        sky.Name     = "KMoneyDarkSky"
-        sky.Parent   = Lighting
+        -- Cargar el Sky asset directamente desde Roblox
+        local model = InsertService:LoadAsset(14940021683)
+        local sky = model:FindFirstChildOfClass("Sky")
+        if sky then
+            sky.Name   = "KMoneyDarkSky"
+            sky.Parent = Lighting
+        end
+        model:Destroy()
     end)
 end
 
