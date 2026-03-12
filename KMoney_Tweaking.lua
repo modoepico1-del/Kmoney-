@@ -262,64 +262,26 @@ local function startDarkMode()
     saveLightingState()
     darkModeObjects = {}
 
-    -- Sky negro
+    -- Eliminar todos los Sky existentes
+    for _, child in pairs(Lighting:GetChildren()) do
+        if child:IsA("Sky") then
+            child:Destroy()
+        end
+    end
+
+    -- Crear nuevo cielo negro
     local sky = Instance.new("Sky")
-    sky.Name             = "BlackSky"
-    sky.SkyboxBk         = "rbxassetid://2013298"
-    sky.SkyboxDn         = "rbxassetid://2013298"
-    sky.SkyboxFt         = "rbxassetid://2013298"
-    sky.SkyboxLf         = "rbxassetid://2013298"
-    sky.SkyboxRt         = "rbxassetid://2013298"
-    sky.SkyboxUp         = "rbxassetid://2013298"
-    sky.StarCount        = 0
+    sky.Name                 = "BlackSky"
+    sky.SkyboxBk             = "rbxassetid://2013298"
+    sky.SkyboxDn             = "rbxassetid://20133298"
+    sky.SkyboxFt             = "rbxassetid://2013298"
+    sky.SkyboxLf             = "rbxassetid://2013298"
+    sky.SkyboxRt             = "rbxassetid://2013298"
+    sky.SkyboxUp             = "rbxassetid://2013298"
+    sky.StarCount            = 0
     sky.CelestialBodiesShown = false
-    sky.SunAngularSize   = 21
-    sky.MoonAngularSize  = 11
-    sky.Parent           = Lighting
+    sky.Parent               = Lighting
     table.insert(darkModeObjects, sky)
-
-    -- Atmosphere oscura
-    local atmosphere = Instance.new("Atmosphere")
-    atmosphere.Name    = "BlackAtmosphere"
-    atmosphere.Density = 0.3
-    atmosphere.Offset  = 0.25
-    atmosphere.Color   = Color3.new(0.78, 0.78, 0.78)
-    atmosphere.Decay   = Color3.new(0.42, 0.44, 0.49)
-    atmosphere.Glare   = 0
-    atmosphere.Haze    = 0
-    atmosphere.Parent  = Lighting
-    table.insert(darkModeObjects, atmosphere)
-
-    -- Bloom
-    local bloom = Instance.new("BloomEffect")
-    bloom.Name      = "BlackBloom"
-    bloom.Enabled   = true
-    bloom.Intensity = 1
-    bloom.Size      = 24
-    bloom.Threshold = 2
-    bloom.Parent    = Lighting
-    table.insert(darkModeObjects, bloom)
-
-    -- SunRays
-    local sunRays = Instance.new("SunRaysEffect")
-    sunRays.Name      = "BlackSunRays"
-    sunRays.Enabled   = true
-    sunRays.Intensity = 0.01
-    sunRays.Spread    = 0.1
-    sunRays.Parent    = Lighting
-    table.insert(darkModeObjects, sunRays)
-
-    -- Propiedades de Lighting
-    Lighting.ClockTime               = 0
-    Lighting.Ambient                 = Color3.new(0, 0, 0)
-    Lighting.Brightness              = 1
-    Lighting.EnvironmentDiffuseScale = 1
-    Lighting.EnvironmentSpecularScale= 1
-    Lighting.GlobalShadows           = true
-    Lighting.OutdoorAmbient          = Color3.new(0, 0, 0)
-    Lighting.FogColor                = Color3.new(0, 0, 0)
-    Lighting.FogEnd                  = 10000
-    Lighting.FogStart                = 0
 end
 
 local function stopDarkMode()
