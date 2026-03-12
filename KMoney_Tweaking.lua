@@ -256,30 +256,55 @@ local savedCfg = {}
 pcall(function() savedCfg = HttpService:JSONDecode(readfile(CONFIG_FILE)) end)
 
 -- ─── DARK SKY ──────────────────────────────────────────────────
-local darkEnabled    = false
-local originalSky    = nil
-local InsertService  = game:GetService("InsertService")
+local darkEnabled = false
+local originalSky = nil
+local dmParts     = {}
 
 local function startDark()
     pcall(function()
         local existing = Lighting:FindFirstChildOfClass("Sky")
         if existing then originalSky = existing; existing.Parent = nil end
-        -- Cargar el Sky asset directamente desde Roblox
-        local model = InsertService:LoadAsset(14940021683)
-        local sky = model:FindFirstChildOfClass("Sky")
-        if sky then
-            sky.Name   = "KMoneyDarkSky"
-            sky.Parent = Lighting
+        local sky = Instance.new("Sky", Lighting)
+        sky.Name      = "NovaGalaxySky"
+        sky.SkyboxBk  = "rbxassetid://12450520111"
+        sky.SkyboxDn  = "rbxassetid://12450519395"
+        sky.SkyboxFt  = "rbxassetid://12450518712"
+        sky.SkyboxLf  = "rbxassetid://12450518063"
+        sky.SkyboxRt  = "rbxassetid://12450517417"
+        sky.SkyboxUp  = "rbxassetid://12450516616"
+        sky.SunStyle  = Enum.SunStyle.None
+        sky.MoonStyle = Enum.MoonStyle.None
+        for i = 1, 15 do
+            local part = Instance.new("Part", workspace)
+            part.Size        = Vector3.new(1, 1, 1)
+            part.Position    = Vector3.new(math.random(-300,300), math.random(60,160), math.random(-300,300))
+            part.Anchored    = true
+            part.CanCollide  = false
+            part.Transparency = 1
+            local bg = Instance.new("BillboardGui", part)
+            bg.Size       = UDim2.new(0, 500, 0, 100)
+            bg.AlwaysOnTop = true
+            local tl = Instance.new("TextLabel", bg)
+            tl.Size                   = UDim2.new(1, 0, 1, 0)
+            tl.BackgroundTransparency = 1
+            tl.Text                   = "Nova hub"
+            tl.TextColor3             = Color3.fromRGB(255, 0, 0)
+            tl.Font                   = Enum.Font.GothamBold
+            tl.TextSize               = 65
+            tl.TextStrokeTransparency = 0
+            tl.TextStrokeColor3       = Color3.fromRGB(40, 0, 40)
+            table.insert(dmParts, part)
         end
-        model:Destroy()
     end)
 end
 
 local function stopDark()
     pcall(function()
-        local s = Lighting:FindFirstChild("KMoneyDarkSky")
+        local s = Lighting:FindFirstChild("NovaGalaxySky")
         if s then s:Destroy() end
         if originalSky then originalSky.Parent = Lighting; originalSky = nil end
+        for _, p in ipairs(dmParts) do pcall(function() p:Destroy() end) end
+        dmParts = {}
     end)
 end
 
