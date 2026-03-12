@@ -271,8 +271,6 @@ local function startDarkmode()
         sky.SkyboxBk             = "rbxassetid://6282309069"
         sky.SkyboxRt             = "rbxassetid://6282317224"
         sky.SkyboxLf             = "rbxassetid://6282312922"
-        sky.MoonTextureId        = "rbxasset://sky/moon.jpg"
-        sky.SunTextureId         = "rbxasset://sky/sun.jpg"
         sky.CelestialBodiesShown = false
         sky.Parent               = Lighting
     end)
