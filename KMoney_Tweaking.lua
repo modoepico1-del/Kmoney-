@@ -389,7 +389,7 @@ pcall(function() savedCfg = HttpService:JSONDecode(readfile(CONFIG_FILE)) end)
 -- ─── PALETA ────────────────────────────────────────────────────
 local WHITE       = Color3.fromRGB(255, 255, 255)
 local BLACK       = Color3.fromRGB(0, 0, 0)
-local FULL_HEIGHT = 427  -- aumentado para la nueva fila
+local FULL_HEIGHT = 483
 
 -- ─── GUI ───────────────────────────────────────────────────────
 if CoreGui:FindFirstChild("KMoneyHub") then
@@ -406,7 +406,7 @@ pcall(function() ScreenGui.Parent = CoreGui end)
 local Main = Instance.new("Frame", ScreenGui)
 Main.Name                   = "Main"
 Main.Size                   = UDim2.new(0, 270, 0, FULL_HEIGHT)
-Main.Position               = UDim2.new(0.5, -135, 0.5, -213)
+Main.Position               = UDim2.new(0.5, -135, 0.5, -241)
 Main.BackgroundTransparency = 1
 Main.BorderSizePixel        = 0
 Main.ClipsDescendants       = true
@@ -563,8 +563,20 @@ T4.MouseButton1Click:Connect(function()
     end
 end)
 
--- ROW 5: ESP
-local T5,K5,S5,RS5 = makeToggleRow("ESP", 234)
+-- ROW 5: GALAXY (sin funciones por ahora)
+local galaxyEnabled = false
+local TG,KG,SG,RSG = makeToggleRow("GALAXY", 234)
+TG.MouseButton1Click:Connect(function()
+    galaxyEnabled = not galaxyEnabled
+    if galaxyEnabled then
+        TweenService:Create(KG,ti,{Position=UDim2.new(1,-21,0.5,-9),BackgroundColor3=BLACK}):Play()
+    else
+        TweenService:Create(KG,ti,{Position=UDim2.new(0,3,0.5,-9),BackgroundColor3=WHITE}):Play()
+    end
+end)
+
+-- ROW 6: ESP
+local T5,K5,S5,RS5 = makeToggleRow("ESP", 290)
 if savedCfg.ESP then espEnabled=true; enableESP(); applyOn(T5,K5,S5,RS5) end
 T5.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
@@ -580,14 +592,14 @@ end)
 -- ─── SEPARATOR ─────────────────────────────────────────────────
 local Sep = Instance.new("Frame", Content)
 Sep.Size             = UDim2.new(1, -24, 0, 1)
-Sep.Position         = UDim2.new(0, 12, 0, 300)
+Sep.Position         = UDim2.new(0, 12, 0, 356)
 Sep.BackgroundColor3 = WHITE
 Sep.BorderSizePixel  = 0
 
 -- ─── SAVE BUTTON ───────────────────────────────────────────────
 local SaveFrame = Instance.new("Frame", Content)
 SaveFrame.Size               = UDim2.new(1, -24, 0, 40)
-SaveFrame.Position           = UDim2.new(0, 12, 0, 312)
+SaveFrame.Position           = UDim2.new(0, 12, 0, 368)
 SaveFrame.BackgroundTransparency = 1
 
 local SaveBtn = Instance.new("TextButton", SaveFrame)
