@@ -1,621 +1,317 @@
-local Players           = game:GetService("Players")
-local UserInputService  = game:GetService("UserInputService")
-local TweenService      = game:GetService("TweenService")
-local CoreGui           = game:GetService("CoreGui")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService        = game:GetService("RunService")
-local HttpService       = game:GetService("HttpService")
-local Lighting          = game:GetService("Lighting")
+-- ╔══════════════════════════════════════╗
+-- ║           DEMONTIME HUB              ║
+-- ╚══════════════════════════════════════╝
 
-local player      = Players.LocalPlayer
-local LocalPlayer = player
-local character   = player.Character or player.CharacterAdded:Wait()
-local HRP         = character:WaitForChild("HumanoidRootPart", 5)
+local Players          = game:GetService("Players")
+local TweenService     = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService       = game:GetService("RunService")
+local Lighting         = game:GetService("Lighting")
+local ReplicatedStorage= game:GetService("ReplicatedStorage")
+local CoreGui          = game:GetService("CoreGui")
+local HttpService      = game:GetService("HttpService")
+
+local me          = Players.LocalPlayer
+local player      = me
+local LocalPlayer = me
+local RS          = RunService
 local Camera      = workspace.CurrentCamera
 
-player.CharacterAdded:Connect(function(newChar)
-    character = newChar
-    HRP       = newChar:WaitForChild("HumanoidRootPart", 5)
-end)
+-- ══════════════════════════════════════
+--  SAVE / LOAD CONFIG
+-- ══════════════════════════════════════
 
--- ─── AUTO STEAL ────────────────────────────────────────────────
-local stealEnabled  = false
-local stealCooldown = 0.2
-local HOLD_DURATION = 0.5
-local stealThread   = nil
-
-local function getPromptPart(prompt)
-    local p = prompt.Parent
-    if p:IsA("BasePart")   then return p end
-    if p:IsA("Model")      then return p.PrimaryPart or p:FindFirstChildWhichIsA("BasePart") end
-    if p:IsA("Attachment") then return p.Parent end
-    return p:FindFirstChildWhichIsA("BasePart", true)
-end
-
-local function findNearestStealPrompt()
-    if not HRP then return nil end
-    local nearest, minDist = nil, math.huge
-    local plots = workspace:FindFirstChild("Plots")
-    if not plots then return nil end
-    for _, desc in pairs(plots:GetDescendants()) do
-        if desc:IsA("ProximityPrompt") and desc.Enabled and desc.ActionText == "Steal" then
-            local part = getPromptPart(desc)
-            if part then
-                local dist = (HRP.Position - part.Position).Magnitude
-                if dist < minDist then minDist = dist; nearest = desc end
-            end
-        end
-    end
-    return nearest
-end
-
-local function triggerStealPrompt(prompt)
-    if not prompt or not prompt:IsDescendantOf(workspace) then return end
-    prompt.MaxActivationDistance = 9e9
-    prompt.RequiresLineOfSight   = false
-    prompt.ClickablePrompt       = true
-    local ok = pcall(function() fireproximityprompt(prompt, 9e9, HOLD_DURATION) end)
-    if not ok then
-        pcall(function()
-            prompt:InputHoldBegin()
-            task.wait(HOLD_DURATION)
-            prompt:InputHoldEnd()
-        end)
-    end
-end
-
-local function startAutoSteal()
-    if stealThread then return end
-    stealThread = task.spawn(function()
-        while stealEnabled do
-            local p = findNearestStealPrompt()
-            if p then triggerStealPrompt(p) end
-            task.wait(stealCooldown)
-        end
-        stealThread = nil
-    end)
-end
-
-local function stopAutoSteal()
-    stealEnabled = false
-    stealThread  = nil
-end
-
--- ─── ANTI RAGDOLL ──────────────────────────────────────────────
-local antiRagdollEnabled      = false
-local RAGDOLL_SPEED           = 16
-local currentCharacter        = nil
-local ragdollRemoteConnection = nil
-local moveConnection          = nil
-local playerModule, controls  = nil, nil
-
-pcall(function()
-    playerModule = require(player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule"))
-    controls     = playerModule:GetControls()
-end)
-
-local function cleanupRagdoll()
-    if currentCharacter then
-        local root = currentCharacter:FindFirstChild("HumanoidRootPart")
-        if root then
-            local anchor = root:FindFirstChild("RagdollAnchor")
-            if anchor then anchor:Destroy() end
-        end
-    end
-    if moveConnection then moveConnection:Disconnect(); moveConnection = nil end
-end
-
-local function disconnectRemote()
-    if ragdollRemoteConnection then ragdollRemoteConnection:Disconnect(); ragdollRemoteConnection = nil end
-end
-
-local function setupAntiRagdoll(char)
-    currentCharacter = char
-    cleanupRagdoll()
-    disconnectRemote()
-    local humanoid = char:WaitForChild("Humanoid", 5)
-    local root     = char:WaitForChild("HumanoidRootPart", 5)
-    local head     = char:WaitForChild("Head", 5)
-    if not (humanoid and root and head) then return end
-    local ragdollRemote
-    pcall(function()
-        ragdollRemote = ReplicatedStorage:WaitForChild("Packages", 8)
-                            :WaitForChild("Ragdoll", 5)
-                            :WaitForChild("Ragdoll", 5)
-    end)
-    if not ragdollRemote or not ragdollRemote:IsA("RemoteEvent") then return end
-    ragdollRemoteConnection = ragdollRemote.OnClientEvent:Connect(function(arg1, arg2)
-        if not antiRagdollEnabled then return end
-        if arg1 == "Make" or arg2 == "manualM" then
-            humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
-            Camera.CameraSubject = head
-            root.CanCollide = false
-            if controls then pcall(controls.Enable, controls) end
-            cleanupRagdoll()
-            local anchor = Instance.new("BodyPosition")
-            anchor.Name = "RagdollAnchor"; anchor.MaxForce = Vector3.new(1e5,1e5,1e5)
-            anchor.Position = root.Position; anchor.D = 200; anchor.P = 5000
-            anchor.Parent = root
-            moveConnection = RunService.Heartbeat:Connect(function()
-                if not antiRagdollEnabled then cleanupRagdoll(); return end
-                local moveDir = Vector3.zero
-                if controls then pcall(function() moveDir = controls:GetMoveVector() end) end
-                if moveDir.Magnitude > 0.1 then
-                    local cf = Camera.CFrame
-                    local fwd = Vector3.new(cf.LookVector.X,0,cf.LookVector.Z).Unit
-                    local rgt = Vector3.new(cf.RightVector.X,0,cf.RightVector.Z).Unit
-                    anchor.Position = root.Position + (fwd*-moveDir.Z+rgt*moveDir.X).Unit*RAGDOLL_SPEED*0.1
-                else
-                    anchor.Position = root.Position
-                end
-            end)
-        elseif arg1 == "Destroy" or arg2 == "manualD" then
-            cleanupRagdoll()
-            humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-            root.CanCollide = true
-            Camera.CameraSubject = humanoid
-            if controls then pcall(controls.Enable, controls) end
-        end
-    end)
-end
-
-player.CharacterAdded:Connect(function(newChar)
-    if antiRagdollEnabled then task.wait(1); setupAntiRagdoll(newChar) end
-end)
-
--- ─── XRAY ──────────────────────────────────────────────────────
-local unwalkEnabled        = false
-local originalTransparency = {}
-local unwalkDescConn       = nil
-local unwalkCharConn       = nil
-
-local function startUnwalk()
-    pcall(function()
-        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-        Lighting.GlobalShadows = false
-        Lighting.Brightness    = 3
-        Lighting.FogEnd        = 9e9
-    end)
-    pcall(function()
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            pcall(function()
-                if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") then
-                    obj:Destroy()
-                elseif obj:IsA("BasePart") then
-                    obj.CastShadow = false
-                    obj.Material   = Enum.Material.Plastic
-                end
-            end)
-        end
-    end)
-    local function cleanCharacter(char)
-        if char == player.Character then return end
-        pcall(function()
-            for _, a in ipairs(char:GetChildren()) do
-                if a:IsA("Accessory") then a:Destroy() end
-            end
-            char.ChildAdded:Connect(function(c)
-                if unwalkEnabled and c:IsA("Accessory") then c:Destroy() end
-            end)
-        end)
-    end
-    pcall(function()
-        for _, h in ipairs(workspace:GetDescendants()) do
-            if h:IsA("Humanoid") then cleanCharacter(h.Parent) end
-        end
-    end)
-    pcall(function()
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            if obj:IsA("BasePart") and obj.Anchored and
-               (obj.Name:lower():find("base") or obj.Name:lower():find("claim") or
-               (obj.Parent and (obj.Parent.Name:lower():find("base") or obj.Parent.Name:lower():find("claim")))) then
-                originalTransparency[obj] = obj.LocalTransparencyModifier
-                obj.LocalTransparencyModifier = 0.85
-            end
-        end
-    end)
-    unwalkDescConn = workspace.DescendantAdded:Connect(function(obj)
-        if not unwalkEnabled then return end
-        pcall(function()
-            if obj:IsA("BasePart") and obj.Anchored and
-               (obj.Name:lower():find("base") or obj.Name:lower():find("claim") or
-               (obj.Parent and (obj.Parent.Name:lower():find("base") or obj.Parent.Name:lower():find("claim")))) then
-                originalTransparency[obj] = obj.LocalTransparencyModifier
-                obj.LocalTransparencyModifier = 0.85
-            end
-        end)
-    end)
-    unwalkCharConn = player.CharacterAdded:Connect(function()
-        task.wait(0.5); if unwalkEnabled then startUnwalk() end
-    end)
-end
-
-local function stopUnwalk()
-    if unwalkDescConn then unwalkDescConn:Disconnect(); unwalkDescConn = nil end
-    if unwalkCharConn then unwalkCharConn:Disconnect(); unwalkCharConn = nil end
-    for obj, val in pairs(originalTransparency) do
-        pcall(function() obj.LocalTransparencyModifier = val end)
-    end
-    originalTransparency = {}
-end
-
--- ─── DARK MODE ─────────────────────────────────────────────────
-local darkModeEnabled  = false
-local darkModeObjects  = {}
-local originalLighting = {}
-
-local function saveLightingState()
-    originalLighting = {
-        ClockTime                = Lighting.ClockTime,
-        Ambient                  = Lighting.Ambient,
-        Brightness               = Lighting.Brightness,
-        EnvironmentDiffuseScale  = Lighting.EnvironmentDiffuseScale,
-        EnvironmentSpecularScale = Lighting.EnvironmentSpecularScale,
-        GlobalShadows            = Lighting.GlobalShadows,
-        OutdoorAmbient           = Lighting.OutdoorAmbient,
-        FogColor                 = Lighting.FogColor,
-        FogEnd                   = Lighting.FogEnd,
-        FogStart                 = Lighting.FogStart,
-    }
-end
-
-local function startDarkMode()
-    saveLightingState()
-    darkModeObjects = {}
-    for _, child in pairs(Lighting:GetChildren()) do
-        if child:IsA("Sky") then
-            table.insert(darkModeObjects, {removed = true, instance = child, parent = Lighting})
-            child.Parent = nil
-        end
-    end
-    local sky = Instance.new("Sky")
-    sky.Name                 = "BlackSky"
-    sky.SkyboxBk             = "rbxassetid://2013298"
-    sky.SkyboxDn             = "rbxassetid://2013298"
-    sky.SkyboxFt             = "rbxassetid://2013298"
-    sky.SkyboxLf             = "rbxassetid://2013298"
-    sky.SkyboxRt             = "rbxassetid://2013298"
-    sky.SkyboxUp             = "rbxassetid://2013298"
-    sky.StarCount            = 0
-    sky.CelestialBodiesShown = false
-    sky.Parent               = Lighting
-    table.insert(darkModeObjects, sky)
-    Lighting.FogStart = 10000
-end
-
-local function stopDarkMode()
-    for _, obj in ipairs(darkModeObjects) do
-        pcall(function()
-            if obj.removed then
-                obj.instance.Parent = obj.parent
-            else
-                obj:Destroy()
-            end
-        end)
-    end
-    darkModeObjects = {}
-    pcall(function()
-        Lighting.FogStart = originalLighting.FogStart or 0
-    end)
-end
-
--- ─── ESP ───────────────────────────────────────────────────────
-local espEnabled     = false
-local espObjects     = {}
-local espConnections = {}
-
-local function createESP(plr)
-    if plr == LocalPlayer then return end
-    if not plr.Character then return end
-    if plr.Character:FindFirstChild("NightESP") then return end
-    local c = plr.Character
-    local charHrp = c:FindFirstChild("HumanoidRootPart")
-    if not charHrp then return end
-    local humanoid = c:FindFirstChildOfClass("Humanoid")
-    if humanoid then humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None end
-    local hitbox = Instance.new("BoxHandleAdornment")
-    hitbox.Name = "NightESP"
-    hitbox.Adornee = charHrp
-    hitbox.Size = Vector3.new(4, 6, 2)
-    hitbox.Color3 = Color3.fromRGB(128, 0, 128)
-    hitbox.Transparency = 0.5
-    hitbox.ZIndex = 10
-    hitbox.AlwaysOnTop = true
-    hitbox.Parent = c
-    espObjects[plr] = {box = hitbox, character = c}
-end
-
-local function removeESP(plr)
-    pcall(function()
-        if plr.Character then
-            local hitbox = plr.Character:FindFirstChild("NightESP")
-            if hitbox then hitbox:Destroy() end
-            local humanoid = plr.Character:FindFirstChildOfClass("Humanoid")
-            if humanoid then humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Automatic end
-        end
-        if espObjects[plr] then espObjects[plr] = nil end
-    end)
-end
-
-local function enableESP()
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer then
-            if plr.Character then pcall(function() createESP(plr) end) end
-            local conn = plr.CharacterAdded:Connect(function()
-                task.wait(0.1)
-                if espEnabled then pcall(function() createESP(plr) end) end
-            end)
-            table.insert(espConnections, conn)
-        end
-    end
-    local playerAddedConn = Players.PlayerAdded:Connect(function(plr)
-        if plr == LocalPlayer then return end
-        local charAddedConn = plr.CharacterAdded:Connect(function()
-            task.wait(0.1)
-            if espEnabled then pcall(function() createESP(plr) end) end
-        end)
-        table.insert(espConnections, charAddedConn)
-    end)
-    table.insert(espConnections, playerAddedConn)
-end
-
-local function disableESP()
-    for _, plr in ipairs(Players:GetPlayers()) do pcall(function() removeESP(plr) end) end
-    for _, conn in ipairs(espConnections) do
-        if conn and conn.Connected then conn:Disconnect() end
-    end
-    espConnections = {}
-    espObjects = {}
-end
-
--- ─── SAVE / LOAD ───────────────────────────────────────────────
-local CONFIG_FILE = "KMoneyHub_config.json"
+local CONFIG_FILE = "DEMONTIME_config.json"
 
 local function saveConfig()
     pcall(function()
-        writefile(CONFIG_FILE, HttpService:JSONEncode({
-            AutoSteal   = stealEnabled,
-            AntiRagdoll = antiRagdollEnabled,
-            XRAY        = unwalkEnabled,
-            DarkMode    = darkModeEnabled,
-            ESP         = espEnabled,
-        }))
+        writefile(CONFIG_FILE, HttpService:JSONEncode({}))
     end)
 end
 
 local savedCfg = {}
 pcall(function() savedCfg = HttpService:JSONDecode(readfile(CONFIG_FILE)) end)
 
--- ─── PALETA ────────────────────────────────────────────────────
-local WHITE       = Color3.fromRGB(255, 255, 255)
-local BLACK       = Color3.fromRGB(0, 0, 0)
-local FULL_HEIGHT = 483
+-- ══════════════════════════════════════
+--  GUI SETUP
+-- ══════════════════════════════════════
 
--- ─── GUI ───────────────────────────────────────────────────────
-if CoreGui:FindFirstChild("KMoneyHub") then
-    CoreGui:FindFirstChild("KMoneyHub"):Destroy()
+if CoreGui:FindFirstChild("DEMONTIME_GUI") then
+    CoreGui:FindFirstChild("DEMONTIME_GUI"):Destroy()
 end
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name           = "KMoneyHub"
+ScreenGui.Name           = "DEMONTIME_GUI"
 ScreenGui.ResetOnSpawn   = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.DisplayOrder   = 999
-pcall(function() ScreenGui.Parent = CoreGui end)
+ScreenGui.Parent         = CoreGui
 
-local Main = Instance.new("Frame", ScreenGui)
-Main.Name                   = "Main"
-Main.Size                   = UDim2.new(0, 270, 0, FULL_HEIGHT)
-Main.Position               = UDim2.new(0.5, -135, 0.5, -241)
-Main.BackgroundTransparency = 1
-Main.BorderSizePixel        = 0
-Main.ClipsDescendants       = true
-Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Text             = "DEMONTIME"
+ToggleBtn.Size             = UDim2.new(0, 110, 0, 28)
+ToggleBtn.Position         = UDim2.new(0, 10, 0, 10)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+ToggleBtn.TextColor3       = Color3.fromRGB(255, 0, 0)
+ToggleBtn.TextSize         = 12
+ToggleBtn.Font             = Enum.Font.GothamBlack
+ToggleBtn.BorderSizePixel  = 0
+ToggleBtn.ZIndex           = 10
+ToggleBtn.Parent           = ScreenGui
 
-local grimStroke = Instance.new("UIStroke", Main)
-grimStroke.Color        = BLACK
-grimStroke.Thickness    = 2
-grimStroke.Transparency = 0
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 6)
+ToggleCorner.Parent       = ToggleBtn
 
-local TopLine = Instance.new("Frame", Main)
-TopLine.Size             = UDim2.new(1, 0, 0, 2)
-TopLine.BackgroundColor3 = BLACK
-TopLine.BorderSizePixel  = 0
+local ToggleStroke = Instance.new("UIStroke")
+ToggleStroke.Color        = Color3.fromRGB(255, 0, 0)
+ToggleStroke.Thickness    = 1.5
+ToggleStroke.Transparency = 0.0
+ToggleStroke.Parent       = ToggleBtn
 
-local TitleBar = Instance.new("Frame", Main)
-TitleBar.Size               = UDim2.new(1, 0, 0, 48)
-TitleBar.Position           = UDim2.new(0, 0, 0, 2)
-TitleBar.BackgroundTransparency = 1
-TitleBar.BorderSizePixel    = 0
+local MainFrame = Instance.new("Frame")
+MainFrame.Size               = UDim2.new(0, 300, 0, 200)
+MainFrame.Position           = UDim2.new(0, 16, 0.5, -100)
+MainFrame.BackgroundColor3   = Color3.fromRGB(0, 0, 0)
+MainFrame.BackgroundTransparency = 0
+MainFrame.BorderSizePixel    = 0
+MainFrame.Active             = true
+MainFrame.Draggable          = true
+MainFrame.ClipsDescendants   = true
+MainFrame.Visible            = true
+MainFrame.Parent             = ScreenGui
 
-local TitleLbl = Instance.new("TextLabel", TitleBar)
-TitleLbl.Size                   = UDim2.new(1, -46, 1, 0)
-TitleLbl.Position               = UDim2.new(0, 14, 0, 0)
-TitleLbl.BackgroundTransparency = 1
-TitleLbl.Text                   = "KMONEY HUB"
-TitleLbl.TextColor3             = WHITE
-TitleLbl.TextStrokeColor3       = BLACK
-TitleLbl.TextStrokeTransparency = 0
-TitleLbl.Font                   = Enum.Font.GothamBlack
-TitleLbl.TextSize               = 16
-TitleLbl.TextXAlignment         = Enum.TextXAlignment.Left
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 10)
+MainCorner.Parent       = MainFrame
 
-local MinBtn = Instance.new("TextButton", TitleBar)
-MinBtn.Size               = UDim2.new(0, 26, 0, 26)
-MinBtn.Position           = UDim2.new(1, -36, 0.5, -13)
-MinBtn.BackgroundTransparency = 1
-MinBtn.Text               = "—"
-MinBtn.TextColor3         = WHITE
-MinBtn.Font               = Enum.Font.GothamBold
-MinBtn.TextSize           = 13
-MinBtn.BorderSizePixel    = 0
-Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0, 6)
-local minStroke = Instance.new("UIStroke", MinBtn)
-minStroke.Color = BLACK; minStroke.Thickness = 1.5; minStroke.Transparency = 0
-
-local Content = Instance.new("Frame", Main)
-Content.Size                 = UDim2.new(1, 0, 1, -52)
-Content.Position             = UDim2.new(0, 0, 0, 52)
-Content.BackgroundTransparency = 1
-
-local ti = TweenInfo.new(0.2, Enum.EasingStyle.Quad)
-
--- ─── TOGGLE ROW HELPER ─────────────────────────────────────────
-local function makeToggleRow(labelText, yOffset)
-    local Row = Instance.new("Frame", Content)
-    Row.Size                 = UDim2.new(1, -24, 0, 46)
-    Row.Position             = UDim2.new(0, 12, 0, yOffset)
-    Row.BackgroundTransparency = 1
-    Row.BorderSizePixel      = 0
-    Instance.new("UICorner", Row).CornerRadius = UDim.new(0, 8)
-
-    local rowStroke = Instance.new("UIStroke", Row)
-    rowStroke.Color = BLACK; rowStroke.Thickness = 1.5; rowStroke.Transparency = 0
-
-    local Lbl = Instance.new("TextLabel", Row)
-    Lbl.Size = UDim2.new(1,-70,1,0); Lbl.Position = UDim2.new(0,14,0,0)
-    Lbl.BackgroundTransparency = 1; Lbl.Text = labelText
-    Lbl.TextColor3 = WHITE
-    Lbl.TextStrokeColor3 = BLACK; Lbl.TextStrokeTransparency = 0
-    Lbl.Font = Enum.Font.GothamBold
-    Lbl.TextSize = 13; Lbl.TextXAlignment = Enum.TextXAlignment.Left
-
-    local Btn = Instance.new("TextButton", Row)
-    Btn.Size = UDim2.new(0,46,0,24); Btn.Position = UDim2.new(1,-56,0.5,-12)
-    Btn.BackgroundTransparency = 1; Btn.Text = ""; Btn.BorderSizePixel = 0
-    Instance.new("UICorner", Btn).CornerRadius = UDim.new(1,0)
-    local bStroke = Instance.new("UIStroke", Btn)
-    bStroke.Color = BLACK; bStroke.Thickness = 1.5; bStroke.Transparency = 0
-
-    local Knob = Instance.new("Frame", Btn)
-    Knob.Size = UDim2.new(0,18,0,18); Knob.Position = UDim2.new(0,3,0.5,-9)
-    Knob.BackgroundColor3 = WHITE; Knob.BorderSizePixel = 0
-    Instance.new("UICorner", Knob).CornerRadius = UDim.new(1,0)
-    local kStroke = Instance.new("UIStroke", Knob)
-    kStroke.Color = BLACK; kStroke.Thickness = 1; kStroke.Transparency = 0
-
-    return Btn, Knob, bStroke, rowStroke
+local function addNeonBorder(parent, thickness, color)
+    local glow = Instance.new("Frame")
+    glow.Size                   = UDim2.new(1, thickness*6, 1, thickness*6)
+    glow.Position               = UDim2.new(0, -thickness*3, 0, -thickness*3)
+    glow.BackgroundColor3       = color
+    glow.BackgroundTransparency = 0.72
+    glow.BorderSizePixel        = 0
+    glow.ZIndex                 = parent.ZIndex - 1
+    glow.Parent                 = parent
+    local gc = Instance.new("UICorner")
+    gc.CornerRadius = UDim.new(0, 14)
+    gc.Parent       = glow
+    local mid = Instance.new("Frame")
+    mid.Size                   = UDim2.new(1, thickness*3, 1, thickness*3)
+    mid.Position               = UDim2.new(0, -thickness*1.5, 0, -thickness*1.5)
+    mid.BackgroundColor3       = color
+    mid.BackgroundTransparency = 0.50
+    mid.BorderSizePixel        = 0
+    mid.ZIndex                 = parent.ZIndex - 1
+    mid.Parent                 = parent
+    local mc = Instance.new("UICorner")
+    mc.CornerRadius = UDim.new(0, 12)
+    mc.Parent       = mid
+    local stroke = Instance.new("UIStroke")
+    stroke.Color           = color
+    stroke.Thickness       = thickness
+    stroke.Transparency    = 0.0
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    stroke.Parent          = parent
 end
 
-local function applyOn(b,k,s,rs)
-    k.Position         = UDim2.new(1,-21,0.5,-9)
-    k.BackgroundColor3 = BLACK
+addNeonBorder(MainFrame, 2, Color3.fromRGB(255, 0, 0))
+
+local TitleBar = Instance.new("Frame")
+TitleBar.Size              = UDim2.new(1, 0, 0, 42)
+TitleBar.Position          = UDim2.new(0, 0, 0, 0)
+TitleBar.BackgroundColor3  = Color3.fromRGB(0, 0, 0)
+TitleBar.BorderSizePixel   = 0
+TitleBar.ZIndex            = 3
+TitleBar.Parent            = MainFrame
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 10)
+TitleCorner.Parent       = TitleBar
+
+local TitleLine = Instance.new("Frame")
+TitleLine.Size             = UDim2.new(1, 0, 0, 2)
+TitleLine.Position         = UDim2.new(0, 0, 1, -2)
+TitleLine.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+TitleLine.BorderSizePixel  = 0
+TitleLine.ZIndex           = 4
+TitleLine.Parent           = TitleBar
+
+local lineGlow = Instance.new("Frame")
+lineGlow.Size                   = UDim2.new(1, 0, 0, 8)
+lineGlow.Position               = UDim2.new(0, 0, 1, -5)
+lineGlow.BackgroundColor3       = Color3.fromRGB(255, 0, 0)
+lineGlow.BackgroundTransparency = 0.6
+lineGlow.BorderSizePixel        = 0
+lineGlow.ZIndex                 = 3
+lineGlow.Parent                 = TitleBar
+
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Text                   = "DEMONTIME"
+TitleLabel.Size                   = UDim2.new(1, -50, 1, 0)
+TitleLabel.Position               = UDim2.new(0, 14, 0, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.TextColor3             = Color3.fromRGB(255, 0, 0)
+TitleLabel.TextSize               = 17
+TitleLabel.Font                   = Enum.Font.GothamBlack
+TitleLabel.TextXAlignment         = Enum.TextXAlignment.Left
+TitleLabel.ZIndex                 = 5
+TitleLabel.Parent                 = TitleBar
+
+local TitleStroke = Instance.new("UIStroke")
+TitleStroke.Color        = Color3.fromRGB(0, 0, 0)
+TitleStroke.Thickness    = 2.5
+TitleStroke.Transparency = 0.0
+TitleStroke.Parent       = TitleLabel
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Text              = "X"
+CloseBtn.Size              = UDim2.new(0, 28, 0, 28)
+CloseBtn.Position          = UDim2.new(1, -34, 0, 7)
+CloseBtn.BackgroundColor3  = Color3.fromRGB(0, 0, 0)
+CloseBtn.TextColor3        = Color3.fromRGB(255, 0, 0)
+CloseBtn.TextSize          = 13
+CloseBtn.Font              = Enum.Font.GothamBlack
+CloseBtn.BorderSizePixel   = 0
+CloseBtn.ZIndex            = 6
+CloseBtn.Parent            = TitleBar
+
+local CloseBtnCorner = Instance.new("UICorner")
+CloseBtnCorner.CornerRadius = UDim.new(0, 6)
+CloseBtnCorner.Parent       = CloseBtn
+
+local CloseBtnStroke = Instance.new("UIStroke")
+CloseBtnStroke.Color        = Color3.fromRGB(255, 0, 0)
+CloseBtnStroke.Thickness    = 1.2
+CloseBtnStroke.Transparency = 0.1
+CloseBtnStroke.Parent       = CloseBtn
+
+CloseBtn.MouseEnter:Connect(function()
+    TweenService:Create(CloseBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(180,0,0), TextColor3 = Color3.fromRGB(255,255,255)}):Play()
+end)
+CloseBtn.MouseLeave:Connect(function()
+    TweenService:Create(CloseBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(0,0,0), TextColor3 = Color3.fromRGB(255,0,0)}):Play()
+end)
+CloseBtn.MouseButton1Click:Connect(function()
+    TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0,300,0,0)}):Play()
+    task.delay(0.27, function()
+        MainFrame.Visible = false
+        MainFrame.Size    = UDim2.new(0,300,0,200)
+    end)
+end)
+
+local ContentArea = Instance.new("Frame")
+ContentArea.Size             = UDim2.new(1, 0, 1, -102)
+ContentArea.Position         = UDim2.new(0, 0, 0, 42)
+ContentArea.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+ContentArea.BorderSizePixel  = 0
+ContentArea.ZIndex           = 3
+ContentArea.Parent           = MainFrame
+
+-- ══════════════════════════════════════
+--  HELPER FILA
+-- ══════════════════════════════════════
+
+local function makeOptionRow(parent, labelText, yPos)
+    local row = Instance.new("Frame")
+    row.Size             = UDim2.new(1, -20, 0, 44)
+    row.Position         = UDim2.new(0, 10, 0, yPos)
+    row.BackgroundColor3 = Color3.fromRGB(15, 0, 0)
+    row.BorderSizePixel  = 0
+    row.ZIndex           = 4
+    row.Parent           = parent
+    local rc = Instance.new("UICorner")
+    rc.CornerRadius = UDim.new(0, 7)
+    rc.Parent       = row
+    local rs2 = Instance.new("UIStroke")
+    rs2.Color        = Color3.fromRGB(255, 0, 0)
+    rs2.Thickness    = 0.8
+    rs2.Transparency = 0.5
+    rs2.Parent       = row
+    local lbl = Instance.new("TextLabel")
+    lbl.Text                  = labelText
+    lbl.Size                  = UDim2.new(1, -70, 1, 0)
+    lbl.Position              = UDim2.new(0, 14, 0, 0)
+    lbl.BackgroundTransparency= 1
+    lbl.TextColor3            = Color3.fromRGB(220, 220, 220)
+    lbl.TextSize              = 14
+    lbl.Font                  = Enum.Font.GothamBlack
+    lbl.TextXAlignment        = Enum.TextXAlignment.Left
+    lbl.ZIndex                = 5
+    lbl.Parent                = row
+    local track = Instance.new("TextButton")
+    track.Text             = ""
+    track.Size             = UDim2.new(0, 44, 0, 24)
+    track.Position         = UDim2.new(1, -54, 0.5, -12)
+    track.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    track.BorderSizePixel  = 0
+    track.ZIndex           = 5
+    track.Parent           = row
+    local tc = Instance.new("UICorner")
+    tc.CornerRadius = UDim.new(1, 0)
+    tc.Parent       = track
+    local thumb = Instance.new("Frame")
+    thumb.Size             = UDim2.new(0, 18, 0, 18)
+    thumb.Position         = UDim2.new(0, 3, 0.5, -9)
+    thumb.BackgroundColor3 = Color3.fromRGB(180, 180, 180)
+    thumb.BorderSizePixel  = 0
+    thumb.ZIndex           = 6
+    thumb.Parent           = track
+    local thc = Instance.new("UICorner")
+    thc.CornerRadius = UDim.new(1, 0)
+    thc.Parent       = thumb
+    return lbl, track, thumb
 end
 
-local function applyOff(b,k,s,rs)
-    k.Position         = UDim2.new(0,3,0.5,-9)
-    k.BackgroundColor3 = WHITE
+local function toggleOn(lbl, track, thumb)
+    TweenService:Create(track, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(200,0,0)}):Play()
+    TweenService:Create(thumb, TweenInfo.new(0.2), {Position = UDim2.new(0,23,0.5,-9), BackgroundColor3 = Color3.fromRGB(255,255,255)}):Play()
+    TweenService:Create(lbl,   TweenInfo.new(0.2), {TextColor3 = Color3.fromRGB(255,80,80)}):Play()
+end
+local function toggleOff(lbl, track, thumb)
+    TweenService:Create(track, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(40,40,40)}):Play()
+    TweenService:Create(thumb, TweenInfo.new(0.2), {Position = UDim2.new(0,3,0.5,-9), BackgroundColor3 = Color3.fromRGB(180,180,180)}):Play()
+    TweenService:Create(lbl,   TweenInfo.new(0.2), {TextColor3 = Color3.fromRGB(220,220,220)}):Play()
 end
 
--- ROW 1: Auto Steal
-local T1,K1,S1,RS1 = makeToggleRow("Auto Steal", 10)
-if savedCfg.AutoSteal then stealEnabled=true; startAutoSteal(); applyOn(T1,K1,S1,RS1) end
-T1.MouseButton1Click:Connect(function()
-    stealEnabled = not stealEnabled
-    if stealEnabled then
-        startAutoSteal()
-        TweenService:Create(K1,ti,{Position=UDim2.new(1,-21,0.5,-9),BackgroundColor3=BLACK}):Play()
-    else
-        stopAutoSteal()
-        TweenService:Create(K1,ti,{Position=UDim2.new(0,3,0.5,-9),BackgroundColor3=WHITE}):Play()
-    end
-end)
+-- ══════════════════════════════════════
+--  SAVE CONFIG
+-- ══════════════════════════════════════
 
--- ROW 2: Anti Ragdoll
-local T2,K2,S2,RS2 = makeToggleRow("Anti Ragdoll", 66)
-if savedCfg.AntiRagdoll then antiRagdollEnabled=true; task.delay(1,function() setupAntiRagdoll(character) end); applyOn(T2,K2,S2,RS2) end
-T2.MouseButton1Click:Connect(function()
-    antiRagdollEnabled = not antiRagdollEnabled
-    if antiRagdollEnabled then
-        task.wait(0.5); setupAntiRagdoll(character)
-        TweenService:Create(K2,ti,{Position=UDim2.new(1,-21,0.5,-9),BackgroundColor3=BLACK}):Play()
-    else
-        cleanupRagdoll(); disconnectRemote()
-        TweenService:Create(K2,ti,{Position=UDim2.new(0,3,0.5,-9),BackgroundColor3=WHITE}):Play()
-    end
-end)
-
--- ROW 3: XRAY
-local T3,K3,S3,RS3 = makeToggleRow("XRAY", 122)
-if savedCfg.XRAY then unwalkEnabled=true; startUnwalk(); applyOn(T3,K3,S3,RS3) end
-T3.MouseButton1Click:Connect(function()
-    unwalkEnabled = not unwalkEnabled
-    if unwalkEnabled then
-        startUnwalk()
-        TweenService:Create(K3,ti,{Position=UDim2.new(1,-21,0.5,-9),BackgroundColor3=BLACK}):Play()
-    else
-        stopUnwalk()
-        TweenService:Create(K3,ti,{Position=UDim2.new(0,3,0.5,-9),BackgroundColor3=WHITE}):Play()
-    end
-end)
-
--- ROW 4: Dark Mode
-local T4,K4,S4,RS4 = makeToggleRow("Dark Mode", 178)
-if savedCfg.DarkMode then darkModeEnabled=true; startDarkMode(); applyOn(T4,K4,S4,RS4) end
-T4.MouseButton1Click:Connect(function()
-    darkModeEnabled = not darkModeEnabled
-    if darkModeEnabled then
-        startDarkMode()
-        TweenService:Create(K4,ti,{Position=UDim2.new(1,-21,0.5,-9),BackgroundColor3=BLACK}):Play()
-    else
-        stopDarkMode()
-        TweenService:Create(K4,ti,{Position=UDim2.new(0,3,0.5,-9),BackgroundColor3=WHITE}):Play()
-    end
-end)
-
--- ROW 5: GALAXY (sin funciones por ahora)
-local galaxyEnabled = false
-local TG,KG,SG,RSG = makeToggleRow("GALAXY", 234)
-TG.MouseButton1Click:Connect(function()
-    galaxyEnabled = not galaxyEnabled
-    if galaxyEnabled then
-        TweenService:Create(KG,ti,{Position=UDim2.new(1,-21,0.5,-9),BackgroundColor3=BLACK}):Play()
-    else
-        TweenService:Create(KG,ti,{Position=UDim2.new(0,3,0.5,-9),BackgroundColor3=WHITE}):Play()
-    end
-end)
-
--- ROW 6: ESP
-local T5,K5,S5,RS5 = makeToggleRow("ESP", 290)
-if savedCfg.ESP then espEnabled=true; enableESP(); applyOn(T5,K5,S5,RS5) end
-T5.MouseButton1Click:Connect(function()
-    espEnabled = not espEnabled
-    if espEnabled then
-        enableESP()
-        TweenService:Create(K5,ti,{Position=UDim2.new(1,-21,0.5,-9),BackgroundColor3=BLACK}):Play()
-    else
-        disableESP()
-        TweenService:Create(K5,ti,{Position=UDim2.new(0,3,0.5,-9),BackgroundColor3=WHITE}):Play()
-    end
-end)
-
--- ─── SEPARATOR ─────────────────────────────────────────────────
-local Sep = Instance.new("Frame", Content)
-Sep.Size             = UDim2.new(1, -24, 0, 1)
-Sep.Position         = UDim2.new(0, 12, 0, 356)
-Sep.BackgroundColor3 = WHITE
-Sep.BorderSizePixel  = 0
-
--- ─── SAVE BUTTON ───────────────────────────────────────────────
-local SaveFrame = Instance.new("Frame", Content)
-SaveFrame.Size               = UDim2.new(1, -24, 0, 40)
-SaveFrame.Position           = UDim2.new(0, 12, 0, 368)
+local SaveFrame = Instance.new("Frame")
+SaveFrame.Size                   = UDim2.new(1, -24, 0, 40)
+SaveFrame.Position               = UDim2.new(0, 12, 1, -52)
 SaveFrame.BackgroundTransparency = 1
+SaveFrame.BorderSizePixel        = 0
+SaveFrame.ZIndex                 = 6
+SaveFrame.Parent                 = MainFrame
 
-local SaveBtn = Instance.new("TextButton", SaveFrame)
-SaveBtn.Size               = UDim2.new(1, 0, 1, 0)
+local SaveBtn = Instance.new("TextButton")
+SaveBtn.Size                   = UDim2.new(1, 0, 1, 0)
 SaveBtn.BackgroundTransparency = 1
-SaveBtn.Text               = "SAVE CONFIG"
-SaveBtn.Font               = Enum.Font.GothamBlack
-SaveBtn.TextSize           = 13
-SaveBtn.TextColor3         = WHITE
-SaveBtn.TextStrokeColor3   = BLACK
+SaveBtn.Text                   = "SAVE CONFIG"
+SaveBtn.Font                   = Enum.Font.GothamBlack
+SaveBtn.TextSize               = 13
+SaveBtn.TextColor3             = Color3.fromRGB(255, 80, 80)
+SaveBtn.TextStrokeColor3       = Color3.fromRGB(0, 0, 0)
 SaveBtn.TextStrokeTransparency = 0
-SaveBtn.BorderSizePixel    = 0
-Instance.new("UICorner", SaveBtn).CornerRadius = UDim.new(0, 8)
-local saveStroke = Instance.new("UIStroke", SaveBtn)
-saveStroke.Color = BLACK; saveStroke.Thickness = 1.5; saveStroke.Transparency = 0
+SaveBtn.BorderSizePixel        = 0
+SaveBtn.ZIndex                 = 7
+SaveBtn.Parent                 = SaveFrame
 
+Instance.new("UICorner", SaveBtn).CornerRadius = UDim.new(0, 8)
+
+local saveStroke = Instance.new("UIStroke", SaveBtn)
+saveStroke.Color        = Color3.fromRGB(255, 0, 0)
+saveStroke.Thickness    = 1.5
+saveStroke.Transparency = 0
+
+SaveBtn.MouseEnter:Connect(function()
+    TweenService:Create(SaveBtn, TweenInfo.new(0.15), {TextColor3 = Color3.fromRGB(255,255,255)}):Play()
+end)
+SaveBtn.MouseLeave:Connect(function()
+    TweenService:Create(SaveBtn, TweenInfo.new(0.15), {TextColor3 = Color3.fromRGB(255,80,80)}):Play()
+end)
 SaveBtn.MouseButton1Click:Connect(function()
     saveConfig()
     SaveBtn.Text = "SAVED!"
@@ -623,46 +319,72 @@ SaveBtn.MouseButton1Click:Connect(function()
     SaveBtn.Text = "SAVE CONFIG"
 end)
 
--- ─── DRAGGABLE ─────────────────────────────────────────────────
-do
-    local dragging, dragStart, startPos = false, nil, nil
-    TitleBar.InputBegan:Connect(function(inp)
-        if inp.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging=true; dragStart=inp.Position; startPos=Main.Position
-        end
-    end)
-    UserInputService.InputEnded:Connect(function(inp)
-        if inp.UserInputType == Enum.UserInputType.MouseButton1 then dragging=false end
-    end)
-    UserInputService.InputChanged:Connect(function(inp)
-        if dragging and inp.UserInputType == Enum.UserInputType.MouseMovement then
-            local d = inp.Position - dragStart
-            Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset+d.X, startPos.Y.Scale, startPos.Y.Offset+d.Y)
-        end
-    end)
-end
+-- ══════════════════════════════════════
+--  TOGGLE VENTANA
+-- ══════════════════════════════════════
 
--- ─── MINIMIZAR ─────────────────────────────────────────────────
-local minimized = false
-MinBtn.MouseButton1Click:Connect(function()
-    minimized = not minimized
-    MinBtn.Text = minimized and "+" or "—"
-    TweenService:Create(Main, TweenInfo.new(0.22, Enum.EasingStyle.Quad), {
-        Size = minimized and UDim2.new(0,270,0,52) or UDim2.new(0,270,0,FULL_HEIGHT)
-    }):Play()
-end)
-
--- ─── NEON PULSE ────────────────────────────────────────────────
-task.spawn(function()
-    local t = 0
-    while ScreenGui.Parent do
-        t = t + 0.04
-        local pulse = (math.sin(t) + 1) / 2
-        grimStroke.Transparency = 0.05 + pulse * 0.5
-        task.wait(0.03)
+ToggleBtn.MouseButton1Click:Connect(function()
+    if MainFrame.Visible then
+        TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0,300,0,0)}):Play()
+        task.delay(0.27, function()
+            MainFrame.Visible = false
+            MainFrame.Size    = UDim2.new(0,300,0,200)
+        end)
+    else
+        MainFrame.Size    = UDim2.new(0,300,0,0)
+        MainFrame.Visible = true
+        TweenService:Create(MainFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0,300,0,200)}):Play()
     end
 end)
 
--- ─── OPEN ANIMATION ────────────────────────────────────────────
-Main.Size = UDim2.new(0,0,0,0)
-TweenService:Create(Main, TweenInfo.new(0.4,Enum.EasingStyle.Back,Enum.EasingDirection.Out), {Size=UDim2.new(0,270,0,FULL_HEIGHT)}):Play()
+-- ══════════════════════════════════════
+--  ANIMACIONES NEON
+-- ══════════════════════════════════════
+
+task.spawn(function()
+    while ScreenGui.Parent do
+        TweenService:Create(TitleStroke,  TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency=0.6}):Play()
+        task.wait(1.2)
+        TweenService:Create(TitleStroke,  TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency=0.0}):Play()
+        task.wait(1.2)
+    end
+end)
+task.spawn(function()
+    while ScreenGui.Parent do
+        TweenService:Create(TitleLine,    TweenInfo.new(1.0, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundTransparency=0.55}):Play()
+        task.wait(1.0)
+        TweenService:Create(TitleLine,    TweenInfo.new(1.0, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundTransparency=0.0}):Play()
+        task.wait(1.0)
+    end
+end)
+task.spawn(function()
+    while ScreenGui.Parent do
+        TweenService:Create(ToggleStroke, TweenInfo.new(1.0, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency=0.6}):Play()
+        task.wait(1.0)
+        TweenService:Create(ToggleStroke, TweenInfo.new(1.0, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency=0.0}):Play()
+        task.wait(1.0)
+    end
+end)
+
+-- ══════════════════════════════════════
+--  APERTURA Y ARRASTRE
+-- ══════════════════════════════════════
+
+MainFrame.Size = UDim2.new(0, 300, 0, 0)
+TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0,300,0,200)}):Play()
+
+local dragging, dragStart, startPos = false, nil, nil
+TitleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true dragStart = input.Position startPos = MainFrame.Position
+    end
+end)
+TitleBar.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset+delta.X, startPos.Y.Scale, startPos.Y.Offset+delta.Y)
+    end
+end)
