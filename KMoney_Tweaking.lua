@@ -1,6 +1,9 @@
 -- ╔══════════════════════════════════════╗
--- ║           DEMONTIME HUB              ║
+-- ║        DEMONTIME HUB x NEBULA TP     ║
 -- ╚══════════════════════════════════════╝
+-- Merged: Anti-Ragdoll TP + Medusa Mode + Full GUI
+
+repeat task.wait() until game:IsLoaded()
 
 local Players          = game:GetService("Players")
 local TweenService     = game:GetService("TweenService")
@@ -31,6 +34,133 @@ end
 
 local savedCfg = {}
 pcall(function() savedCfg = HttpService:JSONDecode(readfile(CONFIG_FILE)) end)
+
+-- ══════════════════════════════════════
+--  NEBULA TP: POSITIONS & STATE
+-- ══════════════════════════════════════
+
+local RIGHT_STEP_1 = Vector3.new(-468, -6, 41)
+local RIGHT_STEP_2 = Vector3.new(-473, -6, 24)
+local RIGHT_STEP_3 = Vector3.new(-484, -4, 20)
+
+local LEFT_STEP_1  = Vector3.new(-469, -6, 78)
+local LEFT_STEP_2  = Vector3.new(-471, -6, 96)
+local LEFT_STEP_3  = Vector3.new(-484, -4, 99)
+
+local ReturnLeftActive  = true
+local ReturnRightActive = false
+local medusaMode        = false
+local justTeleported    = false
+local TP_COOLDOWN       = 0.2
+local connections       = {}
+
+local function cleanup()
+    for _, c in pairs(connections) do
+        pcall(function() c:Disconnect() end)
+    end
+    connections = {}
+end
+
+local function isRagdolled(char)
+    if not char then return false end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hum then return false end
+    local state = hum:GetState()
+    if state == Enum.HumanoidStateType.Physics or
+       state == Enum.HumanoidStateType.Ragdoll or
+       state == Enum.HumanoidStateType.FallingDown then
+        return true
+    end
+    for _, obj in ipairs(char:GetDescendants()) do
+        if obj:IsA("Motor6D") and obj.Enabled == false then
+            return true
+        end
+    end
+    return false
+end
+
+local function forceExitRagdoll(char)
+    if not char then return end
+    if justTeleported then return end
+    justTeleported = true
+
+    local root = char:FindFirstChild("HumanoidRootPart")
+    local hum  = char:FindFirstChildOfClass("Humanoid")
+    if not (root and hum) then
+        task.delay(TP_COOLDOWN, function() justTeleported = false end)
+        return
+    end
+
+    local isLeft = ReturnLeftActive
+    local step1  = isLeft and LEFT_STEP_1 or RIGHT_STEP_1
+    local step2  = isLeft and LEFT_STEP_2 or RIGHT_STEP_2
+    local step3  = isLeft and LEFT_STEP_3 or RIGHT_STEP_3
+
+    root.CFrame = CFrame.new(step1 + Vector3.new(0, 3, 0))
+    root.Velocity                  = Vector3.new(0,0,0)
+    root.AssemblyLinearVelocity    = Vector3.new(0,0,0)
+    root.AssemblyAngularVelocity   = Vector3.new(0,0,0)
+
+    hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+    task.wait(0.04)
+    hum:ChangeState(Enum.HumanoidStateType.Running)
+    Camera.CameraSubject = hum
+
+    for _, obj in ipairs(char:GetDescendants()) do
+        if obj:IsA("Motor6D") and not obj.Enabled then
+            obj.Enabled = true
+        end
+    end
+
+    task.spawn(function()
+        task.wait(0.07)
+        if root and root.Parent then
+            root.CFrame = CFrame.new(step2 + Vector3.new(0, 2.5, 0))
+            root.Velocity               = Vector3.new(0,0,0)
+            root.AssemblyLinearVelocity = Vector3.new(0,0,0)
+        end
+    end)
+
+    if not medusaMode then
+        task.spawn(function()
+            task.wait(0.14)
+            if root and root.Parent then
+                root.CFrame = CFrame.new(step3 + Vector3.new(0, 2, 0))
+                root.Velocity               = Vector3.new(0,0,0)
+                root.AssemblyLinearVelocity = Vector3.new(0,0,0)
+            end
+        end)
+    end
+
+    task.delay(TP_COOLDOWN, function()
+        justTeleported = false
+    end)
+end
+
+-- Main heartbeat loop
+local hb = RunService.Heartbeat:Connect(function()
+    local char = player.Character
+    if char and isRagdolled(char) then
+        forceExitRagdoll(char)
+        task.delay(0.2, function()
+            if char and char.Parent and isRagdolled(char) then
+                forceExitRagdoll(char)
+            end
+        end)
+    end
+end)
+table.insert(connections, hb)
+
+player.CharacterAdded:Connect(function(newChar)
+    task.wait(0.4)
+    cleanup()
+    local newHb = RunService.Heartbeat:Connect(function()
+        if newChar and newChar.Parent and isRagdolled(newChar) then
+            forceExitRagdoll(newChar)
+        end
+    end)
+    table.insert(connections, newHb)
+end)
 
 -- ══════════════════════════════════════
 --  GUI SETUP
@@ -68,9 +198,10 @@ ToggleStroke.Thickness    = 1.5
 ToggleStroke.Transparency = 0.0
 ToggleStroke.Parent       = ToggleBtn
 
+-- GUI height aumentado para los 3 toggles extra
 local MainFrame = Instance.new("Frame")
-MainFrame.Size               = UDim2.new(0, 300, 0, 200)
-MainFrame.Position           = UDim2.new(0, 16, 0.5, -100)
+MainFrame.Size               = UDim2.new(0, 300, 0, 360)
+MainFrame.Position           = UDim2.new(0, 16, 0.5, -180)
 MainFrame.BackgroundColor3   = Color3.fromRGB(0, 0, 0)
 MainFrame.BackgroundTransparency = 0
 MainFrame.BorderSizePixel    = 0
@@ -147,12 +278,12 @@ lineGlow.ZIndex                 = 3
 lineGlow.Parent                 = TitleBar
 
 local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Text                   = "DEMONTIME"
+TitleLabel.Text                   = "DEMONTIME x NEBULA TP"
 TitleLabel.Size                   = UDim2.new(1, -50, 1, 0)
 TitleLabel.Position               = UDim2.new(0, 14, 0, 0)
 TitleLabel.BackgroundTransparency = 1
 TitleLabel.TextColor3             = Color3.fromRGB(255, 0, 0)
-TitleLabel.TextSize               = 17
+TitleLabel.TextSize               = 14
 TitleLabel.Font                   = Enum.Font.GothamBlack
 TitleLabel.TextXAlignment         = Enum.TextXAlignment.Left
 TitleLabel.ZIndex                 = 5
@@ -196,7 +327,7 @@ CloseBtn.MouseButton1Click:Connect(function()
     TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0,300,0,0)}):Play()
     task.delay(0.27, function()
         MainFrame.Visible = false
-        MainFrame.Size    = UDim2.new(0,300,0,200)
+        MainFrame.Size    = UDim2.new(0,300,0,360)
     end)
 end)
 
@@ -209,7 +340,7 @@ ContentArea.ZIndex           = 3
 ContentArea.Parent           = MainFrame
 
 -- ══════════════════════════════════════
---  HELPER FILA
+--  HELPER: ROW + TOGGLE
 -- ══════════════════════════════════════
 
 local function makeOptionRow(parent, labelText, yPos)
@@ -275,6 +406,121 @@ local function toggleOff(lbl, track, thumb)
 end
 
 -- ══════════════════════════════════════
+--  SECTION LABEL helper
+-- ══════════════════════════════════════
+
+local function makeSectionLabel(parent, text, yPos)
+    local lbl = Instance.new("TextLabel")
+    lbl.Text                  = text
+    lbl.Size                  = UDim2.new(1, -20, 0, 20)
+    lbl.Position              = UDim2.new(0, 10, 0, yPos)
+    lbl.BackgroundTransparency= 1
+    lbl.TextColor3            = Color3.fromRGB(255, 60, 60)
+    lbl.TextSize              = 11
+    lbl.Font                  = Enum.Font.GothamBlack
+    lbl.TextXAlignment        = Enum.TextXAlignment.Left
+    lbl.ZIndex                = 5
+    lbl.Parent                = parent
+end
+
+-- ══════════════════════════════════════
+--  NEBULA TP ROWS (dentro de ContentArea)
+-- ══════════════════════════════════════
+
+makeSectionLabel(ContentArea, "── NEBULA DUELS TP ──", 6)
+
+-- Return Left
+local lblL, trackL, thumbL = makeOptionRow(ContentArea, "Return-Left", 28)
+local stateL = true
+toggleOn(lblL, trackL, thumbL)
+
+-- Return Right
+local lblR, trackR, thumbR = makeOptionRow(ContentArea, "Return-Right", 80)
+local stateR = false
+
+-- Medusa Mode
+local lblM, trackM, thumbM = makeOptionRow(ContentArea, "Medusa Mode", 132)
+local stateM = false
+
+-- Discord label
+local discordRow = Instance.new("Frame")
+discordRow.Size             = UDim2.new(1, -20, 0, 30)
+discordRow.Position         = UDim2.new(0, 10, 0, 185)
+discordRow.BackgroundColor3 = Color3.fromRGB(15, 0, 0)
+discordRow.BorderSizePixel  = 0
+discordRow.ZIndex           = 4
+discordRow.Parent           = ContentArea
+Instance.new("UICorner", discordRow).CornerRadius = UDim.new(0, 7)
+local discordStroke = Instance.new("UIStroke", discordRow)
+discordStroke.Color = Color3.fromRGB(88, 101, 242) discordStroke.Thickness = 0.8 discordStroke.Transparency = 0.4
+
+local discordTagLbl = Instance.new("TextLabel", discordRow)
+discordTagLbl.Text = "Discord:  discord.gg/nebula5"
+discordTagLbl.Size = UDim2.new(0.65, 0, 1, 0)
+discordTagLbl.Position = UDim2.new(0, 10, 0, 0)
+discordTagLbl.BackgroundTransparency = 1
+discordTagLbl.TextColor3 = Color3.fromRGB(180, 180, 255)
+discordTagLbl.TextSize = 11
+discordTagLbl.Font = Enum.Font.GothamSemibold
+discordTagLbl.TextXAlignment = Enum.TextXAlignment.Left
+discordTagLbl.ZIndex = 5
+
+local copyBtn = Instance.new("TextButton", discordRow)
+copyBtn.Text = "Copy"
+copyBtn.Size = UDim2.new(0, 54, 0, 22)
+copyBtn.Position = UDim2.new(1, -62, 0.5, -11)
+copyBtn.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
+copyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+copyBtn.TextSize = 11
+copyBtn.Font = Enum.Font.GothamBold
+copyBtn.BorderSizePixel = 0
+copyBtn.ZIndex = 6
+Instance.new("UICorner", copyBtn).CornerRadius = UDim.new(0, 6)
+copyBtn.MouseButton1Click:Connect(function()
+    pcall(function() setclipboard("discord.gg/nebula5") end)
+    copyBtn.Text = "✓"
+    task.wait(1.5)
+    copyBtn.Text = "Copy"
+end)
+
+-- ── Toggle logic con exclusividad Left/Right ──
+
+local function setLeftToggle(v)
+    stateL = v
+    if v then toggleOn(lblL, trackL, thumbL) else toggleOff(lblL, trackL, thumbL) end
+end
+local function setRightToggle(v)
+    stateR = v
+    if v then toggleOn(lblR, trackR, thumbR) else toggleOff(lblR, trackR, thumbR) end
+end
+
+trackL.MouseButton1Click:Connect(function()
+    stateL = not stateL
+    ReturnLeftActive = stateL
+    setLeftToggle(stateL)
+    if stateL then
+        ReturnRightActive = false
+        setRightToggle(false)
+    end
+end)
+
+trackR.MouseButton1Click:Connect(function()
+    stateR = not stateR
+    ReturnRightActive = stateR
+    setRightToggle(stateR)
+    if stateR then
+        ReturnLeftActive = false
+        setLeftToggle(false)
+    end
+end)
+
+trackM.MouseButton1Click:Connect(function()
+    stateM = not stateM
+    medusaMode = stateM
+    if stateM then toggleOn(lblM, trackM, thumbM) else toggleOff(lblM, trackM, thumbM) end
+end)
+
+-- ══════════════════════════════════════
 --  SAVE CONFIG
 -- ══════════════════════════════════════
 
@@ -328,12 +574,12 @@ ToggleBtn.MouseButton1Click:Connect(function()
         TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0,300,0,0)}):Play()
         task.delay(0.27, function()
             MainFrame.Visible = false
-            MainFrame.Size    = UDim2.new(0,300,0,200)
+            MainFrame.Size    = UDim2.new(0,300,0,360)
         end)
     else
         MainFrame.Size    = UDim2.new(0,300,0,0)
         MainFrame.Visible = true
-        TweenService:Create(MainFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0,300,0,200)}):Play()
+        TweenService:Create(MainFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0,300,0,360)}):Play()
     end
 end)
 
@@ -371,7 +617,7 @@ end)
 -- ══════════════════════════════════════
 
 MainFrame.Size = UDim2.new(0, 300, 0, 0)
-TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0,300,0,200)}):Play()
+TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0,300,0,360)}):Play()
 
 local dragging, dragStart, startPos = false, nil, nil
 TitleBar.InputBegan:Connect(function(input)
