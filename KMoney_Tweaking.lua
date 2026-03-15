@@ -7,7 +7,7 @@ if LocalPlayer:WaitForChild('PlayerGui'):FindFirstChild('DemonTimeGUI') then
 end
 
 local bgColor = Color3.fromRGB(0, 0, 0)
-local barColor = Color3.fromRGB(5, 5, 5)
+local barColor = Color3.fromRGB(0, 0, 0)
 local DemonTimeGUI = Instance.new('ScreenGui')
 DemonTimeGUI.Name = 'DemonTimeGUI'
 DemonTimeGUI.ResetOnSpawn = false
