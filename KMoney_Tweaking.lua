@@ -15,20 +15,12 @@ local me          = Players.LocalPlayer
 local RS          = RunService
 local Camera      = workspace.CurrentCamera
 
--- ══════════════════════════════════════
---  VARIABLES DE ESTADO
--- ══════════════════════════════════════
-
 local unwalkOn           = false
 local unwalkConn         = nil
 local xrayOn             = false
 local espOn              = false
 local antiRagdollEnabled = false
 local fovValue           = 70
-
--- ══════════════════════════════════════
---  SAVE / LOAD CONFIG
--- ══════════════════════════════════════
 
 local CONFIG_FILE = "DEMONTIME_config.json"
 
@@ -47,10 +39,6 @@ end
 local savedCfg = {}
 pcall(function() savedCfg = HttpService:JSONDecode(readfile(CONFIG_FILE)) end)
 
--- ══════════════════════════════════════
---  GUI SETUP
--- ══════════════════════════════════════
-
 if CoreGui:FindFirstChild("DEMONTIME_GUI") then
     CoreGui:FindFirstChild("DEMONTIME_GUI"):Destroy()
 end
@@ -61,12 +49,16 @@ ScreenGui.ResetOnSpawn   = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent         = CoreGui
 
+-- ══════════════════════════════════════
+--  TOGGLE BTN (rojo + neon negro)
+-- ══════════════════════════════════════
+
 local ToggleBtn = Instance.new("TextButton")
 ToggleBtn.Text             = "DEMONTIME"
 ToggleBtn.Size             = UDim2.new(0, 110, 0, 28)
 ToggleBtn.Position         = UDim2.new(0, 10, 0, 10)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-ToggleBtn.TextColor3       = Color3.fromRGB(255, 0, 0)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
+ToggleBtn.TextColor3       = Color3.fromRGB(255, 255, 255)
 ToggleBtn.TextSize         = 12
 ToggleBtn.Font             = Enum.Font.GothamBlack
 ToggleBtn.BorderSizePixel  = 0
@@ -75,10 +67,46 @@ ToggleBtn.Parent           = ScreenGui
 
 Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 6)
 
+local ToggleGlow1 = Instance.new("Frame")
+ToggleGlow1.Size                   = UDim2.new(1, 14, 1, 14)
+ToggleGlow1.Position               = UDim2.new(0, -7, 0, -7)
+ToggleGlow1.BackgroundColor3       = Color3.fromRGB(0, 0, 0)
+ToggleGlow1.BackgroundTransparency = 0.3
+ToggleGlow1.BorderSizePixel        = 0
+ToggleGlow1.ZIndex                 = 9
+ToggleGlow1.Parent                 = ToggleBtn
+Instance.new("UICorner", ToggleGlow1).CornerRadius = UDim.new(0, 10)
+
+local ToggleGlow2 = Instance.new("Frame")
+ToggleGlow2.Size                   = UDim2.new(1, 8, 1, 8)
+ToggleGlow2.Position               = UDim2.new(0, -4, 0, -4)
+ToggleGlow2.BackgroundColor3       = Color3.fromRGB(0, 0, 0)
+ToggleGlow2.BackgroundTransparency = 0.55
+ToggleGlow2.BorderSizePixel        = 0
+ToggleGlow2.ZIndex                 = 9
+ToggleGlow2.Parent                 = ToggleBtn
+Instance.new("UICorner", ToggleGlow2).CornerRadius = UDim.new(0, 8)
+
 local ToggleStroke = Instance.new("UIStroke")
 ToggleStroke.Color        = Color3.fromRGB(255, 0, 0)
-ToggleStroke.Thickness    = 1.5
+ToggleStroke.Thickness    = 2
+ToggleStroke.Transparency = 0.0
 ToggleStroke.Parent       = ToggleBtn
+
+local ToggleTextStroke = Instance.new("UIStroke")
+ToggleTextStroke.Color        = Color3.fromRGB(0, 0, 0)
+ToggleTextStroke.Thickness    = 3
+ToggleTextStroke.Transparency = 0.0
+ToggleTextStroke.Parent       = ToggleBtn
+
+ToggleBtn.MouseEnter:Connect(function()
+    TweenService:Create(ToggleBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(220, 0, 0)}):Play()
+    TweenService:Create(ToggleStroke, TweenInfo.new(0.15), {Thickness = 2.5}):Play()
+end)
+ToggleBtn.MouseLeave:Connect(function()
+    TweenService:Create(ToggleBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(180, 0, 0)}):Play()
+    TweenService:Create(ToggleStroke, TweenInfo.new(0.15), {Thickness = 2}):Play()
+end)
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Size               = UDim2.new(0, 300, 0, 680)
@@ -208,10 +236,6 @@ ContentArea.BorderSizePixel        = 0
 ContentArea.ZIndex                 = 3
 ContentArea.Parent                 = MainFrame
 
--- ══════════════════════════════════════
---  HELPER FILA
--- ══════════════════════════════════════
-
 local function makeOptionRow(parent, labelText, yPos)
     local row = Instance.new("Frame")
     row.Size             = UDim2.new(1, -20, 0, 44)
@@ -252,10 +276,7 @@ local function toggleOff(lbl, track, thumb)
     TweenService:Create(lbl,   TweenInfo.new(0.2), {TextColor3 = Color3.fromRGB(220,220,220)}):Play()
 end
 
--- ══════════════════════════════════════
---  UNWALK
--- ══════════════════════════════════════
-
+-- UNWALK
 local unwalkLabel, unwalkTrack, unwalkThumb = makeOptionRow(ContentArea, "UNWALK", 10)
 
 local function enableUnwalk()
@@ -281,10 +302,7 @@ unwalkTrack.MouseButton1Click:Connect(function()
     else toggleOff(unwalkLabel, unwalkTrack, unwalkThumb); disableUnwalk() end
 end)
 
--- ══════════════════════════════════════
---  XRAY
--- ══════════════════════════════════════
-
+-- XRAY
 local xrayLabel, xrayTrack, xrayThumb = makeOptionRow(ContentArea, "XRAY", 64)
 local originalTransparency = {}
 local xrayDescConn, xrayCharConn = nil, nil
@@ -352,10 +370,7 @@ xrayTrack.MouseButton1Click:Connect(function()
     else toggleOff(xrayLabel, xrayTrack, xrayThumb); stopXray() end
 end)
 
--- ══════════════════════════════════════
---  ESP
--- ══════════════════════════════════════
-
+-- ESP
 local espLabel, espTrack, espThumb = makeOptionRow(ContentArea, "ESP", 118)
 local espObjects, espConnections = {}, {}
 
@@ -410,12 +425,8 @@ espTrack.MouseButton1Click:Connect(function()
     else toggleOff(espLabel, espTrack, espThumb); disableESP() end
 end)
 
--- ══════════════════════════════════════
---  DARKMODE (automático)
--- ══════════════════════════════════════
-
+-- DARKMODE
 local darkModeObjects = {}
-
 local function startDarkMode()
     darkModeObjects = {}
     for _, child in pairs(Lighting:GetChildren()) do
@@ -432,14 +443,10 @@ local function startDarkMode()
     table.insert(darkModeObjects, sky)
     Lighting.FogStart = 10000
 end
-
 task.defer(function() task.wait(0.5); startDarkMode() end)
 me.CharacterAdded:Connect(function() task.wait(1); startDarkMode() end)
 
--- ══════════════════════════════════════
---  ANTI RAGDOLL
--- ══════════════════════════════════════
-
+-- ANTI RAGDOLL
 local ragdollLabel, ragdollTrack, ragdollThumb = makeOptionRow(ContentArea, "ANTI RAGDOLL", 172)
 local RAGDOLL_SPEED           = 16
 local currentCharacter        = nil
@@ -521,12 +528,8 @@ ragdollTrack.MouseButton1Click:Connect(function()
     end
 end)
 
--- ══════════════════════════════════════
---  FPS BOOST (automático)
--- ══════════════════════════════════════
-
+-- FPS BOOST
 local fpsDescConn = nil
-
 local function stripVisuals(obj)
     pcall(function()
         if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
@@ -538,7 +541,6 @@ local function stripVisuals(obj)
         end
     end)
 end
-
 local function enableFPSBoost()
     pcall(function()
         Lighting.GlobalShadows=false; Lighting.FogEnd=1000000; Lighting.FogStart=0
@@ -558,13 +560,9 @@ local function enableFPSBoost()
     if fpsDescConn then fpsDescConn:Disconnect() end
     fpsDescConn = workspace.DescendantAdded:Connect(stripVisuals)
 end
-
 task.defer(function() task.wait(1); enableFPSBoost() end)
 
--- ══════════════════════════════════════
---  FOV SLIDER (anclado abajo)
--- ══════════════════════════════════════
-
+-- FOV SLIDER
 local FOV_MIN, FOV_MAX = 70, 120
 
 local fovRow = Instance.new("Frame")
@@ -579,15 +577,23 @@ Instance.new("UICorner", fovRow).CornerRadius = UDim.new(0, 7)
 local fovStroke = Instance.new("UIStroke", fovRow)
 fovStroke.Color = Color3.fromRGB(0,0,0); fovStroke.Thickness = 1.5
 
+local SaveFrame = Instance.new("Frame")
+SaveFrame.Size=UDim2.new(1,-24,0,40); SaveFrame.Position=UDim2.new(0,12,1,-52)
+SaveFrame.BackgroundColor3=Color3.fromRGB(0,0,0); SaveFrame.BackgroundTransparency=0
+SaveFrame.BorderSizePixel=0; SaveFrame.ZIndex=6; SaveFrame.Parent=MainFrame
+Instance.new("UICorner", SaveFrame).CornerRadius = UDim.new(0,7)
+local sfStroke = Instance.new("UIStroke", SaveFrame)
+sfStroke.Color=Color3.fromRGB(0,0,0); sfStroke.Thickness=1.5
+
 -- Forzar negro siempre
 RS.Heartbeat:Connect(function()
-    fovRow.BackgroundColor3          = Color3.fromRGB(0,0,0)
-    fovRow.BackgroundTransparency    = 0
-    SaveFrame.BackgroundColor3       = Color3.fromRGB(0,0,0)
-    SaveFrame.BackgroundTransparency = 0
-    MainFrame.BackgroundColor3       = Color3.fromRGB(0,0,0)
-    MainFrame.BackgroundTransparency = 0
-    ContentArea.BackgroundColor3     = Color3.fromRGB(0,0,0)
+    fovRow.BackgroundColor3            = Color3.fromRGB(0,0,0)
+    fovRow.BackgroundTransparency      = 0
+    SaveFrame.BackgroundColor3         = Color3.fromRGB(0,0,0)
+    SaveFrame.BackgroundTransparency   = 0
+    MainFrame.BackgroundColor3         = Color3.fromRGB(0,0,0)
+    MainFrame.BackgroundTransparency   = 0
+    ContentArea.BackgroundColor3       = Color3.fromRGB(0,0,0)
     ContentArea.BackgroundTransparency = 0
 end)
 
@@ -614,7 +620,6 @@ sliderFill.Size=UDim2.new(0,0,1,0); sliderFill.BackgroundColor3=Color3.fromRGB(2
 sliderFill.BorderSizePixel=0; sliderFill.ZIndex=6; sliderFill.Parent=sliderTrack
 Instance.new("UICorner", sliderFill).CornerRadius = UDim.new(1,0)
 
--- Thumb: demonio neon rojo
 local sliderThumb = Instance.new("Frame")
 sliderThumb.Size=UDim2.new(0,28,0,28); sliderThumb.Position=UDim2.new(0,-14,0.5,-14)
 sliderThumb.BackgroundTransparency=1; sliderThumb.BorderSizePixel=0
@@ -654,18 +659,7 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- ══════════════════════════════════════
---  SAVE CONFIG
--- ══════════════════════════════════════
-
-local SaveFrame = Instance.new("Frame")
-SaveFrame.Size=UDim2.new(1,-24,0,40); SaveFrame.Position=UDim2.new(0,12,1,-52)
-SaveFrame.BackgroundColor3=Color3.fromRGB(0,0,0); SaveFrame.BackgroundTransparency=0
-SaveFrame.BorderSizePixel=0; SaveFrame.ZIndex=6; SaveFrame.Parent=MainFrame
-Instance.new("UICorner", SaveFrame).CornerRadius = UDim.new(0,7)
-local sfStroke = Instance.new("UIStroke", SaveFrame)
-sfStroke.Color=Color3.fromRGB(0,0,0); sfStroke.Thickness=1.5
-
+-- SAVE CONFIG
 local SaveBtn = Instance.new("TextButton")
 SaveBtn.Size=UDim2.new(1,0,1,0); SaveBtn.BackgroundTransparency=1
 SaveBtn.Text="SAVE CONFIG"; SaveBtn.Font=Enum.Font.GothamBlack; SaveBtn.TextSize=13
@@ -681,10 +675,7 @@ SaveBtn.MouseButton1Click:Connect(function()
     saveConfig(); SaveBtn.Text="SAVED!"; task.wait(1); SaveBtn.Text="SAVE CONFIG"
 end)
 
--- ══════════════════════════════════════
---  TOGGLE VENTANA
--- ══════════════════════════════════════
-
+-- TOGGLE VENTANA
 ToggleBtn.MouseButton1Click:Connect(function()
     if MainFrame.Visible then
         TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size=UDim2.new(0,300,0,0)}):Play()
@@ -695,10 +686,7 @@ ToggleBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- ══════════════════════════════════════
---  ANIMACIONES NEON
--- ══════════════════════════════════════
-
+-- ANIMACIONES NEON
 task.spawn(function()
     while ScreenGui.Parent do
         TweenService:Create(TitleStroke, TweenInfo.new(1.2,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{Transparency=0.7}):Play()
@@ -709,26 +697,29 @@ task.spawn(function()
         task.wait(1.2)
     end
 end)
+
+-- ANIMACION TOGGLE BTN (rojo + neon negro pulsando)
 task.spawn(function()
     while ScreenGui.Parent do
-        TweenService:Create(ToggleStroke,TweenInfo.new(1.0,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{Transparency=0.6}):Play(); task.wait(1.0)
-        TweenService:Create(ToggleStroke,TweenInfo.new(1.0,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{Transparency=0.0}):Play(); task.wait(1.0)
+        TweenService:Create(ToggleBtn,    TweenInfo.new(1.0,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {BackgroundColor3 = Color3.fromRGB(220,0,0)}):Play()
+        TweenService:Create(ToggleStroke, TweenInfo.new(1.0,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {Transparency = 0.5}):Play()
+        TweenService:Create(ToggleGlow1,  TweenInfo.new(1.0,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {BackgroundTransparency = 0.6}):Play()
+        TweenService:Create(ToggleGlow2,  TweenInfo.new(1.0,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {BackgroundTransparency = 0.75}):Play()
+        task.wait(1.0)
+        TweenService:Create(ToggleBtn,    TweenInfo.new(1.0,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {BackgroundColor3 = Color3.fromRGB(180,0,0)}):Play()
+        TweenService:Create(ToggleStroke, TweenInfo.new(1.0,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {Transparency = 0.0}):Play()
+        TweenService:Create(ToggleGlow1,  TweenInfo.new(1.0,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {BackgroundTransparency = 0.3}):Play()
+        TweenService:Create(ToggleGlow2,  TweenInfo.new(1.0,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {BackgroundTransparency = 0.55}):Play()
+        task.wait(1.0)
     end
 end)
 
--- ══════════════════════════════════════
---  APERTURA
--- ══════════════════════════════════════
-
+-- APERTURA
 MainFrame.Size = UDim2.new(0,300,0,0)
 TweenService:Create(MainFrame, TweenInfo.new(0.4,Enum.EasingStyle.Back,Enum.EasingDirection.Out), {Size=UDim2.new(0,300,0,680)}):Play()
 
--- ══════════════════════════════════════
---  ANTI LAGBACK (automático)
--- ══════════════════════════════════════
-
+-- ANTI LAGBACK
 local serverGhosts = {}
-
 local function clearAllGhosts()
     for _, ghost in pairs(serverGhosts) do
         pcall(function() if ghost and ghost.Parent then ghost:Destroy() end end)
@@ -745,14 +736,10 @@ local function clearAllGhosts()
         for _, c in pairs(workspace:GetDescendants()) do if c.Name=="LagbackGhost" or c.Name=="LagbackErrorOrb" then c:Destroy() end end
     end)
 end
-
 me.CharacterAdded:Connect(function() task.wait(0.5); clearAllGhosts() end)
 task.spawn(function() while ScreenGui.Parent do clearAllGhosts(); task.wait(10) end end)
 
--- ══════════════════════════════════════
---  AUTO-LOAD CONFIG
--- ══════════════════════════════════════
-
+-- AUTO-LOAD CONFIG
 task.defer(function()
     if savedCfg.Unwalk then
         unwalkOn = true; toggleOn(unwalkLabel, unwalkTrack, unwalkThumb); enableUnwalk()
