@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Stats = game:GetService("Stats")
 local Lighting = game:GetService("Lighting")
+local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
 -- Evita duplicados
@@ -11,6 +12,12 @@ end
 
 local bgColor = Color3.fromRGB(0, 0, 0)
 local barColor = Color3.fromRGB(5, 5, 5)
+
+-- Config global para flags
+local config = {
+    GalaxySkyBright = false,
+    Optimize = false,
+}
 
 local DemonTimeGUI = Instance.new('ScreenGui')
 DemonTimeGUI.Name = 'DemonTimeGUI'
@@ -84,6 +91,72 @@ UIListLayout.Padding = UDim.new(0, 6)
 UIListLayout.Parent = Content
 
 -- ========================================
+-- HELPER: Crear fila toggle reutilizable
+-- ========================================
+local function createToggleRow(labelText, icon, layoutOrder)
+    local Row = Instance.new('Frame')
+    Row.Size = UDim2.new(1, 0, 0, 36)
+    Row.BackgroundColor3 = barColor
+    Row.BorderSizePixel = 0
+    Row.LayoutOrder = layoutOrder
+    Row.Parent = Content
+
+    local RowCorner = Instance.new('UICorner')
+    RowCorner.CornerRadius = UDim.new(0, 6)
+    RowCorner.Parent = Row
+
+    local Label = Instance.new('TextLabel')
+    Label.Size = UDim2.new(1, -60, 1, 0)
+    Label.Position = UDim2.new(0, 10, 0, 0)
+    Label.BackgroundTransparency = 1
+    Label.Text = icon .. ' ' .. labelText
+    Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Label.TextSize = 14
+    Label.Font = Enum.Font.GothamBold
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.Parent = Row
+
+    local BG = Instance.new('Frame')
+    BG.Size = UDim2.new(0, 44, 0, 22)
+    BG.Position = UDim2.new(1, -52, 0.5, -11)
+    BG.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    BG.BorderSizePixel = 0
+    BG.Parent = Row
+
+    local BGCorner = Instance.new('UICorner')
+    BGCorner.CornerRadius = UDim.new(1, 0)
+    BGCorner.Parent = BG
+
+    local Circle = Instance.new('Frame')
+    Circle.Size = UDim2.new(0, 16, 0, 16)
+    Circle.Position = UDim2.new(0, 3, 0.5, -8)
+    Circle.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+    Circle.BorderSizePixel = 0
+    Circle.Parent = BG
+
+    local CircleCorner = Instance.new('UICorner')
+    CircleCorner.CornerRadius = UDim.new(1, 0)
+    CircleCorner.Parent = Circle
+
+    local Button = Instance.new('TextButton')
+    Button.Size = UDim2.new(1, 0, 1, 0)
+    Button.BackgroundTransparency = 1
+    Button.Text = ''
+    Button.Parent = Row
+
+    return { Row = Row, Label = Label, BG = BG, Circle = Circle, Button = Button }
+end
+
+local function animateToggle(toggle, enabled, activeColor)
+    local color = enabled and activeColor or Color3.fromRGB(60, 60, 60)
+    local pos = enabled and UDim2.new(0, 25, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
+    local textColor = enabled and activeColor or Color3.fromRGB(255, 255, 255)
+    TweenService:Create(toggle.BG, TweenInfo.new(0.2), { BackgroundColor3 = color }):Play()
+    TweenService:Create(toggle.Circle, TweenInfo.new(0.2), { Position = pos }):Play()
+    toggle.Label.TextColor3 = textColor
+end
+
+-- ========================================
 -- FPS + PING TRACKER
 -- ========================================
 
@@ -135,7 +208,7 @@ RunService.Heartbeat:Connect(function()
 end)
 
 -- ========================================
--- OPTIMIZER TOGGLE
+-- OPTIMIZER
 -- ========================================
 
 local originalTransparency = {}
@@ -175,90 +248,108 @@ local function disableOptimizer()
     end
 end
 
--- Contenedor del toggle Optimize
-local OptimizeRow = Instance.new('Frame')
-OptimizeRow.Name = 'OptimizeRow'
-OptimizeRow.Size = UDim2.new(1, 0, 0, 36)
-OptimizeRow.BackgroundColor3 = barColor
-OptimizeRow.BorderSizePixel = 0
-OptimizeRow.LayoutOrder = 2
-OptimizeRow.Parent = Content
-
-local OptimizeCorner = Instance.new('UICorner')
-OptimizeCorner.CornerRadius = UDim.new(0, 6)
-OptimizeCorner.Parent = OptimizeRow
-
--- Label "Optimize"
-local OptimizeLabel = Instance.new('TextLabel')
-OptimizeLabel.Size = UDim2.new(1, -60, 1, 0)
-OptimizeLabel.Position = UDim2.new(0, 10, 0, 0)
-OptimizeLabel.BackgroundTransparency = 1
-OptimizeLabel.Text = '⚡ Optimize'
-OptimizeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-OptimizeLabel.TextSize = 14
-OptimizeLabel.Font = Enum.Font.GothamBold
-OptimizeLabel.TextXAlignment = Enum.TextXAlignment.Left
-OptimizeLabel.Parent = OptimizeRow
-
--- Fondo del toggle (pill)
-local ToggleBG = Instance.new('Frame')
-ToggleBG.Size = UDim2.new(0, 44, 0, 22)
-ToggleBG.Position = UDim2.new(1, -52, 0.5, -11)
-ToggleBG.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-ToggleBG.BorderSizePixel = 0
-ToggleBG.Parent = OptimizeRow
-
-local ToggleBGCorner = Instance.new('UICorner')
-ToggleBGCorner.CornerRadius = UDim.new(1, 0)
-ToggleBGCorner.Parent = ToggleBG
-
--- Círculo del toggle
-local ToggleCircle = Instance.new('Frame')
-ToggleCircle.Size = UDim2.new(0, 16, 0, 16)
-ToggleCircle.Position = UDim2.new(0, 3, 0.5, -8)
-ToggleCircle.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
-ToggleCircle.BorderSizePixel = 0
-ToggleCircle.Parent = ToggleBG
-
-local ToggleCircleCorner = Instance.new('UICorner')
-ToggleCircleCorner.CornerRadius = UDim.new(1, 0)
-ToggleCircleCorner.Parent = ToggleCircle
-
--- Botón invisible encima del toggle
-local ToggleButton = Instance.new('TextButton')
-ToggleButton.Size = UDim2.new(1, 0, 1, 0)
-ToggleButton.BackgroundTransparency = 1
-ToggleButton.Text = ''
-ToggleButton.Parent = OptimizeRow
-
--- Estado y lógica del toggle
+local optimizeToggle = createToggleRow('Optimize', '⚡', 2)
 local optimizeEnabled = false
-local TweenService = game:GetService('TweenService')
 
-ToggleButton.MouseButton1Click:Connect(function()
+optimizeToggle.Button.MouseButton1Click:Connect(function()
     optimizeEnabled = not optimizeEnabled
+    config.Optimize = optimizeEnabled
+    if optimizeEnabled then enableOptimizer() else disableOptimizer() end
+    animateToggle(optimizeToggle, optimizeEnabled, Color3.fromRGB(200, 0, 0))
+end)
 
-    if optimizeEnabled then
-        enableOptimizer()
-        -- Toggle ON: rojo + círculo a la derecha
-        TweenService:Create(ToggleBG, TweenInfo.new(0.2), {
-            BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-        }):Play()
-        TweenService:Create(ToggleCircle, TweenInfo.new(0.2), {
-            Position = UDim2.new(0, 25, 0.5, -8),
-            BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-        }):Play()
-        OptimizeLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-    else
-        disableOptimizer()
-        -- Toggle OFF: gris + círculo a la izquierda
-        TweenService:Create(ToggleBG, TweenInfo.new(0.2), {
-            BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-        }):Play()
-        TweenService:Create(ToggleCircle, TweenInfo.new(0.2), {
-            Position = UDim2.new(0, 3, 0.5, -8),
-            BackgroundColor3 = Color3.fromRGB(200, 200, 200)
-        }):Play()
-        OptimizeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+-- ========================================
+-- GALAXY SKY
+-- ========================================
+
+local originalSkybox, galaxySkyBright, galaxySkyBrightConn
+local galaxyPlanets = {}
+local galaxyBloom, galaxyCC
+
+local function enableGalaxySkyBright()
+    if galaxySkyBright then return end
+    originalSkybox = Lighting:FindFirstChildOfClass("Sky")
+    if originalSkybox then originalSkybox.Parent = nil end
+
+    galaxySkyBright = Instance.new("Sky")
+    galaxySkyBright.SkyboxBk = "rbxassetid://1534951537"
+    galaxySkyBright.SkyboxDn = "rbxassetid://1534951537"
+    galaxySkyBright.SkyboxFt = "rbxassetid://1534951537"
+    galaxySkyBright.SkyboxLf = "rbxassetid://1534951537"
+    galaxySkyBright.SkyboxRt = "rbxassetid://1534951537"
+    galaxySkyBright.SkyboxUp = "rbxassetid://1534951537"
+    galaxySkyBright.StarCount = 10000
+    galaxySkyBright.CelestialBodiesShown = false
+    galaxySkyBright.Parent = Lighting
+
+    galaxyBloom = Instance.new("BloomEffect")
+    galaxyBloom.Intensity = 1.5
+    galaxyBloom.Size = 40
+    galaxyBloom.Threshold = 0.8
+    galaxyBloom.Parent = Lighting
+
+    galaxyCC = Instance.new("ColorCorrectionEffect")
+    galaxyCC.Saturation = 0.8
+    galaxyCC.Contrast = 0.3
+    galaxyCC.TintColor = Color3.fromRGB(200, 150, 255)
+    galaxyCC.Parent = Lighting
+
+    Lighting.Ambient = Color3.fromRGB(120, 60, 180)
+    Lighting.Brightness = 3
+    Lighting.ClockTime = 0
+
+    for i = 1, 2 do
+        local p = Instance.new("Part")
+        p.Shape = Enum.PartType.Ball
+        p.Size = Vector3.new(800 + i*200, 800 + i*200, 800 + i*200)
+        p.Anchored = true
+        p.CanCollide = false
+        p.CastShadow = false
+        p.Material = Enum.Material.Neon
+        p.Color = Color3.fromRGB(140 + i*20, 60 + i*10, 200 + i*15)
+        p.Transparency = 0.3
+        p.Position = Vector3.new(
+            math.cos(i * 2) * (3000 + i*500),
+            1500 + i*300,
+            math.sin(i * 2) * (3000 + i*500)
+        )
+        p.Parent = workspace
+        table.insert(galaxyPlanets, p)
     end
+
+    galaxySkyBrightConn = RunService.Heartbeat:Connect(function()
+        if not config.GalaxySkyBright then return end
+        local t = tick() * 0.5
+        Lighting.Ambient = Color3.fromRGB(
+            120 + math.sin(t) * 60,
+            50 + math.sin(t * 0.8) * 40,
+            180 + math.sin(t * 1.2) * 50
+        )
+        if galaxyBloom then
+            galaxyBloom.Intensity = 1.2 + math.sin(t * 2) * 0.4
+        end
+    end)
+end
+
+local function disableGalaxySkyBright()
+    if galaxySkyBrightConn then galaxySkyBrightConn:Disconnect() galaxySkyBrightConn = nil end
+    if galaxySkyBright then galaxySkyBright:Destroy() galaxySkyBright = nil end
+    if originalSkybox then originalSkybox.Parent = Lighting end
+    if galaxyBloom then galaxyBloom:Destroy() galaxyBloom = nil end
+    if galaxyCC then galaxyCC:Destroy() galaxyCC = nil end
+    for _, obj in ipairs(galaxyPlanets) do if obj then obj:Destroy() end end
+    galaxyPlanets = {}
+    Lighting.Ambient = Color3.fromRGB(127, 127, 127)
+    Lighting.Brightness = 2
+    Lighting.ClockTime = 14
+end
+
+local galaxyToggle = createToggleRow('Galaxy Sky', '🌌', 3)
+local galaxyEnabled = false
+
+galaxyToggle.Button.MouseButton1Click:Connect(function()
+    galaxyEnabled = not galaxyEnabled
+    config.GalaxySkyBright = galaxyEnabled
+    if galaxyEnabled then enableGalaxySkyBright() else disableGalaxySkyBright() end
+    animateToggle(galaxyToggle, galaxyEnabled, Color3.fromRGB(140, 60, 200))
 end)
