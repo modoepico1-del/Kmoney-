@@ -1,13 +1,13 @@
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
--- Evita duplicados: si ya existe, no crea otro
+-- Evita duplicados
 if LocalPlayer:WaitForChild('PlayerGui'):FindFirstChild('DemonTimeGUI') then
     return
 end
 
 local bgColor = Color3.fromRGB(0, 0, 0)
-local barColor = Color3.fromRGB(0, 0, 0)
+local barColor = Color3.fromRGB(5, 5, 5)
 local DemonTimeGUI = Instance.new('ScreenGui')
 DemonTimeGUI.Name = 'DemonTimeGUI'
 DemonTimeGUI.ResetOnSpawn = false
@@ -53,6 +53,15 @@ TitleLabel.TextSize = 16
 TitleLabel.Font = Enum.Font.GothamBold
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Parent = TitleBar
+
+-- ✨ Efecto neón negro
+local NeonStroke = Instance.new('UIStroke')
+NeonStroke.Color = Color3.fromRGB(0, 0, 0)
+NeonStroke.Thickness = 3
+NeonStroke.Transparency = 0
+NeonStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+NeonStroke.Parent = TitleLabel
+
 local Content = Instance.new('Frame')
 Content.Name = 'Content'
 Content.Size = UDim2.new(1, -20, 1, -60)
