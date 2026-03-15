@@ -50,63 +50,54 @@ ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent         = CoreGui
 
 -- ══════════════════════════════════════
---  TOGGLE BTN (rojo + neon negro)
+--  TITULO FLOTANTE (reemplaza ToggleBtn)
 -- ══════════════════════════════════════
 
-local ToggleBtn = Instance.new("TextButton")
-ToggleBtn.Text             = "DEMONTIME"
-ToggleBtn.Size             = UDim2.new(0, 110, 0, 28)
-ToggleBtn.Position         = UDim2.new(0, 10, 0, 10)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
-ToggleBtn.TextColor3       = Color3.fromRGB(255, 255, 255)
-ToggleBtn.TextSize         = 12
-ToggleBtn.Font             = Enum.Font.GothamBlack
-ToggleBtn.BorderSizePixel  = 0
-ToggleBtn.ZIndex           = 10
-ToggleBtn.Parent           = ScreenGui
+local TitleTag = Instance.new("TextLabel")
+TitleTag.Text             = "✦ DEMONTIME ✦"
+TitleTag.Size             = UDim2.new(0, 130, 0, 28)
+TitleTag.Position         = UDim2.new(0, 10, 0, 10)
+TitleTag.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+TitleTag.TextColor3       = Color3.fromRGB(255, 40, 40)
+TitleTag.TextSize         = 12
+TitleTag.Font             = Enum.Font.GothamBlack
+TitleTag.BorderSizePixel  = 0
+TitleTag.ZIndex           = 10
+TitleTag.Parent           = ScreenGui
+Instance.new("UICorner", TitleTag).CornerRadius = UDim.new(0, 6)
 
-Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 6)
+local TitleTagStroke = Instance.new("UIStroke")
+TitleTagStroke.Color        = Color3.fromRGB(255, 0, 0)
+TitleTagStroke.Thickness    = 1.5
+TitleTagStroke.Transparency = 0.0
+TitleTagStroke.Parent       = TitleTag
 
-local ToggleGlow1 = Instance.new("Frame")
-ToggleGlow1.Size                   = UDim2.new(1, 14, 1, 14)
-ToggleGlow1.Position               = UDim2.new(0, -7, 0, -7)
-ToggleGlow1.BackgroundColor3       = Color3.fromRGB(0, 0, 0)
-ToggleGlow1.BackgroundTransparency = 0.3
-ToggleGlow1.BorderSizePixel        = 0
-ToggleGlow1.ZIndex                 = 9
-ToggleGlow1.Parent                 = ToggleBtn
-Instance.new("UICorner", ToggleGlow1).CornerRadius = UDim.new(0, 10)
+local TitleTagTextStroke = Instance.new("UIStroke")
+TitleTagTextStroke.Color        = Color3.fromRGB(0, 0, 0)
+TitleTagTextStroke.Thickness    = 3
+TitleTagTextStroke.Transparency = 0.0
+TitleTagTextStroke.Parent       = TitleTag
 
-local ToggleGlow2 = Instance.new("Frame")
-ToggleGlow2.Size                   = UDim2.new(1, 8, 1, 8)
-ToggleGlow2.Position               = UDim2.new(0, -4, 0, -4)
-ToggleGlow2.BackgroundColor3       = Color3.fromRGB(0, 0, 0)
-ToggleGlow2.BackgroundTransparency = 0.55
-ToggleGlow2.BorderSizePixel        = 0
-ToggleGlow2.ZIndex                 = 9
-ToggleGlow2.Parent                 = ToggleBtn
-Instance.new("UICorner", ToggleGlow2).CornerRadius = UDim.new(0, 8)
+-- Glow negro neon
+local TitleTagGlow1 = Instance.new("Frame")
+TitleTagGlow1.Size                   = UDim2.new(1, 14, 1, 14)
+TitleTagGlow1.Position               = UDim2.new(0, -7, 0, -7)
+TitleTagGlow1.BackgroundColor3       = Color3.fromRGB(0, 0, 0)
+TitleTagGlow1.BackgroundTransparency = 0.35
+TitleTagGlow1.BorderSizePixel        = 0
+TitleTagGlow1.ZIndex                 = 9
+TitleTagGlow1.Parent                 = TitleTag
+Instance.new("UICorner", TitleTagGlow1).CornerRadius = UDim.new(0, 10)
 
-local ToggleStroke = Instance.new("UIStroke")
-ToggleStroke.Color        = Color3.fromRGB(255, 0, 0)
-ToggleStroke.Thickness    = 2
-ToggleStroke.Transparency = 0.0
-ToggleStroke.Parent       = ToggleBtn
-
-local ToggleTextStroke = Instance.new("UIStroke")
-ToggleTextStroke.Color        = Color3.fromRGB(0, 0, 0)
-ToggleTextStroke.Thickness    = 3
-ToggleTextStroke.Transparency = 0.0
-ToggleTextStroke.Parent       = ToggleBtn
-
-ToggleBtn.MouseEnter:Connect(function()
-    TweenService:Create(ToggleBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(220, 0, 0)}):Play()
-    TweenService:Create(ToggleStroke, TweenInfo.new(0.15), {Thickness = 2.5}):Play()
-end)
-ToggleBtn.MouseLeave:Connect(function()
-    TweenService:Create(ToggleBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(180, 0, 0)}):Play()
-    TweenService:Create(ToggleStroke, TweenInfo.new(0.15), {Thickness = 2}):Play()
-end)
+local TitleTagGlow2 = Instance.new("Frame")
+TitleTagGlow2.Size                   = UDim2.new(1, 8, 1, 8)
+TitleTagGlow2.Position               = UDim2.new(0, -4, 0, -4)
+TitleTagGlow2.BackgroundColor3       = Color3.fromRGB(0, 0, 0)
+TitleTagGlow2.BackgroundTransparency = 0.55
+TitleTagGlow2.BorderSizePixel        = 0
+TitleTagGlow2.ZIndex                 = 9
+TitleTagGlow2.Parent                 = TitleTag
+Instance.new("UICorner", TitleTagGlow2).CornerRadius = UDim.new(0, 8)
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Size               = UDim2.new(0, 300, 0, 680)
@@ -675,17 +666,6 @@ SaveBtn.MouseButton1Click:Connect(function()
     saveConfig(); SaveBtn.Text="SAVED!"; task.wait(1); SaveBtn.Text="SAVE CONFIG"
 end)
 
--- TOGGLE VENTANA
-ToggleBtn.MouseButton1Click:Connect(function()
-    if MainFrame.Visible then
-        TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size=UDim2.new(0,300,0,0)}):Play()
-        task.delay(0.27, function() MainFrame.Visible=false; MainFrame.Size=UDim2.new(0,300,0,680) end)
-    else
-        MainFrame.Size=UDim2.new(0,300,0,0); MainFrame.Visible=true
-        TweenService:Create(MainFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size=UDim2.new(0,300,0,680)}):Play()
-    end
-end)
-
 -- ANIMACIONES NEON
 task.spawn(function()
     while ScreenGui.Parent do
@@ -698,18 +678,18 @@ task.spawn(function()
     end
 end)
 
--- ANIMACION TOGGLE BTN (rojo + neon negro pulsando)
+-- ANIMACION TITULO FLOTANTE (neon pulsando)
 task.spawn(function()
     while ScreenGui.Parent do
-        TweenService:Create(ToggleBtn,    TweenInfo.new(1.0,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {BackgroundColor3 = Color3.fromRGB(220,0,0)}):Play()
-        TweenService:Create(ToggleStroke, TweenInfo.new(1.0,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {Transparency = 0.5}):Play()
-        TweenService:Create(ToggleGlow1,  TweenInfo.new(1.0,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {BackgroundTransparency = 0.6}):Play()
-        TweenService:Create(ToggleGlow2,  TweenInfo.new(1.0,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {BackgroundTransparency = 0.75}):Play()
+        TweenService:Create(TitleTagStroke, TweenInfo.new(1.0,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {Transparency=0.6}):Play()
+        TweenService:Create(TitleTag,       TweenInfo.new(1.0,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {TextColor3=Color3.fromRGB(255,80,80)}):Play()
+        TweenService:Create(TitleTagGlow1,  TweenInfo.new(1.0,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {BackgroundTransparency=0.6}):Play()
+        TweenService:Create(TitleTagGlow2,  TweenInfo.new(1.0,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {BackgroundTransparency=0.75}):Play()
         task.wait(1.0)
-        TweenService:Create(ToggleBtn,    TweenInfo.new(1.0,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {BackgroundColor3 = Color3.fromRGB(180,0,0)}):Play()
-        TweenService:Create(ToggleStroke, TweenInfo.new(1.0,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {Transparency = 0.0}):Play()
-        TweenService:Create(ToggleGlow1,  TweenInfo.new(1.0,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {BackgroundTransparency = 0.3}):Play()
-        TweenService:Create(ToggleGlow2,  TweenInfo.new(1.0,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {BackgroundTransparency = 0.55}):Play()
+        TweenService:Create(TitleTagStroke, TweenInfo.new(1.0,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {Transparency=0.0}):Play()
+        TweenService:Create(TitleTag,       TweenInfo.new(1.0,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {TextColor3=Color3.fromRGB(255,40,40)}):Play()
+        TweenService:Create(TitleTagGlow1,  TweenInfo.new(1.0,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {BackgroundTransparency=0.35}):Play()
+        TweenService:Create(TitleTagGlow2,  TweenInfo.new(1.0,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut), {BackgroundTransparency=0.55}):Play()
         task.wait(1.0)
     end
 end)
