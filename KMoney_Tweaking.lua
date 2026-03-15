@@ -1,4 +1,4 @@
--- Script Hub
+-- DemonTime Script Hub
 -- Empty Template
 
 local Players = game:GetService("Players")
@@ -6,14 +6,13 @@ local LocalPlayer = Players.LocalPlayer
 
 -- Colors
 local bgColor = Color3.fromRGB(0, 0, 0)
-local accentColor = Color3.fromRGB(10, 10, 10)
 local barColor = Color3.fromRGB(5, 5, 5)
 
 -- ScreenGui
-local ScriptHubGUI = Instance.new('ScreenGui')
-ScriptHubGUI.Name = 'ScriptHubGUI'
-ScriptHubGUI.ResetOnSpawn = false
-ScriptHubGUI.Parent = LocalPlayer:WaitForChild('PlayerGui')
+local DemonTimeGUI = Instance.new('ScreenGui')
+DemonTimeGUI.Name = 'DemonTimeGUI'
+DemonTimeGUI.ResetOnSpawn = false
+DemonTimeGUI.Parent = LocalPlayer:WaitForChild('PlayerGui')
 
 -- Main Frame
 local Main = Instance.new('Frame')
@@ -26,7 +25,7 @@ Main.BorderSizePixel = 0
 Main.Active = true
 Main.Draggable = true
 Main.ClipsDescendants = true
-Main.Parent = ScriptHubGUI
+Main.Parent = DemonTimeGUI
 
 -- Corner radius
 local UICorner = Instance.new('UICorner')
@@ -60,33 +59,5 @@ TitleLabel.Name = 'TitleLabel'
 TitleLabel.Size = UDim2.new(1, -10, 1, 0)
 TitleLabel.Position = UDim2.new(0, 10, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = 'Hub'
-TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleLabel.TextSize = 16
-TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-TitleLabel.Parent = TitleBar
-
--- Content area (empty, ready for scripts)
-local Content = Instance.new('Frame')
-Content.Name = 'Content'
-Content.Size = UDim2.new(1, -20, 1, -60)
-Content.Position = UDim2.new(0, 10, 0, 50)
-Content.BackgroundTransparency = 1
-Content.Parent = Main
-
--- Layout for future buttons/toggles
-local UIListLayout = Instance.new('UIListLayout')
-UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout.Padding = UDim.new(0, 6)
-UIListLayout.Parent = Content
-
--- Empty label placeholder
-local EmptyLabel = Instance.new('TextLabel')
-EmptyLabel.Size = UDim2.new(1, 0, 0, 30)
-EmptyLabel.BackgroundTransparency = 1
-EmptyLabel.Text = '-- no scripts loaded --'
-EmptyLabel.TextColor3 = Color3.fromRGB(80, 80, 80)
-EmptyLabel.TextSize = 13
-EmptyLabel.Font = Enum.Font.Gotham
-EmptyLabel.Parent = Content
+TitleLabel.Text = 'DemonTime'
+TitleLabel
