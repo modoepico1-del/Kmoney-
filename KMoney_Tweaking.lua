@@ -60,4 +60,32 @@ TitleLabel.Size = UDim2.new(1, -10, 1, 0)
 TitleLabel.Position = UDim2.new(0, 10, 0, 0)
 TitleLabel.BackgroundTransparency = 1
 TitleLabel.Text = 'DemonTime'
-TitleLabel
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.TextSize = 16
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.Parent = TitleBar
+
+-- Content area (empty, ready for scripts)
+local Content = Instance.new('Frame')
+Content.Name = 'Content'
+Content.Size = UDim2.new(1, -20, 1, -60)
+Content.Position = UDim2.new(0, 10, 0, 50)
+Content.BackgroundTransparency = 1
+Content.Parent = Main
+
+-- Layout for future buttons/toggles
+local UIListLayout = Instance.new('UIListLayout')
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 6)
+UIListLayout.Parent = Content
+
+-- Empty label placeholder
+local EmptyLabel = Instance.new('TextLabel')
+EmptyLabel.Size = UDim2.new(1, 0, 0, 30)
+EmptyLabel.BackgroundTransparency = 1
+EmptyLabel.Text = '-- no scripts loaded --'
+EmptyLabel.TextColor3 = Color3.fromRGB(80, 80, 80)
+EmptyLabel.TextSize = 13
+EmptyLabel.Font = Enum.Font.Gotham
+EmptyLabel.Parent = Content
