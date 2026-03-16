@@ -9,7 +9,6 @@ local RunService       = game:GetService("RunService")
 local Lighting         = game:GetService("Lighting")
 local ReplicatedStorage= game:GetService("ReplicatedStorage")
 local CoreGui          = game:GetService("CoreGui")
-local HttpService      = game:GetService("HttpService")
 
 local me     = Players.LocalPlayer
 local RS     = RunService
@@ -41,10 +40,6 @@ MainFrame.ClipsDescendants   = true
 MainFrame.Visible            = true
 MainFrame.Parent             = ScreenGui
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
-
--- ══════════════════════════════════════
---  NEON BORDER
--- ══════════════════════════════════════
 
 local function addNeonBorder(parent, thickness, color)
     local glow = Instance.new("Frame")
@@ -128,7 +123,7 @@ ContentArea.ElasticBehavior        = Enum.ElasticBehavior.Never
 ContentArea.Parent                 = MainFrame
 
 -- ══════════════════════════════════════
---  HELPER TOGGLE ROW
+--  HELPERS
 -- ══════════════════════════════════════
 
 local function makeOptionRow(parent, labelText, yPos)
@@ -454,6 +449,93 @@ autoStealTrack.MouseButton1Click:Connect(function()
 end)
 
 -- ══════════════════════════════════════
+--  GALAXY SKY
+-- ══════════════════════════════════════
+
+local galaxySkyOn = false
+local galaxySkyLabel, galaxySkyTrack, galaxySkyThumb = makeOptionRow(ContentArea, "GALAXY SKY", 64)
+
+local originalSkybox, galaxySkyBright, galaxySkyBrightConn
+local galaxyPlanets = {}
+local galaxyBloom, galaxyCC
+
+local function enableGalaxySkyBright()
+    if galaxySkyBright then return end
+    originalSkybox = Lighting:FindFirstChildOfClass("Sky")
+    if originalSkybox then originalSkybox.Parent = nil end
+    galaxySkyBright = Instance.new("Sky")
+    galaxySkyBright.SkyboxBk = "rbxassetid://1534951537"
+    galaxySkyBright.SkyboxDn = "rbxassetid://1534951537"
+    galaxySkyBright.SkyboxFt = "rbxassetid://1534951537"
+    galaxySkyBright.SkyboxLf = "rbxassetid://1534951537"
+    galaxySkyBright.SkyboxRt = "rbxassetid://1534951537"
+    galaxySkyBright.SkyboxUp = "rbxassetid://1534951537"
+    galaxySkyBright.StarCount = 10000
+    galaxySkyBright.CelestialBodiesShown = false
+    galaxySkyBright.Parent = Lighting
+    galaxyBloom = Instance.new("BloomEffect")
+    galaxyBloom.Intensity = 1.5; galaxyBloom.Size = 40; galaxyBloom.Threshold = 0.8
+    galaxyBloom.Parent = Lighting
+    galaxyCC = Instance.new("ColorCorrectionEffect")
+    galaxyCC.Saturation = 0.8; galaxyCC.Contrast = 0.3
+    galaxyCC.TintColor = Color3.fromRGB(200, 150, 255)
+    galaxyCC.Parent = Lighting
+    Lighting.Ambient = Color3.fromRGB(120, 60, 180)
+    Lighting.Brightness = 3
+    Lighting.ClockTime = 0
+    for i = 1, 2 do
+        local p = Instance.new("Part")
+        p.Shape = Enum.PartType.Ball
+        p.Size = Vector3.new(800+i*200, 800+i*200, 800+i*200)
+        p.Anchored = true; p.CanCollide = false; p.CastShadow = false
+        p.Material = Enum.Material.Neon
+        p.Color = Color3.fromRGB(140+i*20, 60+i*10, 200+i*15)
+        p.Transparency = 0.3
+        p.Position = Vector3.new(
+            math.cos(i*2) * (3000+i*500),
+            1500+i*300,
+            math.sin(i*2) * (3000+i*500)
+        )
+        p.Parent = workspace
+        table.insert(galaxyPlanets, p)
+    end
+    galaxySkyBrightConn = RunService.Heartbeat:Connect(function()
+        if not galaxySkyOn then return end
+        local t = tick() * 0.5
+        Lighting.Ambient = Color3.fromRGB(
+            120 + math.sin(t) * 60,
+            50  + math.sin(t * 0.8) * 40,
+            180 + math.sin(t * 1.2) * 50
+        )
+        if galaxyBloom then galaxyBloom.Intensity = 1.2 + math.sin(t * 2) * 0.4 end
+    end)
+end
+
+local function disableGalaxySkyBright()
+    if galaxySkyBrightConn then galaxySkyBrightConn:Disconnect(); galaxySkyBrightConn = nil end
+    if galaxySkyBright then galaxySkyBright:Destroy(); galaxySkyBright = nil end
+    if originalSkybox then originalSkybox.Parent = Lighting end
+    if galaxyBloom then galaxyBloom:Destroy(); galaxyBloom = nil end
+    if galaxyCC then galaxyCC:Destroy(); galaxyCC = nil end
+    for _, obj in ipairs(galaxyPlanets) do if obj then obj:Destroy() end end
+    galaxyPlanets = {}
+    Lighting.Ambient = Color3.fromRGB(127, 127, 127)
+    Lighting.Brightness = 2
+    Lighting.ClockTime = 14
+end
+
+galaxySkyTrack.MouseButton1Click:Connect(function()
+    galaxySkyOn = not galaxySkyOn
+    if galaxySkyOn then
+        toggleOn(galaxySkyLabel, galaxySkyTrack, galaxySkyThumb)
+        enableGalaxySkyBright()
+    else
+        toggleOff(galaxySkyLabel, galaxySkyTrack, galaxySkyThumb)
+        disableGalaxySkyBright()
+    end
+end)
+
+-- ══════════════════════════════════════
 --  RADIUS FRAME FLOTANTE
 -- ══════════════════════════════════════
 
@@ -532,212 +614,6 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 
 -- ══════════════════════════════════════
---  LOCK TARGET FLOTANTE (derecha, movible)
--- ══════════════════════════════════════
-
-local LOCK_RADIUS = 50
-local lockOn = false
-local lockTarget = nil
-local lockConnection = nil
-
-local LockFrame = Instance.new("Frame")
-LockFrame.Size               = UDim2.new(0, 220, 0, 130)
-LockFrame.Position           = UDim2.new(1, -230, 0, 4)
-LockFrame.BackgroundColor3   = Color3.fromRGB(0, 0, 0)
-LockFrame.BackgroundTransparency = 0
-LockFrame.BorderSizePixel    = 0
-LockFrame.Active             = true
-LockFrame.ZIndex             = 10
-LockFrame.Parent             = ScreenGui
-Instance.new("UICorner", LockFrame).CornerRadius = UDim.new(0, 10)
-local lfStroke = Instance.new("UIStroke", LockFrame)
-lfStroke.Color = Color3.fromRGB(255, 0, 0); lfStroke.Thickness = 1.2
-
-local lockTitle = Instance.new("TextLabel")
-lockTitle.Text               = "LOCK TARGET"
-lockTitle.Size               = UDim2.new(1, 0, 0, 36)
-lockTitle.Position           = UDim2.new(0, 0, 0, 0)
-lockTitle.BackgroundColor3   = Color3.fromRGB(0, 0, 0)
-lockTitle.BackgroundTransparency = 0
-lockTitle.TextColor3         = Color3.fromRGB(255, 0, 0)
-lockTitle.TextSize           = 15
-lockTitle.Font               = Enum.Font.GothamBlack
-lockTitle.ZIndex             = 11
-lockTitle.Parent             = LockFrame
-Instance.new("UICorner", lockTitle).CornerRadius = UDim.new(0, 10)
-
-local lockRow = Instance.new("Frame")
-lockRow.Size             = UDim2.new(1, -16, 0, 38)
-lockRow.Position         = UDim2.new(0, 8, 0, 42)
-lockRow.BackgroundColor3 = Color3.fromRGB(15, 0, 0)
-lockRow.BorderSizePixel  = 0
-lockRow.ZIndex           = 11
-lockRow.Parent           = LockFrame
-Instance.new("UICorner", lockRow).CornerRadius = UDim.new(0, 7)
-local lrStroke = Instance.new("UIStroke", lockRow)
-lrStroke.Color = Color3.fromRGB(255,0,0); lrStroke.Thickness = 0.8; lrStroke.Transparency = 0.5
-
-local lockLabel = Instance.new("TextLabel")
-lockLabel.Text               = "ENABLE"
-lockLabel.Size               = UDim2.new(1, -60, 1, 0)
-lockLabel.Position           = UDim2.new(0, 12, 0, 0)
-lockLabel.BackgroundTransparency = 1
-lockLabel.TextColor3         = Color3.fromRGB(220, 220, 220)
-lockLabel.TextSize           = 13
-lockLabel.Font               = Enum.Font.GothamBlack
-lockLabel.TextXAlignment     = Enum.TextXAlignment.Left
-lockLabel.ZIndex             = 12
-lockLabel.Parent             = lockRow
-
-local lockTrack = Instance.new("TextButton")
-lockTrack.Text               = ""
-lockTrack.Size               = UDim2.new(0, 44, 0, 24)
-lockTrack.Position           = UDim2.new(1, -52, 0.5, -12)
-lockTrack.BackgroundColor3   = Color3.fromRGB(40, 40, 40)
-lockTrack.BorderSizePixel    = 0
-lockTrack.ZIndex             = 12
-lockTrack.Parent             = lockRow
-Instance.new("UICorner", lockTrack).CornerRadius = UDim.new(1, 0)
-
-local lockThumb = Instance.new("Frame")
-lockThumb.Size               = UDim2.new(0, 18, 0, 18)
-lockThumb.Position           = UDim2.new(0, 3, 0.5, -9)
-lockThumb.BackgroundColor3   = Color3.fromRGB(180, 180, 180)
-lockThumb.BorderSizePixel    = 0
-lockThumb.ZIndex             = 13
-lockThumb.Parent             = lockTrack
-Instance.new("UICorner", lockThumb).CornerRadius = UDim.new(1, 0)
-
-local rangeRow = Instance.new("Frame")
-rangeRow.Size             = UDim2.new(1, -16, 0, 38)
-rangeRow.Position         = UDim2.new(0, 8, 0, 86)
-rangeRow.BackgroundColor3 = Color3.fromRGB(15, 0, 0)
-rangeRow.BorderSizePixel  = 0
-rangeRow.ZIndex           = 11
-rangeRow.Parent           = LockFrame
-Instance.new("UICorner", rangeRow).CornerRadius = UDim.new(0, 7)
-local rrStroke = Instance.new("UIStroke", rangeRow)
-rrStroke.Color = Color3.fromRGB(255,0,0); rrStroke.Thickness = 0.8; rrStroke.Transparency = 0.5
-
-local rangeLabel = Instance.new("TextLabel")
-rangeLabel.Text              = "RANGE"
-rangeLabel.Size              = UDim2.new(0, 90, 1, 0)
-rangeLabel.Position          = UDim2.new(0, 12, 0, 0)
-rangeLabel.BackgroundTransparency = 1
-rangeLabel.TextColor3        = Color3.fromRGB(220, 220, 220)
-rangeLabel.TextSize          = 13
-rangeLabel.Font              = Enum.Font.GothamBlack
-rangeLabel.TextXAlignment    = Enum.TextXAlignment.Left
-rangeLabel.ZIndex            = 12
-rangeLabel.Parent            = rangeRow
-
-local lockTextbox = Instance.new("TextBox")
-lockTextbox.Size             = UDim2.new(0, 60, 0, 26)
-lockTextbox.Position         = UDim2.new(1, -68, 0.5, -13)
-lockTextbox.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-lockTextbox.BorderSizePixel  = 0
-lockTextbox.TextColor3       = Color3.fromRGB(180, 180, 180)
-lockTextbox.Font             = Enum.Font.GothamBlack
-lockTextbox.TextSize         = 13
-lockTextbox.Text             = tostring(LOCK_RADIUS)
-lockTextbox.ClearTextOnFocus = false
-lockTextbox.ZIndex           = 13
-lockTextbox.Parent           = rangeRow
-Instance.new("UICorner", lockTextbox).CornerRadius = UDim.new(0, 5)
-local ltStroke = Instance.new("UIStroke", lockTextbox)
-ltStroke.Color = Color3.fromRGB(255, 0, 0); ltStroke.Thickness = 1.0
-
-lockTextbox.FocusLost:Connect(function(enterPressed)
-    if enterPressed then
-        local num = tonumber(lockTextbox.Text)
-        if num and num > 5 and num <= 500 then
-            LOCK_RADIUS = num
-        else
-            lockTextbox.Text = tostring(LOCK_RADIUS)
-        end
-    end
-end)
-
-local function findLockTarget()
-    local hrp = me.Character and me.Character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return nil end
-    local nearest, minDist = nil, math.huge
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= me and plr.Character then
-            local eh  = plr.Character:FindFirstChild("HumanoidRootPart")
-            local hum = plr.Character:FindFirstChildOfClass("Humanoid")
-            if eh and hum and hum.Health > 0 then
-                local dist = (eh.Position - hrp.Position).Magnitude
-                if dist < LOCK_RADIUS and dist < minDist then
-                    minDist = dist
-                    nearest = plr.Character
-                end
-            end
-        end
-    end
-    return nearest
-end
-
-local function enableLock()
-    lockConnection = RunService.Heartbeat:Connect(function()
-        if not lockOn then return end
-        local char = me.Character
-        if not char then return end
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if not hrp then return end
-        lockTarget = findLockTarget()
-        if lockTarget then
-            local targetHRP = lockTarget:FindFirstChild("HumanoidRootPart")
-            if targetHRP then
-                local dir = (targetHRP.Position - hrp.Position).Unit
-                Camera.CFrame = CFrame.new(Camera.CFrame.Position, Camera.CFrame.Position + dir)
-            end
-        end
-    end)
-end
-
-local function disableLock()
-    if lockConnection then lockConnection:Disconnect(); lockConnection = nil end
-    lockTarget = nil
-end
-
-lockTrack.MouseButton1Click:Connect(function()
-    lockOn = not lockOn
-    if lockOn then
-        TweenService:Create(lockTrack, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(200,0,0)}):Play()
-        TweenService:Create(lockThumb, TweenInfo.new(0.2), {Position = UDim2.new(0,23,0.5,-9), BackgroundColor3 = Color3.fromRGB(255,0,0)}):Play()
-        TweenService:Create(lockLabel, TweenInfo.new(0.2), {TextColor3 = Color3.fromRGB(255,0,0)}):Play()
-        enableLock()
-    else
-        TweenService:Create(lockTrack, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(40,40,40)}):Play()
-        TweenService:Create(lockThumb, TweenInfo.new(0.2), {Position = UDim2.new(0,3,0.5,-9), BackgroundColor3 = Color3.fromRGB(180,180,180)}):Play()
-        TweenService:Create(lockLabel, TweenInfo.new(0.2), {TextColor3 = Color3.fromRGB(220,220,220)}):Play()
-        disableLock()
-    end
-end)
-
-local lfDragging, lfDragInput, lfDragStart, lfStartPos = false, nil, nil, nil
-lockTitle.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        lfDragging = true; lfDragStart = input.Position; lfStartPos = LockFrame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then lfDragging = false end
-        end)
-    end
-end)
-lockTitle.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        lfDragInput = input
-    end
-end)
-UserInputService.InputChanged:Connect(function(input)
-    if input == lfDragInput and lfDragging then
-        local delta = input.Position - lfDragStart
-        LockFrame.Position = UDim2.new(lfStartPos.X.Scale, lfStartPos.X.Offset + delta.X, lfStartPos.Y.Scale, lfStartPos.Y.Offset + delta.Y)
-    end
-end)
-
--- ══════════════════════════════════════
 --  DRAG HUB
 -- ══════════════════════════════════════
 
@@ -774,10 +650,6 @@ RS.Heartbeat:Connect(function()
     ContentArea.BackgroundTransparency = 0
     RadiusFrame.BackgroundColor3       = Color3.fromRGB(0, 0, 0)
     RadiusFrame.BackgroundTransparency = 0
-    LockFrame.BackgroundColor3         = Color3.fromRGB(0, 0, 0)
-    LockFrame.BackgroundTransparency   = 0
-    lockTitle.BackgroundColor3         = Color3.fromRGB(0, 0, 0)
-    lockTitle.BackgroundTransparency   = 0
 end)
 
 -- ══════════════════════════════════════
