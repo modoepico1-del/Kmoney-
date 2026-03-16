@@ -87,14 +87,6 @@ TitleBar.ZIndex            = 3
 TitleBar.Parent            = MainFrame
 Instance.new("UICorner", TitleBar).CornerRadius = UDim.new(0, 10)
 
-local TitleLine = Instance.new("Frame")
-TitleLine.Size             = UDim2.new(1, 0, 0, 2)
-TitleLine.Position         = UDim2.new(0, 0, 1, -2)
-TitleLine.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-TitleLine.BorderSizePixel  = 0
-TitleLine.ZIndex           = 4
-TitleLine.Parent           = TitleBar
-
 local lineGlow = Instance.new("Frame")
 lineGlow.Size                   = UDim2.new(1, 0, 0, 8)
 lineGlow.Position               = UDim2.new(0, 0, 1, -5)
@@ -180,56 +172,64 @@ local function toggleOff(lbl, track, thumb)
 end
 
 -- ══════════════════════════════════════
---  RADIO VISUAL (STEAL RADIUS INDICATOR)
+--  RADIO VISUAL - RING (solo contorno)
 -- ══════════════════════════════════════
 
 local AUTO_STEAL_PROX_RADIUS = 7
-local stealSquarePart = nil
+local ringParts = {}
 local circleConnection = nil
+local RING_SEGMENTS = 60  -- cuantos segmentos forma el aro
+local RING_THICKNESS = 0.15
+local RING_HEIGHT    = 0.08
 
-local function hideSquare()
-    if stealSquarePart then
-        stealSquarePart:Destroy()
-        stealSquarePart = nil
+local function hideRing()
+    for _, p in ipairs(ringParts) do
+        pcall(function() p:Destroy() end)
     end
+    ringParts = {}
     if circleConnection then
         circleConnection:Disconnect()
         circleConnection = nil
     end
 end
 
-local function createOrUpdateSquare(radius)
-    if not stealSquarePart then
-        stealSquarePart = Instance.new("Part")
-        stealSquarePart.Name         = "StealCircle"
-        stealSquarePart.Anchored     = true
-        stealSquarePart.CanCollide   = false
-        stealSquarePart.Transparency = 0.7
-        stealSquarePart.Material     = Enum.Material.Neon
-        stealSquarePart.Color        = Color3.fromRGB(0, 120, 255)
-        stealSquarePart.Shape        = Enum.PartType.Cylinder
-        stealSquarePart.Size         = Vector3.new(0.05, radius*2, radius*2)
-        stealSquarePart.Parent       = workspace
-    else
-        stealSquarePart.Size = Vector3.new(0.05, radius*2, radius*2)
+local function buildRing(radius)
+    hideRing()
+    for i = 1, RING_SEGMENTS do
+        local angle = (i / RING_SEGMENTS) * math.pi * 2
+        local seg = Instance.new("Part")
+        seg.Anchored    = true
+        seg.CanCollide  = false
+        seg.CastShadow  = false
+        seg.Material    = Enum.Material.Neon
+        seg.Color       = Color3.fromRGB(0, 0, 0)
+        seg.Transparency = 0.0
+        seg.Size        = Vector3.new(RING_THICKNESS, RING_HEIGHT, (2 * math.pi * radius) / RING_SEGMENTS + 0.01)
+        seg.Parent      = workspace
+        table.insert(ringParts, seg)
     end
 end
 
-local function updateSquarePosition()
-    if stealSquarePart and me.Character then
-        local root = me.Character:FindFirstChild("HumanoidRootPart")
-        if root then
-            stealSquarePart.CFrame =
-                CFrame.new(root.Position + Vector3.new(0, -2.5, 0))
-                * CFrame.Angles(0, 0, math.rad(90))
-        end
+local function updateRingPosition()
+    if #ringParts == 0 then return end
+    local char = me.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    local center = root.Position + Vector3.new(0, -2.5, 0)
+    local radius = AUTO_STEAL_PROX_RADIUS
+    for i, seg in ipairs(ringParts) do
+        local angle = (i / RING_SEGMENTS) * math.pi * 2
+        local x = math.cos(angle) * radius
+        local z = math.sin(angle) * radius
+        seg.CFrame = CFrame.new(center + Vector3.new(x, 0, z))
+                   * CFrame.Angles(0, -angle, 0)
     end
 end
 
-local function showSquare(radius)
-    createOrUpdateSquare(radius)
-    if circleConnection then circleConnection:Disconnect() end
-    circleConnection = RunService.Heartbeat:Connect(updateSquarePosition)
+local function showRing(radius)
+    buildRing(radius)
+    circleConnection = RunService.Heartbeat:Connect(updateRingPosition)
 end
 
 -- ══════════════════════════════════════
@@ -451,41 +451,48 @@ autoStealTrack.MouseButton1Click:Connect(function()
     autoStealActive = not autoStealActive
     if autoStealActive then
         toggleOn(autoStealLabel, autoStealTrack, autoStealThumb)
-        showSquare(AUTO_STEAL_PROX_RADIUS)
+        showRing(AUTO_STEAL_PROX_RADIUS)
         enableAutoSteal()
     else
         toggleOff(autoStealLabel, autoStealTrack, autoStealThumb)
-        hideSquare()
+        hideRing()
         disableAutoSteal()
     end
 end)
 
 -- ══════════════════════════════════════
---  RADIUS INPUT
+--  RADIUS FRAME FLOTANTE (separado, movible)
 -- ══════════════════════════════════════
 
-local radiusRow = Instance.new("Frame")
-radiusRow.Size                   = UDim2.new(1, -20, 0, 44)
-radiusRow.Position               = UDim2.new(0, 10, 0, 64)
-radiusRow.BackgroundColor3       = Color3.fromRGB(15, 0, 0)
-radiusRow.BackgroundTransparency = 0
-radiusRow.BorderSizePixel        = 0
-radiusRow.ZIndex                 = 4
-radiusRow.Parent                 = ContentArea
-Instance.new("UICorner", radiusRow).CornerRadius = UDim.new(0, 7)
-local radiusRowStroke = Instance.new("UIStroke", radiusRow)
-radiusRowStroke.Color = Color3.fromRGB(255,0,0); radiusRowStroke.Thickness = 0.8; radiusRowStroke.Transparency = 0.5
+local RadiusFrame = Instance.new("Frame")
+RadiusFrame.Size               = UDim2.new(0, 200, 0, 44)
+RadiusFrame.Position           = UDim2.new(0, 0, 0, 714)  -- debajo del hub
+RadiusFrame.BackgroundColor3   = Color3.fromRGB(0, 0, 0)
+RadiusFrame.BackgroundTransparency = 0
+RadiusFrame.BorderSizePixel    = 0
+RadiusFrame.Active             = true
+RadiusFrame.ZIndex             = 10
+RadiusFrame.Parent             = ScreenGui
+Instance.new("UICorner", RadiusFrame).CornerRadius = UDim.new(0, 8)
+local rfStroke = Instance.new("UIStroke", RadiusFrame)
+rfStroke.Color = Color3.fromRGB(255,0,0); rfStroke.Thickness = 1.2
 
 local radiusTitleLabel = Instance.new("TextLabel")
-radiusTitleLabel.Text="STEAL RADIUS"; radiusTitleLabel.Size=UDim2.new(0,130,1,0); radiusTitleLabel.Position=UDim2.new(0,14,0,0)
-radiusTitleLabel.BackgroundTransparency=1; radiusTitleLabel.TextColor3=Color3.fromRGB(220,220,220)
-radiusTitleLabel.TextSize=14; radiusTitleLabel.Font=Enum.Font.GothamBlack
-radiusTitleLabel.TextXAlignment=Enum.TextXAlignment.Left; radiusTitleLabel.ZIndex=5; radiusTitleLabel.Parent=radiusRow
+radiusTitleLabel.Text = "STEAL RADIUS"
+radiusTitleLabel.Size = UDim2.new(0, 110, 1, 0)
+radiusTitleLabel.Position = UDim2.new(0, 10, 0, 0)
+radiusTitleLabel.BackgroundTransparency = 1
+radiusTitleLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+radiusTitleLabel.TextSize = 12
+radiusTitleLabel.Font = Enum.Font.GothamBlack
+radiusTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+radiusTitleLabel.ZIndex = 11
+radiusTitleLabel.Parent = RadiusFrame
 
 local radiusInput = Instance.new("TextBox")
 radiusInput.Text = tostring(AUTO_STEAL_PROX_RADIUS)
-radiusInput.Size = UDim2.new(0, 70, 0, 28)
-radiusInput.Position = UDim2.new(1, -80, 0.5, -14)
+radiusInput.Size = UDim2.new(0, 55, 0, 26)
+radiusInput.Position = UDim2.new(1, -63, 0.5, -13)
 radiusInput.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 radiusInput.BorderSizePixel = 0
 radiusInput.TextColor3 = Color3.fromRGB(180, 180, 180)
@@ -493,27 +500,55 @@ radiusInput.PlaceholderText = "7"
 radiusInput.TextSize = 13
 radiusInput.Font = Enum.Font.GothamBlack
 radiusInput.ClearTextOnFocus = true
-radiusInput.ZIndex = 6
-radiusInput.Parent = radiusRow
+radiusInput.ZIndex = 12
+radiusInput.Parent = RadiusFrame
 Instance.new("UICorner", radiusInput).CornerRadius = UDim.new(0, 5)
-local radiusInputStroke = Instance.new("UIStroke", radiusInput)
-radiusInputStroke.Color = Color3.fromRGB(255,0,0); radiusInputStroke.Thickness = 1.2
+local riStroke = Instance.new("UIStroke", radiusInput)
+riStroke.Color = Color3.fromRGB(255,0,0); riStroke.Thickness = 1.0
 
 radiusInput.FocusLost:Connect(function()
     local val = tonumber(radiusInput.Text)
     if val and val > 0 then
         AUTO_STEAL_PROX_RADIUS = math.floor(val)
         radiusInput.Text = tostring(AUTO_STEAL_PROX_RADIUS)
-        if autoStealActive and stealSquarePart then
-            createOrUpdateSquare(AUTO_STEAL_PROX_RADIUS)
+        if autoStealActive then
+            buildRing(AUTO_STEAL_PROX_RADIUS)
         end
     else
         radiusInput.Text = tostring(AUTO_STEAL_PROX_RADIUS)
     end
 end)
 
+-- Drag del RadiusFrame
+local rfDragging, rfDragInput, rfDragStart, rfStartPos = false, nil, nil, nil
+
+RadiusFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        rfDragging = true
+        rfDragStart = input.Position
+        rfStartPos = RadiusFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then rfDragging = false end
+        end)
+    end
+end)
+RadiusFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        rfDragInput = input
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if input == rfDragInput and rfDragging then
+        local delta = input.Position - rfDragStart
+        RadiusFrame.Position = UDim2.new(
+            rfStartPos.X.Scale, rfStartPos.X.Offset + delta.X,
+            rfStartPos.Y.Scale, rfStartPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
 -- ══════════════════════════════════════
---  DRAG
+--  DRAG HUB
 -- ══════════════════════════════════════
 
 local dragging, dragInput, dragStart, startPos
@@ -524,19 +559,15 @@ TitleBar.InputBegan:Connect(function(input)
         dragStart = input.Position
         startPos = MainFrame.Position
         input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
         end)
     end
 end)
-
 TitleBar.InputChanged:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
         dragInput = input
     end
 end)
-
 UserInputService.InputChanged:Connect(function(input)
     if input == dragInput and dragging then
         local delta = input.Position - dragStart
@@ -556,6 +587,8 @@ RS.Heartbeat:Connect(function()
     MainFrame.BackgroundTransparency   = 0
     ContentArea.BackgroundColor3       = Color3.fromRGB(0, 0, 0)
     ContentArea.BackgroundTransparency = 0
+    RadiusFrame.BackgroundColor3       = Color3.fromRGB(0, 0, 0)
+    RadiusFrame.BackgroundTransparency = 0
 end)
 
 -- ══════════════════════════════════════
