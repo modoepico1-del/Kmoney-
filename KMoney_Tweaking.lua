@@ -4,6 +4,7 @@ local Stats = game:GetService("Stats")
 local Lighting = game:GetService("Lighting")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
 
 -- Evita duplicados
 if LocalPlayer:WaitForChild('PlayerGui'):FindFirstChild('DemonTimeGUI') then
@@ -12,33 +13,81 @@ end
 
 local bgColor = Color3.fromRGB(0, 0, 0)
 local barColor = Color3.fromRGB(5, 5, 5)
+local C_BG = Color3.fromRGB(8, 0, 15)
 
--- Config global para flags
 local config = {
     GalaxySkyBright = false,
     Optimize = false,
 }
 
+-- ========================================
+-- GUI PRINCIPAL (DemonTime + K7Hub fusión)
+-- ========================================
+
 local DemonTimeGUI = Instance.new('ScreenGui')
 DemonTimeGUI.Name = 'DemonTimeGUI'
 DemonTimeGUI.ResetOnSpawn = false
+DemonTimeGUI.DisplayOrder = 10
 DemonTimeGUI.Parent = LocalPlayer:WaitForChild('PlayerGui')
 
 local Main = Instance.new('Frame')
 Main.Name = 'Main'
 Main.Size = UDim2.new(0, 300, 0, 680)
 Main.Position = UDim2.new(0, 16, 0.5, -340)
-Main.BackgroundColor3 = bgColor
+Main.BackgroundColor3 = C_BG
 Main.BackgroundTransparency = 0
 Main.BorderSizePixel = 0
 Main.Active = true
-Main.Draggable = true
+Main.Draggable = false  -- usaremos drag manual estilo K7
 Main.ClipsDescendants = true
 Main.Parent = DemonTimeGUI
 
-local UICorner = Instance.new('UICorner')
-UICorner.CornerRadius = UDim.new(0, 8)
-UICorner.Parent = Main
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 24)
+
+local mainStroke = Instance.new("UIStroke", Main)
+mainStroke.Color = Color3.fromRGB(60, 0, 90)
+mainStroke.Thickness = 1.5
+
+-- ========================================
+-- DRAG MANUAL (estilo K7Hub)
+-- ========================================
+do
+    local drag = false
+    local dragStart, startPos
+
+    Main.InputBegan:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 or
+           inp.UserInputType == Enum.UserInputType.Touch then
+            drag = true
+            dragStart = inp.Position
+            startPos = Main.Position
+        end
+    end)
+
+    Main.InputEnded:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 or
+           inp.UserInputType == Enum.UserInputType.Touch then
+            drag = false
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(inp)
+        if drag and (inp.UserInputType == Enum.UserInputType.MouseMovement or
+                     inp.UserInputType == Enum.UserInputType.Touch) then
+            local delta = inp.Position - dragStart
+            Main.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
+
+-- ========================================
+-- TITLE BAR
+-- ========================================
 
 local TitleBar = Instance.new('Frame')
 TitleBar.Name = 'TitleBar'
@@ -78,6 +127,23 @@ NeonStroke.Transparency = 0
 NeonStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
 NeonStroke.Parent = TitleLabel
 
+-- Botón minimizar (nuevo, estilo K7)
+local MinBtn = Instance.new("TextButton")
+MinBtn.Size = UDim2.new(0, 28, 0, 28)
+MinBtn.Position = UDim2.new(1, -36, 0.5, -14)
+MinBtn.BackgroundColor3 = Color3.fromRGB(60, 0, 90)
+MinBtn.Text = "−"
+MinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinBtn.TextSize = 18
+MinBtn.Font = Enum.Font.GothamBold
+MinBtn.BorderSizePixel = 0
+MinBtn.Parent = TitleBar
+Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(1, 0)
+
+-- ========================================
+-- CONTENT
+-- ========================================
+
 local Content = Instance.new('Frame')
 Content.Name = 'Content'
 Content.Size = UDim2.new(1, -20, 1, -60)
@@ -91,7 +157,22 @@ UIListLayout.Padding = UDim.new(0, 6)
 UIListLayout.Parent = Content
 
 -- ========================================
--- HELPER: Crear fila toggle reutilizable
+-- MINIMIZE (K7 style)
+-- ========================================
+local minimized = false
+local fullSize = UDim2.new(0, 300, 0, 680)
+local miniSize = UDim2.new(0, 300, 0, 40)
+
+MinBtn.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    TweenService:Create(Main, TweenInfo.new(0.3), {
+        Size = minimized and miniSize or fullSize
+    }):Play()
+    MinBtn.Text = minimized and "+" or "−"
+end)
+
+-- ========================================
+-- HELPER: Toggle reutilizable
 -- ========================================
 local function createToggleRow(labelText, icon, layoutOrder)
     local Row = Instance.new('Frame')
@@ -104,6 +185,12 @@ local function createToggleRow(labelText, icon, layoutOrder)
     local RowCorner = Instance.new('UICorner')
     RowCorner.CornerRadius = UDim.new(0, 6)
     RowCorner.Parent = Row
+
+    -- Borde morado sutil en cada row (toque K7)
+    local rowStroke = Instance.new("UIStroke", Row)
+    rowStroke.Color = Color3.fromRGB(60, 0, 90)
+    rowStroke.Thickness = 1
+    rowStroke.Transparency = 0.5
 
     local Label = Instance.new('TextLabel')
     Label.Size = UDim2.new(1, -60, 1, 0)
@@ -175,6 +262,12 @@ FpsLabel.Parent = Content
 local FpsCorner = Instance.new('UICorner')
 FpsCorner.CornerRadius = UDim.new(0, 6)
 FpsCorner.Parent = FpsLabel
+
+-- Borde K7 en FpsLabel también
+local fpsStroke = Instance.new("UIStroke", FpsLabel)
+fpsStroke.Color = Color3.fromRGB(60, 0, 90)
+fpsStroke.Thickness = 1
+fpsStroke.Transparency = 0.5
 
 local mgFpsValue = 0
 local pingValue = 0
