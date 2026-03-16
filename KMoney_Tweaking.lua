@@ -3,8 +3,8 @@ local RunService = game:GetService("RunService")
 local Stats = game:GetService("Stats")
 local Lighting = game:GetService("Lighting")
 local TweenService = game:GetService("TweenService")
-local LocalPlayer = Players.LocalPlayer
 local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
 
 -- Evita duplicados
 if LocalPlayer:WaitForChild('PlayerGui'):FindFirstChild('DemonTimeGUI') then
@@ -21,7 +21,7 @@ local config = {
 }
 
 -- ========================================
--- GUI PRINCIPAL (DemonTime + K7Hub fusión)
+-- GUI PRINCIPAL
 -- ========================================
 
 local DemonTimeGUI = Instance.new('ScreenGui')
@@ -32,13 +32,13 @@ DemonTimeGUI.Parent = LocalPlayer:WaitForChild('PlayerGui')
 
 local Main = Instance.new('Frame')
 Main.Name = 'Main'
-Main.Size = UDim2.new(0, 300, 0, 680)
-Main.Position = UDim2.new(0, 16, 0.5, -340)
+Main.Size = UDim2.new(0, 560, 0, 540)
+Main.Position = UDim2.new(0, 20, 0, 20)
 Main.BackgroundColor3 = C_BG
 Main.BackgroundTransparency = 0
 Main.BorderSizePixel = 0
 Main.Active = true
-Main.Draggable = false  -- usaremos drag manual estilo K7
+Main.Draggable = false
 Main.ClipsDescendants = true
 Main.Parent = DemonTimeGUI
 
@@ -49,7 +49,7 @@ mainStroke.Color = Color3.fromRGB(60, 0, 90)
 mainStroke.Thickness = 1.5
 
 -- ========================================
--- DRAG MANUAL (estilo K7Hub)
+-- DRAG MANUAL
 -- ========================================
 do
     local drag = false
@@ -127,7 +127,7 @@ NeonStroke.Transparency = 0
 NeonStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
 NeonStroke.Parent = TitleLabel
 
--- Botón minimizar (nuevo, estilo K7)
+-- Botón minimizar
 local MinBtn = Instance.new("TextButton")
 MinBtn.Size = UDim2.new(0, 28, 0, 28)
 MinBtn.Position = UDim2.new(1, -36, 0.5, -14)
@@ -157,11 +157,11 @@ UIListLayout.Padding = UDim.new(0, 6)
 UIListLayout.Parent = Content
 
 -- ========================================
--- MINIMIZE (K7 style)
+-- MINIMIZE
 -- ========================================
 local minimized = false
-local fullSize = UDim2.new(0, 300, 0, 680)
-local miniSize = UDim2.new(0, 300, 0, 40)
+local fullSize = UDim2.new(0, 560, 0, 540)
+local miniSize = UDim2.new(0, 560, 0, 40)
 
 MinBtn.MouseButton1Click:Connect(function()
     minimized = not minimized
@@ -186,7 +186,6 @@ local function createToggleRow(labelText, icon, layoutOrder)
     RowCorner.CornerRadius = UDim.new(0, 6)
     RowCorner.Parent = Row
 
-    -- Borde morado sutil en cada row (toque K7)
     local rowStroke = Instance.new("UIStroke", Row)
     rowStroke.Color = Color3.fromRGB(60, 0, 90)
     rowStroke.Thickness = 1
@@ -263,7 +262,6 @@ local FpsCorner = Instance.new('UICorner')
 FpsCorner.CornerRadius = UDim.new(0, 6)
 FpsCorner.Parent = FpsLabel
 
--- Borde K7 en FpsLabel también
 local fpsStroke = Instance.new("UIStroke", FpsLabel)
 fpsStroke.Color = Color3.fromRGB(60, 0, 90)
 fpsStroke.Thickness = 1
