@@ -705,6 +705,121 @@ antiRagdollTrack.MouseButton1Click:Connect(function()
 end)
 
 -- ══════════════════════════════════════
+--  SPEED HACK
+-- ══════════════════════════════════════
+
+local speedHackOn = false
+local speedHackLabel, speedHackTrack, speedHackThumb = makeOptionRow(ContentArea, "SPEED HACK", 226)
+
+local speedHackConnection = nil
+
+-- Helper para obtener refs del personaje
+local function getSH_Refs()
+    local char = me.Character
+    if not char then return nil, nil, nil end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    return char, hrp, hum
+end
+
+-- Filas de input: Speed, Steal Speed, Jump
+local function makeInputRow(parent, labelText, yPos, defaultVal)
+    local row = Instance.new("Frame")
+    row.Size             = UDim2.new(1, -20, 0, 44)
+    row.Position         = UDim2.new(0, 10, 0, yPos)
+    row.BackgroundColor3 = Color3.fromRGB(15, 0, 0)
+    row.BorderSizePixel  = 0
+    row.ZIndex           = 4
+    row.Parent           = parent
+    Instance.new("UICorner", row).CornerRadius = UDim.new(0, 7)
+    local rs = Instance.new("UIStroke")
+    rs.Color = Color3.fromRGB(255,0,0); rs.Thickness = 0.8; rs.Transparency = 0.5; rs.Parent = row
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Text = labelText; lbl.Size = UDim2.new(1,-90,1,0); lbl.Position = UDim2.new(0,14,0,0)
+    lbl.BackgroundTransparency = 1; lbl.TextColor3 = Color3.fromRGB(220,220,220)
+    lbl.TextSize = 13; lbl.Font = Enum.Font.GothamBlack
+    lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.ZIndex = 5; lbl.Parent = row
+
+    local box = Instance.new("TextBox")
+    box.Text = tostring(defaultVal)
+    box.Size = UDim2.new(0, 65, 0, 28)
+    box.Position = UDim2.new(1, -75, 0.5, -14)
+    box.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    box.BorderSizePixel = 0
+    box.TextColor3 = Color3.fromRGB(180, 180, 180)
+    box.TextSize = 13
+    box.Font = Enum.Font.GothamBlack
+    box.ClearTextOnFocus = true
+    box.ZIndex = 6
+    box.Parent = row
+    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 5)
+    local bStroke = Instance.new("UIStroke", box)
+    bStroke.Color = Color3.fromRGB(255,0,0); bStroke.Thickness = 1.2
+
+    return box
+end
+
+local speedBox      = makeInputRow(ContentArea, "SPEED",       280, 53)
+local stealSpeedBox = makeInputRow(ContentArea, "STEAL SPEED", 334, 29)
+local jumpBox       = makeInputRow(ContentArea, "JUMP",        388, 60)
+
+-- ══════════════════════════════════════
+--  SANITIZE INPUTS
+-- ══════════════════════════════════════
+
+local function applyInput(box, minVal, maxVal, default)
+    box.FocusLost:Connect(function()
+        local text = box.Text:gsub("%D", "")
+        local num  = tonumber(text) or default
+        num        = math.clamp(num, minVal, maxVal)
+        box.Text   = tostring(num)
+    end)
+end
+
+applyInput(speedBox,      15, 200, 53)
+applyInput(stealSpeedBox, 15, 200, 29)
+applyInput(jumpBox,       50, 200, 60)
+
+-- ══════════════════════════════════════
+--  SPEED HACK TOGGLE
+-- ══════════════════════════════════════
+
+speedHackTrack.MouseButton1Click:Connect(function()
+    speedHackOn = not speedHackOn
+    if speedHackOn then
+        toggleOn(speedHackLabel, speedHackTrack, speedHackThumb)
+        speedHackConnection = RunService.Heartbeat:Connect(function()
+            local char, hrp, hum = getSH_Refs()
+            if not char or not hrp or not hum then return end
+
+            local speedNoSteal = tonumber(speedBox.Text)      or 53
+            local speedSteal   = tonumber(stealSpeedBox.Text) or 29
+            local jumpVal      = tonumber(jumpBox.Text)       or 60
+
+            hum.JumpPower = jumpVal
+
+            local moveDir = hum.MoveDirection
+            if moveDir.Magnitude > 0 then
+                local isSteal      = hum.WalkSpeed < 25
+                local currentSpeed = isSteal and speedSteal or speedNoSteal
+                hrp.AssemblyLinearVelocity = Vector3.new(
+                    moveDir.X * currentSpeed,
+                    hrp.AssemblyLinearVelocity.Y,
+                    moveDir.Z * currentSpeed
+                )
+            end
+        end)
+    else
+        toggleOff(speedHackLabel, speedHackTrack, speedHackThumb)
+        if speedHackConnection then
+            speedHackConnection:Disconnect()
+            speedHackConnection = nil
+        end
+    end
+end)
+
+-- ══════════════════════════════════════
 --  STEAL RADIUS FLOTANTE
 -- ══════════════════════════════════════
 
