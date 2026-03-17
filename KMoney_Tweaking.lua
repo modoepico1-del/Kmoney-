@@ -151,6 +151,37 @@ local function toggleOff(lbl, track, thumb)
 end
 
 -- ══════════════════════════════════════
+--  CREATE ROW FUNCTION
+-- ══════════════════════════════════════
+
+local function createRow(text, posY, default)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0.55, 0, 0, 25)
+    label.Position = UDim2.new(0, 10, 0, posY)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.Font = Enum.Font.GothamBold
+    label.TextSize = 13
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = ContentArea
+    local box = Instance.new("TextBox")
+    box.Size = UDim2.new(0.4, 0, 0, 25)
+    box.Position = UDim2.new(0.55, 5, 0, posY)
+    box.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    box.TextColor3 = Color3.fromRGB(255, 255, 255)
+    box.Text = tostring(default)
+    box.Font = Enum.Font.GothamBold
+    box.TextSize = 13
+    box.ClearTextOnFocus = false
+    box.Parent = ContentArea
+    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 6)
+    local s = Instance.new("UIStroke", box)
+    s.Color = Color3.fromRGB(0, 120, 255)
+    return box
+end
+
+-- ══════════════════════════════════════
 --  RING
 -- ══════════════════════════════════════
 
@@ -713,7 +744,6 @@ local speedHackLabel, speedHackTrack, speedHackThumb = makeOptionRow(ContentArea
 
 local speedHackConnection = nil
 
--- Helper para obtener refs del personaje
 local function getSH_Refs()
     local char = me.Character
     if not char then return nil, nil, nil end
@@ -722,52 +752,19 @@ local function getSH_Refs()
     return char, hrp, hum
 end
 
--- Filas de input: Speed, Steal Speed, Jump
-local function makeInputRow(parent, labelText, yPos, defaultVal)
-    local row = Instance.new("Frame")
-    row.Size             = UDim2.new(1, -20, 0, 44)
-    row.Position         = UDim2.new(0, 10, 0, yPos)
-    row.BackgroundColor3 = Color3.fromRGB(15, 0, 0)
-    row.BorderSizePixel  = 0
-    row.ZIndex           = 4
-    row.Parent           = parent
-    Instance.new("UICorner", row).CornerRadius = UDim.new(0, 7)
-    local rs = Instance.new("UIStroke")
-    rs.Color = Color3.fromRGB(255,0,0); rs.Thickness = 0.8; rs.Transparency = 0.5; rs.Parent = row
+--// ROWS
+local speedBox      = createRow("Speed",      280, 53)
+local stealBox      = createRow("Steal Speed", 334, 29)
+local jumpBox       = createRow("Jump",        388, 60)
 
-    local lbl = Instance.new("TextLabel")
-    lbl.Text = labelText; lbl.Size = UDim2.new(1,-90,1,0); lbl.Position = UDim2.new(0,14,0,0)
-    lbl.BackgroundTransparency = 1; lbl.TextColor3 = Color3.fromRGB(220,220,220)
-    lbl.TextSize = 13; lbl.Font = Enum.Font.GothamBlack
-    lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.ZIndex = 5; lbl.Parent = row
+--// VALUES
+local active = false
+local speedConnection
+local speedNoStealValue = 52
+local speedStealValue   = 28
+local jumpValue         = 50
 
-    local box = Instance.new("TextBox")
-    box.Text = tostring(defaultVal)
-    box.Size = UDim2.new(0, 65, 0, 28)
-    box.Position = UDim2.new(1, -75, 0.5, -14)
-    box.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    box.BorderSizePixel = 0
-    box.TextColor3 = Color3.fromRGB(180, 180, 180)
-    box.TextSize = 13
-    box.Font = Enum.Font.GothamBlack
-    box.ClearTextOnFocus = true
-    box.ZIndex = 6
-    box.Parent = row
-    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 5)
-    local bStroke = Instance.new("UIStroke", box)
-    bStroke.Color = Color3.fromRGB(255,0,0); bStroke.Thickness = 1.2
-
-    return box
-end
-
-local speedBox      = makeInputRow(ContentArea, "SPEED",       280, 53)
-local stealSpeedBox = makeInputRow(ContentArea, "STEAL SPEED", 334, 29)
-local jumpBox       = makeInputRow(ContentArea, "JUMP",        388, 60)
-
--- ══════════════════════════════════════
---  SANITIZE INPUTS
--- ══════════════════════════════════════
-
+--// SANITIZE
 local function applyInput(box, minVal, maxVal, default)
     box.FocusLost:Connect(function()
         local text = box.Text:gsub("%D", "")
@@ -777,14 +774,11 @@ local function applyInput(box, minVal, maxVal, default)
     end)
 end
 
-applyInput(speedBox,      15, 200, 53)
-applyInput(stealSpeedBox, 15, 200, 29)
-applyInput(jumpBox,       50, 200, 60)
+applyInput(speedBox, 15, 200, 53)
+applyInput(stealBox, 15, 200, 29)
+applyInput(jumpBox,  50, 200, 60)
 
--- ══════════════════════════════════════
---  SPEED HACK TOGGLE
--- ══════════════════════════════════════
-
+--// BUTTON LOGIC
 speedHackTrack.MouseButton1Click:Connect(function()
     speedHackOn = not speedHackOn
     if speedHackOn then
@@ -793,16 +787,16 @@ speedHackTrack.MouseButton1Click:Connect(function()
             local char, hrp, hum = getSH_Refs()
             if not char or not hrp or not hum then return end
 
-            local speedNoSteal = tonumber(speedBox.Text)      or 53
-            local speedSteal   = tonumber(stealSpeedBox.Text) or 29
-            local jumpVal      = tonumber(jumpBox.Text)       or 60
+            speedNoStealValue = tonumber(speedBox.Text) or 53
+            speedStealValue   = tonumber(stealBox.Text) or 29
+            jumpValue         = tonumber(jumpBox.Text)  or 60
 
-            hum.JumpPower = jumpVal
+            hum.JumpPower = jumpValue
 
             local moveDir = hum.MoveDirection
             if moveDir.Magnitude > 0 then
                 local isSteal      = hum.WalkSpeed < 25
-                local currentSpeed = isSteal and speedSteal or speedNoSteal
+                local currentSpeed = isSteal and speedStealValue or speedNoStealValue
                 hrp.AssemblyLinearVelocity = Vector3.new(
                     moveDir.X * currentSpeed,
                     hrp.AssemblyLinearVelocity.Y,
