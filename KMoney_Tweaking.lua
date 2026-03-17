@@ -752,6 +752,18 @@ local function getSH_Refs()
     return char, hrp, hum
 end
 
+--// TITLE
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 30)
+title.Position = UDim2.new(0, 10, 0, 255)
+title.BackgroundTransparency = 1
+title.Text = "Booster Customizer"
+title.Font = Enum.Font.GothamBold
+title.TextSize = 15
+title.TextColor3 = Color3.fromRGB(0, 120, 255)
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = ContentArea
+
 --// ROWS
 local speedBox      = createRow("Speed",      280, 53)
 local stealBox      = createRow("Steal Speed", 334, 29)
