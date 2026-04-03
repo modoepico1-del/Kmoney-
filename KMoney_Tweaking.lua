@@ -1,6 +1,6 @@
 -- ██████████████████████████████████████████
--- ██          ENVY HUB - by Script          ██
--- ██     discord.gg/envyhub                 ██
+-- ██         DRAGON HUB - by Script         ██
+-- ██     discord.gg/dragonhub               ██
 -- ██████████████████████████████████████████
 
 local Players       = game:GetService("Players")
@@ -41,7 +41,7 @@ end
 
 -- ── ScreenGui ──────────────────────────────
 local ScreenGui = Make("ScreenGui", {
-    Name            = "EnvyHub",
+    Name            = "DragonHub",
     ResetOnSpawn    = false,
     ZIndexBehavior  = Enum.ZIndexBehavior.Sibling,
     Parent          = (syn and syn.protect_gui and syn.protect_gui(Instance.new("ScreenGui")) and nil) or
@@ -113,7 +113,7 @@ Make("UICorner", { CornerRadius = UDim.new(0, 10), Parent = TopBar })
 
 Make("TextLabel", {
     Name            = "Title",
-    Text            = "ENVY HUB",
+    Text            = "DRAGON HUB",
     Size            = UDim2.new(0, 100, 1, 0),
     Position        = UDim2.new(0, 12, 0, 0),
     BackgroundTransparency = 1,
@@ -126,9 +126,9 @@ Make("TextLabel", {
 
 Make("TextLabel", {
     Name            = "Discord",
-    Text            = "discord.gg/envyhub",
+    Text            = "discord.gg/dragonhub",
     Size            = UDim2.new(0, 140, 1, 0),
-    Position        = UDim2.new(0, 110, 0, 0),
+    Position        = UDim2.new(0, 120, 0, 0),
     BackgroundTransparency = 1,
     TextColor3      = Color3.fromRGB(130, 130, 130),
     Font            = Enum.Font.Gotham,
@@ -580,7 +580,7 @@ CreateToggle(SetContent, "Keybind Mode",   76, false, function(v) end)
 
 -- Discord watermark
 Make("TextLabel", {
-    Text            = "discord.gg/envyhub",
+    Text            = "discord.gg/dragonhub",
     Size            = UDim2.new(1, -10, 0, 20),
     Position        = UDim2.new(0, 5, 1, -30),
     BackgroundTransparency = 1,
@@ -621,4 +621,4 @@ SelectTab("Speed")
 MainFrame.Size = UDim2.new(0, 310, 0, 0)
 Tween(MainFrame, { Size = UDim2.new(0, 310, 0, 460) }, 0.25)
 
-print("[ENVY HUB] Loaded! discord.gg/envyhub")
+print("[DRAGON HUB] Loaded! discord.gg/dragonhub")
