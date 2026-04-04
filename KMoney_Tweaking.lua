@@ -24,6 +24,102 @@ local Config = {
     SpeedEnabled = true,
 }
 
+-- Anti Ragdoll state
+local AntiRagdollConns  = {}
+local antiRagdollEnabled = false
+
+-- ── ANTI RAGDOLL FUNCTIONS ────────────────
+local function startAntiRagdoll()
+    if #AntiRagdollConns > 0 then return end
+    local c        = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local humanoid = c:WaitForChild("Humanoid")
+    local root     = c:WaitForChild("HumanoidRootPart")
+    local animator = humanoid:WaitForChild("Animator")
+    local maxVelocity  = 40
+    local clampVelocity = 25
+    local maxClamp     = 15
+    local lastVelocity = Vector3.new(0, 0, 0)
+
+    local function IsRagdollState()
+        local state = humanoid:GetState()
+        return state == Enum.HumanoidStateType.Physics
+            or state == Enum.HumanoidStateType.Ragdoll
+            or state == Enum.HumanoidStateType.FallingDown
+            or state == Enum.HumanoidStateType.GettingUp
+    end
+
+    local function CleanRagdollEffects()
+        for _, obj in pairs(c:GetDescendants()) do
+            if obj:IsA("BallSocketConstraint") or obj:IsA("NoCollisionConstraint")
+                or obj:IsA("HingeConstraint")
+                or (obj:IsA("Attachment") and (obj.Name == "A" or obj.Name == "B")) then
+                obj:Destroy()
+            elseif obj:IsA("BodyVelocity") or obj:IsA("BodyPosition") or obj:IsA("BodyGyro") then
+                obj:Destroy()
+            elseif obj:IsA("Motor6D") then
+                obj.Enabled = true
+            end
+        end
+        for _, track in pairs(animator:GetPlayingAnimationTracks()) do
+            local animName = track.Animation and track.Animation.Name:lower() or ""
+            if animName:find("rag") or animName:find("fall")
+                or animName:find("hurt") or animName:find("down") then
+                track:Stop(0)
+            end
+        end
+    end
+
+    local function ReEnableControls()
+        pcall(function()
+            require(LocalPlayer:WaitForChild("PlayerScripts")
+                :WaitForChild("PlayerModule")):GetControls():Enable()
+        end)
+    end
+
+    table.insert(AntiRagdollConns, humanoid.StateChanged:Connect(function()
+        if IsRagdollState() then
+            humanoid:ChangeState(Enum.HumanoidStateType.Running)
+            CleanRagdollEffects()
+            workspace.CurrentCamera.CameraSubject = humanoid
+            ReEnableControls()
+        end
+    end))
+
+    table.insert(AntiRagdollConns, RunService.Heartbeat:Connect(function()
+        if not antiRagdollEnabled then return end
+        if IsRagdollState() then
+            CleanRagdollEffects()
+            local vel = root.AssemblyLinearVelocity
+            if (vel - lastVelocity).Magnitude > maxVelocity and vel.Magnitude > clampVelocity then
+                root.AssemblyLinearVelocity = vel.Unit * math.min(vel.Magnitude, maxClamp)
+            end
+            lastVelocity = vel
+        end
+    end))
+
+    table.insert(AntiRagdollConns, c.DescendantAdded:Connect(function()
+        if IsRagdollState() then CleanRagdollEffects() end
+    end))
+
+    table.insert(AntiRagdollConns, LocalPlayer.CharacterAdded:Connect(function(newChar)
+        c        = newChar
+        humanoid = newChar:WaitForChild("Humanoid")
+        root     = newChar:WaitForChild("HumanoidRootPart")
+        animator = humanoid:WaitForChild("Animator")
+        lastVelocity = Vector3.new(0, 0, 0)
+        ReEnableControls()
+        CleanRagdollEffects()
+    end))
+
+    ReEnableControls()
+    CleanRagdollEffects()
+end
+
+local function stopAntiRagdoll()
+    for _, conn in pairs(AntiRagdollConns) do conn:Disconnect() end
+    AntiRagdollConns = {}
+end
+
 -- ══════════════════════════════════════════
 --               GUI BUILDER
 -- ══════════════════════════════════════════
@@ -50,46 +146,56 @@ local ScreenGui = Make("ScreenGui", {
 })
 if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
 
--- ── Speed Billboard (encima del personaje, compatible con shift lock) ──
-local SpeedLabel = nil
+-- ── Speed Billboard (AssemblyLinearVelocity + RenderStepped) ──────────
+local speedBB = nil
 
-local function CreateSpeedBillboard()
-    local char = LocalPlayer.Character
-    if not char then return nil end
-    local old = char:FindFirstChild("SpeedBillboard")
-    if old then old:Destroy() end
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then return nil end
-    local billboard = Make("BillboardGui", {
-        Name         = "SpeedBillboard",
-        Size         = UDim2.new(0, 200, 0, 40),
-        StudsOffset  = Vector3.new(0, 3.5, 0),
-        AlwaysOnTop  = true,
-        ResetOnSpawn = false,
-        Parent       = root,
-    })
-    return Make("TextLabel", {
-        Name                   = "SpeedLabel",
-        Text                   = "Speed: 0.0",
-        Size                   = UDim2.new(1, 0, 1, 0),
-        BackgroundTransparency = 1,
-        TextColor3             = Color3.fromRGB(255, 255, 255),
-        TextStrokeColor3       = Color3.fromRGB(0, 0, 0),
-        TextStrokeTransparency = 0.3,
-        Font                   = Enum.Font.GothamBold,
-        TextSize               = 18,
-        Parent                 = billboard,
-    })
+local function makeSpeedBB()
+    local c = LocalPlayer.Character
+    if not c then return end
+    local head = c:FindFirstChild("Head")
+    if not head then return end
+    if speedBB then pcall(function() speedBB:Destroy() end) end
+
+    speedBB             = Instance.new("BillboardGui")
+    speedBB.Name        = "DragonSpeedBB"
+    speedBB.Adornee     = head
+    speedBB.Size        = UDim2.new(0, 160, 0, 36)
+    speedBB.StudsOffset = Vector3.new(0, 3.2, 0)
+    speedBB.AlwaysOnTop = true
+    speedBB.Parent      = head
+
+    local lbl                    = Instance.new("TextLabel")
+    lbl.Name                     = "SpeedLbl"
+    lbl.Size                     = UDim2.new(1, 0, 1, 0)
+    lbl.BackgroundTransparency   = 1
+    lbl.TextColor3               = Color3.fromRGB(255, 255, 255)
+    lbl.TextStrokeColor3         = Color3.fromRGB(0, 0, 0)
+    lbl.TextStrokeTransparency   = 0.3
+    lbl.Font                     = Enum.Font.GothamBold
+    lbl.TextScaled               = true
+    lbl.Text                     = "Speed: 0"
+    lbl.Parent                   = speedBB
 end
 
-SpeedLabel = CreateSpeedBillboard()
+makeSpeedBB()
 
 LocalPlayer.CharacterAdded:Connect(function(newChar)
     Character = newChar
     Humanoid  = newChar:WaitForChild("Humanoid")
     RootPart  = newChar:WaitForChild("HumanoidRootPart")
     task.wait(0.15)
-    SpeedLabel = CreateSpeedBillboard()
+    makeSpeedBB()
+end)
+
+-- Actualizar velocidad cada frame (más preciso con AssemblyLinearVelocity)
+RunService.RenderStepped:Connect(function()
+    if not speedBB or not speedBB.Parent then return end
+    local hrp = Character and Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    local lbl = speedBB:FindFirstChild("SpeedLbl")
+    if not lbl then return end
+    local v = hrp.AssemblyLinearVelocity
+    lbl.Text = "Speed: " .. math.floor(Vector3.new(v.X, 0, v.Z).Magnitude)
 end)
 
 -- ── Main Frame ────────────────────────────
@@ -558,7 +664,10 @@ CreateToggle(MechContent, "No Clip",        76, false, function(v)
         end)
     end
 end)
-CreateToggle(MechContent, "Anti Ragdoll",  122, false, function(v) end)
+CreateToggle(MechContent, "Anti Ragdoll", 122, false, function(v)
+    antiRagdollEnabled = v
+    if v then startAntiRagdoll() else stopAntiRagdoll() end
+end)
 
 -- ══════════════════════════════════════════
 --       MOVEMENT TAB
@@ -635,12 +744,7 @@ RunService.Heartbeat:Connect(function()
         Humanoid.WalkSpeed = spd
     end
 
-    -- Update Speed Billboard
-    if SpeedLabel and SpeedLabel.Parent then
-        local vel = RootPart.Velocity
-        local flat = Vector3.new(vel.X, 0, vel.Z).Magnitude
-        SpeedLabel.Text = string.format("Speed: %.1f", flat)
-    end
+    -- (velocidad actualizada por RenderStepped con AssemblyLinearVelocity)
 end)
 
 -- ══════════════════════════════════════════
