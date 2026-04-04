@@ -13,20 +13,14 @@ local Character     = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local Humanoid      = Character:WaitForChild("Humanoid")
 local RootPart      = Character:WaitForChild("HumanoidRootPart")
 
--- ══════════════════════════════════════════
---              CONFIGURACIÓN
--- ══════════════════════════════════════════
 local Config = {
     NormalSpeed  = 59.5,
     CarrySpeed   = 30,
-    Mode         = "Carry",    -- "Carry" | "Normal"
+    Mode         = "Carry",
     ModeKey      = Enum.KeyCode.Q,
     SpeedEnabled = true,
 }
 
--- ══════════════════════════════════════════
---      AUTO ROUTE CONSTANTS
--- ══════════════════════════════════════════
 local NORMAL_SPEED = 60
 local SLOW_SPEED   = 29
 local POS_L1    = Vector3.new(-476.48, -6.28,  92.73)
@@ -38,9 +32,8 @@ local RFINAL    = Vector3.new(-476.17, -7.91,  97.91)
 
 local autoRouteActive   = false
 local autoRouteThread   = nil
-local currentRouteSide  = nil  -- "L" or "R"
+local currentRouteSide  = nil
 
--- Mueve al personaje hacia un punto hasta llegar (o hasta que se cancele)
 local function walkToPoint(target, speed, tolerance)
     tolerance = tolerance or 3.5
     local char = LocalPlayer.Character
@@ -49,7 +42,6 @@ local function walkToPoint(target, speed, tolerance)
     local hum  = char:FindFirstChildOfClass("Humanoid")
     if not root or not hum then return false end
 
-    -- Crear/obtener BodyVelocity de ruta (separado del speed normal)
     local bv = root:FindFirstChild("DragonRouteBV")
     if not bv then
         bv           = Instance.new("BodyVelocity")
@@ -75,14 +67,12 @@ local function walkToPoint(target, speed, tolerance)
         end
 
         local dir    = Vector3.new(diff.X, 0, diff.Z).Unit
-        -- Reducir velocidad al acercarse al destino
         local factor = math.clamp(dist / 10, 0.3, 1)
         bv.Velocity  = dir * (speed * factor)
 
         task.wait()
     end
 
-    -- Limpiar bv si se cancelo
     local bv2 = root and root:FindFirstChild("DragonRouteBV")
     if bv2 then bv2:Destroy() end
     return false
@@ -108,13 +98,10 @@ local function runRoute(side)
         p1 = POS_R1; p2 = POS_R2; pFinal = RFINAL
     end
 
-    -- Waypoint 1 → velocidad normal
     if not walkToPoint(p1, NORMAL_SPEED) then cleanRouteBV(); return end
     task.wait(0.1)
-    -- Waypoint 2 → velocidad normal
     if not walkToPoint(p2, NORMAL_SPEED) then cleanRouteBV(); return end
     task.wait(0.1)
-    -- Final → velocidad lenta (llegando al destino)
     if not walkToPoint(pFinal, SLOW_SPEED, 2) then cleanRouteBV(); return end
 
     cleanRouteBV()
@@ -128,14 +115,13 @@ local function stopRoute()
     cleanRouteBV()
 end
 
--- ── ANTI RAGDOLL + ANTI KNOCKBACK ────────
 local ragdollConnections = {}
 local antiRagdollMode    = nil
 local cachedCharData     = {}
+local antiRagdollOn      = false
 
--- Velocidad máxima permitida al recibir golpes (anti knockback)
-local MAX_KNOCKBACK_VELOCITY = 28  -- studs/s horizontal máximo al ser golpeado
-local MAX_VERTICAL_VELOCITY  = 35  -- studs/s vertical máximo
+local MAX_KNOCKBACK_VELOCITY = 28
+local MAX_VERTICAL_VELOCITY  = 35
 
 local function disconnectAllRagdoll()
     for _, conn in pairs(ragdollConnections) do pcall(function() conn:Disconnect() end) end
@@ -165,7 +151,6 @@ local function isRagdolled()
     if state == Enum.HumanoidStateType.Physics
     or state == Enum.HumanoidStateType.Ragdoll
     or state == Enum.HumanoidStateType.FallingDown then return true end
-    -- No leer RagdollEndTime del servidor: puede causar detecciones falsas y respawn loops
     return false
 end
 
@@ -183,12 +168,10 @@ local function forceExitRagdoll()
     local hum  = cachedCharData.humanoid
     local root = cachedCharData.root
     if not hum or not root then return end
-    -- NO tocamos RagdollEndTime: es un atributo del servidor y modificarlo causa respawn loops
     if hum.Health > 0 then
         pcall(function() hum:ChangeState(Enum.HumanoidStateType.Running) end)
     end
     root.Anchored = false
-    -- Solo resetear si la velocidad es absurdamente alta (no en golpes normales)
     local vel = root.AssemblyLinearVelocity
     if vel.Magnitude > 80 then
         root.AssemblyLinearVelocity  = Vector3.zero
@@ -196,7 +179,6 @@ local function forceExitRagdoll()
     end
 end
 
--- ── ANTI KNOCKBACK: clampea la velocidad solo cuando es excesiva ───────
 local function clampKnockback()
     local root = cachedCharData.root
     if not root then return end
@@ -204,7 +186,6 @@ local function clampKnockback()
     local horizontal = Vector3.new(vel.X, 0, vel.Z)
     local vertical   = vel.Y
 
-    -- Solo actuar si la velocidad es claramente un knockback (muy por encima del normal)
     local needsClamp = false
     local clampedH   = horizontal
     local clampedV   = vertical
@@ -217,11 +198,9 @@ local function clampKnockback()
         clampedV   = MAX_VERTICAL_VELOCITY
         needsClamp = true
     end
-    -- No clampar velocidad vertical negativa (caída normal)
 
     if needsClamp then
         root.AssemblyLinearVelocity = Vector3.new(clampedH.X, clampedV, clampedH.Z)
-        -- NO zerear angular aqui, puede causar comportamientos raros
     end
 end
 
@@ -229,17 +208,11 @@ local function antiRagdollLoop()
     while antiRagdollMode do
         task.wait()
         if not cachedCharData.humanoid then continue end
-
-        -- Anti ragdoll
         if isRagdolled() then
             removeRagdollConstraints()
             forceExitRagdoll()
         end
-
-        -- Anti knockback: clampear siempre
         clampKnockback()
-
-        -- Mantener cámara
         local cam = workspace.CurrentCamera
         if cam and cachedCharData.humanoid and cam.CameraSubject ~= cachedCharData.humanoid then
             cam.CameraSubject = cachedCharData.humanoid
@@ -252,7 +225,7 @@ local function toggleAntiRagdoll(enable)
         disconnectAllRagdoll()
         if not cacheCharacterData() then return end
         antiRagdollMode = "v2"
-
+        antiRagdollOn   = true
         local charConn = LocalPlayer.CharacterAdded:Connect(function()
             task.wait(0.5)
             if antiRagdollMode then cacheCharacterData() end
@@ -261,14 +234,12 @@ local function toggleAntiRagdoll(enable)
         task.spawn(antiRagdollLoop)
     else
         antiRagdollMode = nil
+        antiRagdollOn   = false
         disconnectAllRagdoll()
         cachedCharData  = {}
     end
 end
 
--- ══════════════════════════════════════════
---               GUI BUILDER
--- ══════════════════════════════════════════
 local function Make(class, props)
     local obj = Instance.new(class)
     for k, v in pairs(props) do
@@ -281,7 +252,6 @@ local function Tween(obj, props, t)
     TweenService:Create(obj, TweenInfo.new(t or 0.15), props):Play()
 end
 
--- ── ScreenGui ──────────────────────────────
 local ScreenGui = Make("ScreenGui", {
     Name            = "DragonHub",
     ResetOnSpawn    = false,
@@ -292,7 +262,6 @@ local ScreenGui = Make("ScreenGui", {
 })
 if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
 
--- ── Speed Billboard (AssemblyLinearVelocity + RenderStepped) ──────────
 local speedBB = nil
 
 local function makeSpeedBB()
@@ -333,7 +302,6 @@ LocalPlayer.CharacterAdded:Connect(function(newChar)
     makeSpeedBB()
 end)
 
--- Actualizar velocidad cada frame (más preciso con AssemblyLinearVelocity)
 RunService.RenderStepped:Connect(function()
     if not speedBB or not speedBB.Parent then return end
     local hrp = Character and Character:FindFirstChild("HumanoidRootPart")
@@ -344,7 +312,6 @@ RunService.RenderStepped:Connect(function()
     lbl.Text = "Speed: " .. math.floor(Vector3.new(v.X, 0, v.Z).Magnitude)
 end)
 
--- ── Main Frame ────────────────────────────
 local MainFrame = Make("Frame", {
     Name            = "MainFrame",
     Size            = UDim2.new(0, 310, 0, 460),
@@ -356,7 +323,6 @@ local MainFrame = Make("Frame", {
 Make("UICorner", { CornerRadius = UDim.new(0, 10), Parent = MainFrame })
 Make("UIStroke", { Color = Color3.fromRGB(50, 50, 50), Thickness = 1, Parent = MainFrame })
 
--- ── Drag Logic ────────────────────────────
 do
     local dragging, dragStart, startPos
     MainFrame.InputBegan:Connect(function(inp)
@@ -380,7 +346,6 @@ do
     end)
 end
 
--- ── Top Bar ───────────────────────────────
 local TopBar = Make("Frame", {
     Name            = "TopBar",
     Size            = UDim2.new(1, 0, 0, 38),
@@ -416,7 +381,6 @@ Make("TextLabel", {
     Parent          = TopBar,
 })
 
--- Close Button
 local CloseBtn = Make("TextButton", {
     Name            = "CloseBtn",
     Text            = "−",
@@ -435,7 +399,6 @@ CloseBtn.MouseButton1Click:Connect(function()
     task.delay(0.22, function() MainFrame.Visible = false end)
 end)
 
--- ── Left Panel (Tabs) ────────────────────
 local LeftPanel = Make("Frame", {
     Name            = "LeftPanel",
     Size            = UDim2.new(0, 100, 1, -40),
@@ -446,7 +409,6 @@ local LeftPanel = Make("Frame", {
 })
 Make("UICorner", { CornerRadius = UDim.new(0, 8), Parent = LeftPanel })
 
--- ── Right Panel ──────────────────────────
 local RightPanel = Make("Frame", {
     Name            = "RightPanel",
     Size            = UDim2.new(1, -108, 1, -48),
@@ -456,9 +418,6 @@ local RightPanel = Make("Frame", {
     Parent          = MainFrame,
 })
 
--- ══════════════════════════════════════════
---              TAB SYSTEM
--- ══════════════════════════════════════════
 local Tabs    = {}
 local TabBtns = {}
 
@@ -506,21 +465,14 @@ local function SelectTab(name)
     end
 end
 
--- ══════════════════════════════════════════
---         CREATE ALL TABS
--- ══════════════════════════════════════════
 local tabNames = {"Speed", "Bat Aimbot", "Mechanics", "Movement", "Settings"}
 for i, name in ipairs(tabNames) do
     local btn, _ = CreateTab(name, i)
     btn.MouseButton1Click:Connect(function() SelectTab(name) end)
 end
 
--- ══════════════════════════════════════════
---       SPEED TAB CONTENT
--- ══════════════════════════════════════════
 local SpeedContent = Tabs["Speed"]
 
--- Section title
 Make("TextLabel", {
     Text            = "SPEED CONFIGURATION",
     Size            = UDim2.new(1, -10, 0, 20),
@@ -586,7 +538,6 @@ local function CreateSliderRow(parent, label, desc, value, yPos, callback)
         Parent          = valBox,
     })
 
-    -- Slider bar
     local sliderBG = Make("Frame", {
         Size            = UDim2.new(1, -20, 0, 4),
         Position        = UDim2.new(0, 10, 1, -8),
@@ -604,7 +555,6 @@ local function CreateSliderRow(parent, label, desc, value, yPos, callback)
     })
     Make("UICorner", { CornerRadius = UDim.new(1, 0), Parent = sliderFill })
 
-    -- Draggable slider
     local dragging = false
     sliderBG.InputBegan:Connect(function(inp)
         if inp.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
@@ -616,7 +566,7 @@ local function CreateSliderRow(parent, label, desc, value, yPos, callback)
         if dragging and inp.UserInputType == Enum.UserInputType.MouseMovement then
             local rel = (inp.Position.X - sliderBG.AbsolutePosition.X) / sliderBG.AbsoluteSize.X
             rel = math.clamp(rel, 0, 1)
-            local newVal = math.round(rel * 200 * 10) / 10  -- 0 to 200 range
+            local newVal = math.round(rel * 200 * 10) / 10
             sliderFill.Size = UDim2.new(rel, 0, 1, 0)
             valLabel.Text = tostring(newVal)
             if callback then callback(newVal) end
@@ -626,19 +576,16 @@ local function CreateSliderRow(parent, label, desc, value, yPos, callback)
     return valLabel
 end
 
--- Normal Speed Row
 local NSpeedLabel = CreateSliderRow(SpeedContent, "Normal Speed", "Walking / Running speed",
     Config.NormalSpeed, 30, function(v)
         Config.NormalSpeed = v
     end)
 
--- Carry Speed Row
 local CSpeedLabel = CreateSliderRow(SpeedContent, "Carry Speed", "Speed while holding an item",
     Config.CarrySpeed, 86, function(v)
         Config.CarrySpeed = v
     end)
 
--- Mode Row
 local modeRow = Make("Frame", {
     Size            = UDim2.new(1, -6, 0, 40),
     Position        = UDim2.new(0, 3, 0, 142),
@@ -691,7 +638,6 @@ local keyLabel = Make("TextLabel", {
 })
 Make("UICorner", { CornerRadius = UDim.new(0, 4), Parent = keyLabel })
 
--- Toggle mode on Q
 UserInputService.InputBegan:Connect(function(inp, gp)
     if gp then return end
     if inp.KeyCode == Config.ModeKey then
@@ -700,9 +646,6 @@ UserInputService.InputBegan:Connect(function(inp, gp)
     end
 end)
 
--- ══════════════════════════════════════════
---       BAT AIMBOT TAB
--- ══════════════════════════════════════════
 local BatContent = Tabs["Bat Aimbot"]
 
 Make("TextLabel", {
@@ -717,7 +660,6 @@ Make("TextLabel", {
     Parent          = BatContent,
 })
 
--- Toggle row helper
 local function CreateToggle(parent, label, yPos, default, callback)
     local row = Make("Frame", {
         Size            = UDim2.new(1, -6, 0, 38),
@@ -774,13 +716,10 @@ local function CreateToggle(parent, label, yPos, default, callback)
 end
 
 local AimbotEnabled = false
-CreateToggle(BatContent, "Enable Aimbot", 30, false, function(v) AimbotEnabled = v end)
-CreateToggle(BatContent, "Silent Aim",     76, false, function(v) end)
+CreateToggle(BatContent, "Enable Aimbot",   30, false, function(v) AimbotEnabled = v end)
+CreateToggle(BatContent, "Silent Aim",      76, false, function(v) end)
 CreateToggle(BatContent, "Show FOV Circle",122, false, function(v) end)
 
--- ══════════════════════════════════════════
---       MECHANICS TAB
--- ══════════════════════════════════════════
 local MechContent = Tabs["Mechanics"]
 
 Make("TextLabel", {
@@ -810,13 +749,10 @@ CreateToggle(MechContent, "No Clip",        76, false, function(v)
         end)
     end
 end)
-CreateToggle(MechContent, "Anti Ragdoll", 122, false, function(v)
+CreateToggle(MechContent, "Anti Ragdoll",  122, false, function(v)
     toggleAntiRagdoll(v)
 end)
 
--- ══════════════════════════════════════════
---       MOVEMENT TAB
--- ══════════════════════════════════════════
 local MovContent = Tabs["Movement"]
 
 Make("TextLabel", {
@@ -838,7 +774,6 @@ CreateToggle(MovContent, "Low Gravity",  122, false, function(v)
     workspace.Gravity = v and 30 or 196.2
 end)
 
--- ── AUTO ROUTE buttons ───────────────────
 Make("TextLabel", {
     Text            = "AUTO ROUTE",
     Size            = UDim2.new(1, -10, 0, 16),
@@ -867,7 +802,6 @@ local function MakeRouteBtn(label, xPos, side)
 
     btn.MouseButton1Click:Connect(function()
         if currentRouteSide == side then
-            -- Ya corriendo esta ruta: detener
             stopRoute()
             Tween(btn, { BackgroundColor3 = Color3.fromRGB(35, 35, 35),
                          TextColor3 = Color3.fromRGB(210, 210, 210) })
@@ -878,7 +812,6 @@ local function MakeRouteBtn(label, xPos, side)
                          TextColor3 = Color3.fromRGB(10, 10, 10) })
             task.spawn(function()
                 runRoute(side)
-                -- Al terminar, restaurar color
                 Tween(btn, { BackgroundColor3 = Color3.fromRGB(35, 35, 35),
                              TextColor3 = Color3.fromRGB(210, 210, 210) })
             end)
@@ -890,7 +823,6 @@ end
 MakeRouteBtn("ROUTE LEFT  ←",  0.03, "L")
 MakeRouteBtn("ROUTE RIGHT →",  0.52, "R")
 
--- Boton STOP
 local stopBtn = Make("TextButton", {
     Text            = "■  STOP ROUTE",
     Size            = UDim2.new(0.94, 0, 0, 28),
@@ -907,9 +839,6 @@ stopBtn.MouseButton1Click:Connect(function()
     stopRoute()
 end)
 
--- ══════════════════════════════════════════
---       SETTINGS TAB
--- ══════════════════════════════════════════
 local SetContent = Tabs["Settings"]
 
 Make("TextLabel", {
@@ -923,12 +852,14 @@ Make("TextLabel", {
     TextXAlignment  = Enum.TextXAlignment.Left,
     Parent          = SetContent,
 })
-CreateToggle(SetContent, "Show Speed HUD", 30, true, function(v)
-    SpeedLabel.Visible = v
-end)
-CreateToggle(SetContent, "Keybind Mode",   76, false, function(v) end)
 
--- Discord watermark
+-- ✅ CORRECCIÓN: Show Speed HUD ahora usa speedBB correctamente
+CreateToggle(SetContent, "Show Speed HUD", 30, true, function(v)
+    if speedBB then speedBB.Enabled = v end
+end)
+
+CreateToggle(SetContent, "Keybind Mode", 76, false, function(v) end)
+
 Make("TextLabel", {
     Text            = "discord.gg/dragonhub",
     Size            = UDim2.new(1, -10, 0, 20),
@@ -941,15 +872,8 @@ Make("TextLabel", {
     Parent          = SetContent,
 })
 
--- ══════════════════════════════════════════
---           SPEED ENGINE (RunService)
--- ══════════════════════════════════════════
--- ══════════════════════════════════════════
---   SPEED ENGINE v2 - BodyVelocity bypass
---   No toca WalkSpeed (evita anti-cheat)
--- ══════════════════════════════════════════
-local speedBV       = nil   -- BodyVelocity activo
-local speedActive   = false
+local speedBV     = nil
+local speedActive = false
 
 local function removeSpeedBV()
     if speedBV and speedBV.Parent then
@@ -964,13 +888,12 @@ local function getSpeedBV()
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return nil end
 
-    -- Reusar si ya existe
     local existing = root:FindFirstChild("DragonSpeedBV")
     if existing then return existing end
 
     local bv          = Instance.new("BodyVelocity")
     bv.Name           = "DragonSpeedBV"
-    bv.MaxForce       = Vector3.new(1e5, 0, 1e5)  -- solo horizontal, no afecta salto/caida
+    bv.MaxForce       = Vector3.new(1e5, 0, 1e5)
     bv.Velocity       = Vector3.zero
     bv.P              = 1e4
     bv.Parent         = root
@@ -978,7 +901,6 @@ local function getSpeedBV()
     return bv
 end
 
--- Loop principal del speed usando BodyVelocity
 RunService.Heartbeat:Connect(function()
     if not Config.SpeedEnabled then
         removeSpeedBV()
@@ -991,7 +913,6 @@ RunService.Heartbeat:Connect(function()
     local root = char:FindFirstChild("HumanoidRootPart")
     if not hum or not root then removeSpeedBV(); return end
 
-    -- Si el humanoid esta muerto no aplicar
     if hum.Health <= 0 then removeSpeedBV(); return end
 
     local moveDir = hum.MoveDirection
@@ -1001,27 +922,19 @@ RunService.Heartbeat:Connect(function()
     if not bv then return end
 
     if moveDir.Magnitude > 0.1 then
-        -- Aplicar velocidad en la direccion que se esta moviendo
         bv.Velocity = moveDir * spd
     else
-        -- Parado: quitar fuerza para no deslizarse
         bv.Velocity = Vector3.zero
     end
 end)
 
--- Limpiar al respawnear
 LocalPlayer.CharacterAdded:Connect(function(newChar)
-    speedBV = nil
+    speedBV   = nil
     Character = newChar
     Humanoid  = newChar:WaitForChild("Humanoid")
     RootPart  = newChar:WaitForChild("HumanoidRootPart")
 end)
 
--- (HUD de velocidad actualizado por RenderStepped)
-
--- ══════════════════════════════════════════
---    Default tab & open animation
--- ══════════════════════════════════════════
 SelectTab("Speed")
 MainFrame.Size = UDim2.new(0, 310, 0, 0)
 Tween(MainFrame, { Size = UDim2.new(0, 310, 0, 460) }, 0.25)
