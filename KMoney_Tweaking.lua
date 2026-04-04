@@ -93,6 +93,30 @@ local function cleanRouteBV()
     if bv then bv:Destroy() end
 end
 
+-- Gira el personaje al terminar la ruta
+local routeBtnRefs = {}  -- { L = btn, R = btn } se asigna al crear los botones
+
+local function faceDirection(yAngle)
+    local char = LocalPlayer.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    root.CFrame = CFrame.new(root.Position) * CFrame.Angles(0, math.rad(yAngle), 0)
+end
+
+local function faceSouth() faceDirection(180) end
+local function faceNorth() faceDirection(0)   end
+
+local function resetRouteBtn(side)
+    local btn = routeBtnRefs[side]
+    if btn then
+        TweenService:Create(btn, TweenInfo.new(0.15), {
+            BackgroundColor3 = Color3.fromRGB(35, 35, 35),
+            TextColor3       = Color3.fromRGB(210, 210, 210),
+        }):Play()
+    end
+end
+
 local function runRoute(side)
     autoRouteActive  = true
     currentRouteSide = side
@@ -112,6 +136,14 @@ local function runRoute(side)
 
     cleanRouteBV()
     autoRouteActive  = false
+
+    -- Girar al llegar y resetear botón
+    if side == "L" then
+        faceSouth()
+    else
+        faceNorth()
+    end
+    resetRouteBtn(side)
     currentRouteSide = nil
 end
 
@@ -282,6 +314,101 @@ RunService.Heartbeat:Connect(function()
         )
     end
 end)
+
+-- ══════════════════════════════════════════
+--                  ESP
+-- ══════════════════════════════════════════
+local espEnabled     = false
+local espObjects     = {}
+local espConnections = {}
+local ESP_COLOR      = Color3.fromRGB(130, 180, 255)
+
+local function createESP(plr)
+    if plr == LocalPlayer then return end
+    if not plr.Character then return end
+    if plr.Character:FindFirstChild("DragonESP") then return end
+    local c    = plr.Character
+    local hrp  = c:FindFirstChild("HumanoidRootPart"); if not hrp then return end
+    local head = c:FindFirstChild("Head")
+    local hum  = c:FindFirstChildOfClass("Humanoid")
+    if hum then hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None end
+
+    -- Hitbox
+    local hitbox         = Instance.new("BoxHandleAdornment")
+    hitbox.Name          = "DragonESP"
+    hitbox.Adornee       = hrp
+    hitbox.Size          = Vector3.new(4, 6, 2)
+    hitbox.Color3        = ESP_COLOR
+    hitbox.Transparency  = 0.3
+    hitbox.ZIndex        = 10
+    hitbox.AlwaysOnTop   = true
+    hitbox.Parent        = c
+    espObjects[plr]      = hitbox
+
+    -- Nombre
+    if head then
+        local bb       = Instance.new("BillboardGui")
+        bb.Name        = "DragonESP_Name"
+        bb.Adornee     = head
+        bb.Size        = UDim2.new(0, 200, 0, 50)
+        bb.StudsOffset = Vector3.new(0, 3, 0)
+        bb.AlwaysOnTop = true
+        bb.Parent      = c
+        local lbl                    = Instance.new("TextLabel")
+        lbl.Size                     = UDim2.new(1, 0, 1, 0)
+        lbl.BackgroundTransparency   = 1
+        lbl.Text                     = plr.DisplayName or plr.Name
+        lbl.TextColor3               = ESP_COLOR
+        lbl.Font                     = Enum.Font.GothamBold
+        lbl.TextScaled               = true
+        lbl.TextStrokeTransparency   = 0.4
+        lbl.TextStrokeColor3         = Color3.fromRGB(0, 0, 0)
+        lbl.Parent                   = bb
+    end
+end
+
+local function removeESP(plr)
+    pcall(function()
+        if plr.Character then
+            local h = plr.Character:FindFirstChild("DragonESP");      if h then h:Destroy() end
+            local n = plr.Character:FindFirstChild("DragonESP_Name"); if n then n:Destroy() end
+            local hum = plr.Character:FindFirstChildOfClass("Humanoid")
+            if hum then hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Automatic end
+        end
+        espObjects[plr] = nil
+    end)
+end
+
+local function enableESP()
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            if plr.Character then pcall(function() createESP(plr) end) end
+            local c = plr.CharacterAdded:Connect(function()
+                task.wait(0.1)
+                if espEnabled then pcall(function() createESP(plr) end) end
+            end)
+            table.insert(espConnections, c)
+        end
+    end
+    local c2 = Players.PlayerAdded:Connect(function(plr)
+        if plr == LocalPlayer then return end
+        local c3 = plr.CharacterAdded:Connect(function()
+            task.wait(0.1)
+            if espEnabled then pcall(function() createESP(plr) end) end
+        end)
+        table.insert(espConnections, c3)
+    end)
+    table.insert(espConnections, c2)
+end
+
+local function disableESP()
+    for _, plr in ipairs(Players:GetPlayers()) do pcall(function() removeESP(plr) end) end
+    for _, conn in ipairs(espConnections) do
+        if conn and conn.Connected then conn:Disconnect() end
+    end
+    espConnections = {}
+    espObjects     = {}
+end
 
 -- ══════════════════════════════════════════
 --               GUI BUILDER
@@ -821,6 +948,11 @@ CreateToggle(MechContent, "Anti Ragdoll", 122, false, function(v)
     toggleAntiRagdoll(v)
 end)
 
+CreateToggle(MechContent, "ESP", 168, false, function(v)
+    espEnabled = v
+    if v then enableESP() else disableESP() end
+end)
+
 -- ══════════════════════════════════════════
 --       MOVEMENT TAB
 -- ══════════════════════════════════════════
@@ -870,6 +1002,7 @@ local function MakeRouteBtn(label, xPos, side)
         Parent          = MovContent,
     })
     Make("UICorner", { CornerRadius = UDim.new(0, 7), Parent = btn })
+    routeBtnRefs[side] = btn  -- guardar referencia para auto-reset
 
     btn.MouseButton1Click:Connect(function()
         if currentRouteSide == side then
@@ -883,8 +1016,7 @@ local function MakeRouteBtn(label, xPos, side)
                          TextColor3 = Color3.fromRGB(10, 10, 10) })
             task.spawn(function()
                 runRoute(side)
-                Tween(btn, { BackgroundColor3 = Color3.fromRGB(35, 35, 35),
-                             TextColor3 = Color3.fromRGB(210, 210, 210) })
+                -- resetRouteBtn ya se llama dentro de runRoute al terminar
             end)
         end
     end)
