@@ -24,100 +24,142 @@ local Config = {
     SpeedEnabled = true,
 }
 
--- Anti Ragdoll state
-local AntiRagdollConns  = {}
-local antiRagdollEnabled = false
+-- ── ANTI RAGDOLL + ANTI KNOCKBACK ────────
+local ragdollConnections = {}
+local antiRagdollMode    = nil
+local cachedCharData     = {}
 
--- ── ANTI RAGDOLL FUNCTIONS ────────────────
-local function startAntiRagdoll()
-    if #AntiRagdollConns > 0 then return end
-    local c        = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    local humanoid = c:WaitForChild("Humanoid")
-    local root     = c:WaitForChild("HumanoidRootPart")
-    local animator = humanoid:WaitForChild("Animator")
-    local maxVelocity  = 40
-    local clampVelocity = 25
-    local maxClamp     = 15
-    local lastVelocity = Vector3.new(0, 0, 0)
+-- Velocidad máxima permitida al recibir golpes (anti knockback)
+local MAX_KNOCKBACK_VELOCITY = 28  -- studs/s horizontal máximo al ser golpeado
+local MAX_VERTICAL_VELOCITY  = 35  -- studs/s vertical máximo
 
-    local function IsRagdollState()
-        local state = humanoid:GetState()
-        return state == Enum.HumanoidStateType.Physics
-            or state == Enum.HumanoidStateType.Ragdoll
-            or state == Enum.HumanoidStateType.FallingDown
-            or state == Enum.HumanoidStateType.GettingUp
-    end
-
-    local function CleanRagdollEffects()
-        for _, obj in pairs(c:GetDescendants()) do
-            if obj:IsA("BallSocketConstraint") or obj:IsA("NoCollisionConstraint")
-                or obj:IsA("HingeConstraint")
-                or (obj:IsA("Attachment") and (obj.Name == "A" or obj.Name == "B")) then
-                obj:Destroy()
-            elseif obj:IsA("BodyVelocity") or obj:IsA("BodyPosition") or obj:IsA("BodyGyro") then
-                obj:Destroy()
-            elseif obj:IsA("Motor6D") then
-                obj.Enabled = true
-            end
-        end
-        for _, track in pairs(animator:GetPlayingAnimationTracks()) do
-            local animName = track.Animation and track.Animation.Name:lower() or ""
-            if animName:find("rag") or animName:find("fall")
-                or animName:find("hurt") or animName:find("down") then
-                track:Stop(0)
-            end
-        end
-    end
-
-    local function ReEnableControls()
-        pcall(function()
-            require(LocalPlayer:WaitForChild("PlayerScripts")
-                :WaitForChild("PlayerModule")):GetControls():Enable()
-        end)
-    end
-
-    table.insert(AntiRagdollConns, humanoid.StateChanged:Connect(function()
-        if IsRagdollState() then
-            humanoid:ChangeState(Enum.HumanoidStateType.Running)
-            CleanRagdollEffects()
-            workspace.CurrentCamera.CameraSubject = humanoid
-            ReEnableControls()
-        end
-    end))
-
-    table.insert(AntiRagdollConns, RunService.Heartbeat:Connect(function()
-        if not antiRagdollEnabled then return end
-        if IsRagdollState() then
-            CleanRagdollEffects()
-            local vel = root.AssemblyLinearVelocity
-            if (vel - lastVelocity).Magnitude > maxVelocity and vel.Magnitude > clampVelocity then
-                root.AssemblyLinearVelocity = vel.Unit * math.min(vel.Magnitude, maxClamp)
-            end
-            lastVelocity = vel
-        end
-    end))
-
-    table.insert(AntiRagdollConns, c.DescendantAdded:Connect(function()
-        if IsRagdollState() then CleanRagdollEffects() end
-    end))
-
-    table.insert(AntiRagdollConns, LocalPlayer.CharacterAdded:Connect(function(newChar)
-        c        = newChar
-        humanoid = newChar:WaitForChild("Humanoid")
-        root     = newChar:WaitForChild("HumanoidRootPart")
-        animator = humanoid:WaitForChild("Animator")
-        lastVelocity = Vector3.new(0, 0, 0)
-        ReEnableControls()
-        CleanRagdollEffects()
-    end))
-
-    ReEnableControls()
-    CleanRagdollEffects()
+local function disconnectAllRagdoll()
+    for _, conn in pairs(ragdollConnections) do pcall(function() conn:Disconnect() end) end
+    ragdollConnections = {}
 end
 
-local function stopAntiRagdoll()
-    for _, conn in pairs(AntiRagdollConns) do conn:Disconnect() end
-    AntiRagdollConns = {}
+local function cacheCharacterData()
+    local char = LocalPlayer.Character
+    if not char then return false end
+    local hum  = char:FindFirstChildOfClass("Humanoid")
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not hum or not root then return false end
+    cachedCharData = {
+        character        = char,
+        humanoid         = hum,
+        root             = root,
+        originalWalkSpeed = hum.WalkSpeed,
+        originalJumpPower = hum.JumpPower,
+        isFrozen         = false,
+    }
+    return true
+end
+
+local function isRagdolled()
+    if not cachedCharData.humanoid then return false end
+    local state = cachedCharData.humanoid:GetState()
+    if state == Enum.HumanoidStateType.Physics
+    or state == Enum.HumanoidStateType.Ragdoll
+    or state == Enum.HumanoidStateType.FallingDown then return true end
+    -- No leer RagdollEndTime del servidor: puede causar detecciones falsas y respawn loops
+    return false
+end
+
+local function removeRagdollConstraints()
+    if not cachedCharData.character then return end
+    for _, descendant in ipairs(cachedCharData.character:GetDescendants()) do
+        if descendant:IsA("BallSocketConstraint")
+        or (descendant:IsA("Attachment") and descendant.Name:find("RagdollAttachment")) then
+            pcall(function() descendant:Destroy() end)
+        end
+    end
+end
+
+local function forceExitRagdoll()
+    local hum  = cachedCharData.humanoid
+    local root = cachedCharData.root
+    if not hum or not root then return end
+    -- NO tocamos RagdollEndTime: es un atributo del servidor y modificarlo causa respawn loops
+    if hum.Health > 0 then
+        pcall(function() hum:ChangeState(Enum.HumanoidStateType.Running) end)
+    end
+    root.Anchored = false
+    -- Solo resetear si la velocidad es absurdamente alta (no en golpes normales)
+    local vel = root.AssemblyLinearVelocity
+    if vel.Magnitude > 80 then
+        root.AssemblyLinearVelocity  = Vector3.zero
+        root.AssemblyAngularVelocity = Vector3.zero
+    end
+end
+
+-- ── ANTI KNOCKBACK: clampea la velocidad solo cuando es excesiva ───────
+local function clampKnockback()
+    local root = cachedCharData.root
+    if not root then return end
+    local vel = root.AssemblyLinearVelocity
+    local horizontal = Vector3.new(vel.X, 0, vel.Z)
+    local vertical   = vel.Y
+
+    -- Solo actuar si la velocidad es claramente un knockback (muy por encima del normal)
+    local needsClamp = false
+    local clampedH   = horizontal
+    local clampedV   = vertical
+
+    if horizontal.Magnitude > MAX_KNOCKBACK_VELOCITY then
+        clampedH   = horizontal.Unit * MAX_KNOCKBACK_VELOCITY
+        needsClamp = true
+    end
+    if vertical > MAX_VERTICAL_VELOCITY then
+        clampedV   = MAX_VERTICAL_VELOCITY
+        needsClamp = true
+    end
+    -- No clampar velocidad vertical negativa (caída normal)
+
+    if needsClamp then
+        root.AssemblyLinearVelocity = Vector3.new(clampedH.X, clampedV, clampedH.Z)
+        -- NO zerear angular aqui, puede causar comportamientos raros
+    end
+end
+
+local function antiRagdollLoop()
+    while antiRagdollMode do
+        task.wait()
+        if not cachedCharData.humanoid then continue end
+
+        -- Anti ragdoll
+        if isRagdolled() then
+            removeRagdollConstraints()
+            forceExitRagdoll()
+        end
+
+        -- Anti knockback: clampear siempre
+        clampKnockback()
+
+        -- Mantener cámara
+        local cam = workspace.CurrentCamera
+        if cam and cachedCharData.humanoid and cam.CameraSubject ~= cachedCharData.humanoid then
+            cam.CameraSubject = cachedCharData.humanoid
+        end
+    end
+end
+
+local function toggleAntiRagdoll(enable)
+    if enable then
+        disconnectAllRagdoll()
+        if not cacheCharacterData() then return end
+        antiRagdollMode = "v2"
+
+        local charConn = LocalPlayer.CharacterAdded:Connect(function()
+            task.wait(0.5)
+            if antiRagdollMode then cacheCharacterData() end
+        end)
+        table.insert(ragdollConnections, charConn)
+        task.spawn(antiRagdollLoop)
+    else
+        antiRagdollMode = nil
+        disconnectAllRagdoll()
+        cachedCharData  = {}
+    end
 end
 
 -- ══════════════════════════════════════════
@@ -665,8 +707,7 @@ CreateToggle(MechContent, "No Clip",        76, false, function(v)
     end
 end)
 CreateToggle(MechContent, "Anti Ragdoll", 122, false, function(v)
-    antiRagdollEnabled = v
-    if v then startAntiRagdoll() else stopAntiRagdoll() end
+    toggleAntiRagdoll(v)
 end)
 
 -- ══════════════════════════════════════════
