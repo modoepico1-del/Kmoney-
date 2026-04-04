@@ -24,6 +24,110 @@ local Config = {
     SpeedEnabled = true,
 }
 
+-- ══════════════════════════════════════════
+--      AUTO ROUTE CONSTANTS
+-- ══════════════════════════════════════════
+local NORMAL_SPEED = 60
+local SLOW_SPEED   = 29
+local POS_L1    = Vector3.new(-476.48, -6.28,  92.73)
+local POS_L2    = Vector3.new(-483.12, -4.95,  94.80)
+local POS_R1    = Vector3.new(-476.16, -6.52,  25.62)
+local POS_R2    = Vector3.new(-483.04, -5.09,  23.14)
+local LFINAL    = Vector3.new(-473.38, -8.40,  22.34)
+local RFINAL    = Vector3.new(-476.17, -7.91,  97.91)
+
+local autoRouteActive   = false
+local autoRouteThread   = nil
+local currentRouteSide  = nil  -- "L" or "R"
+
+-- Mueve al personaje hacia un punto hasta llegar (o hasta que se cancele)
+local function walkToPoint(target, speed, tolerance)
+    tolerance = tolerance or 3.5
+    local char = LocalPlayer.Character
+    if not char then return false end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    local hum  = char:FindFirstChildOfClass("Humanoid")
+    if not root or not hum then return false end
+
+    -- Crear/obtener BodyVelocity de ruta (separado del speed normal)
+    local bv = root:FindFirstChild("DragonRouteBV")
+    if not bv then
+        bv           = Instance.new("BodyVelocity")
+        bv.Name      = "DragonRouteBV"
+        bv.MaxForce  = Vector3.new(1e5, 0, 1e5)
+        bv.Velocity  = Vector3.zero
+        bv.P         = 1e4
+        bv.Parent    = root
+    end
+
+    while autoRouteActive do
+        char = LocalPlayer.Character
+        if not char then break end
+        root = char:FindFirstChild("HumanoidRootPart")
+        if not root then break end
+
+        local diff = target - root.Position
+        local dist = Vector3.new(diff.X, 0, diff.Z).Magnitude
+
+        if dist <= tolerance then
+            bv.Velocity = Vector3.zero
+            return true
+        end
+
+        local dir    = Vector3.new(diff.X, 0, diff.Z).Unit
+        -- Reducir velocidad al acercarse al destino
+        local factor = math.clamp(dist / 10, 0.3, 1)
+        bv.Velocity  = dir * (speed * factor)
+
+        task.wait()
+    end
+
+    -- Limpiar bv si se cancelo
+    local bv2 = root and root:FindFirstChild("DragonRouteBV")
+    if bv2 then bv2:Destroy() end
+    return false
+end
+
+local function cleanRouteBV()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    local bv = root:FindFirstChild("DragonRouteBV")
+    if bv then bv:Destroy() end
+end
+
+local function runRoute(side)
+    autoRouteActive  = true
+    currentRouteSide = side
+
+    local p1, p2, pFinal
+    if side == "L" then
+        p1 = POS_L1; p2 = POS_L2; pFinal = LFINAL
+    else
+        p1 = POS_R1; p2 = POS_R2; pFinal = RFINAL
+    end
+
+    -- Waypoint 1 → velocidad normal
+    if not walkToPoint(p1, NORMAL_SPEED) then cleanRouteBV(); return end
+    task.wait(0.1)
+    -- Waypoint 2 → velocidad normal
+    if not walkToPoint(p2, NORMAL_SPEED) then cleanRouteBV(); return end
+    task.wait(0.1)
+    -- Final → velocidad lenta (llegando al destino)
+    if not walkToPoint(pFinal, SLOW_SPEED, 2) then cleanRouteBV(); return end
+
+    cleanRouteBV()
+    autoRouteActive  = false
+    currentRouteSide = nil
+end
+
+local function stopRoute()
+    autoRouteActive  = false
+    currentRouteSide = nil
+    cleanRouteBV()
+end
+
 -- ── ANTI RAGDOLL + ANTI KNOCKBACK ────────
 local ragdollConnections = {}
 local antiRagdollMode    = nil
@@ -726,12 +830,81 @@ Make("TextLabel", {
     TextXAlignment  = Enum.TextXAlignment.Left,
     Parent          = MovContent,
 })
-CreateToggle(MovContent, "Fly",            30, false, function(v) end)
-CreateToggle(MovContent, "Speed Boost",    76, false, function(v)
+CreateToggle(MovContent, "Fly",           30, false, function(v) end)
+CreateToggle(MovContent, "Speed Boost",   76, false, function(v)
     if v then Config.NormalSpeed = 100 else Config.NormalSpeed = 16 end
 end)
-CreateToggle(MovContent, "Low Gravity",   122, false, function(v)
+CreateToggle(MovContent, "Low Gravity",  122, false, function(v)
     workspace.Gravity = v and 30 or 196.2
+end)
+
+-- ── AUTO ROUTE buttons ───────────────────
+Make("TextLabel", {
+    Text            = "AUTO ROUTE",
+    Size            = UDim2.new(1, -10, 0, 16),
+    Position        = UDim2.new(0, 5, 0, 170),
+    BackgroundTransparency = 1,
+    TextColor3      = Color3.fromRGB(100, 100, 100),
+    Font            = Enum.Font.GothamBold,
+    TextSize        = 9,
+    TextXAlignment  = Enum.TextXAlignment.Left,
+    Parent          = MovContent,
+})
+
+local function MakeRouteBtn(label, xPos, side)
+    local btn = Make("TextButton", {
+        Text            = label,
+        Size            = UDim2.new(0.44, 0, 0, 34),
+        Position        = UDim2.new(xPos, 0, 0, 190),
+        BackgroundColor3 = Color3.fromRGB(35, 35, 35),
+        TextColor3      = Color3.fromRGB(210, 210, 210),
+        Font            = Enum.Font.GothamBold,
+        TextSize        = 11,
+        BorderSizePixel = 0,
+        Parent          = MovContent,
+    })
+    Make("UICorner", { CornerRadius = UDim.new(0, 7), Parent = btn })
+
+    btn.MouseButton1Click:Connect(function()
+        if currentRouteSide == side then
+            -- Ya corriendo esta ruta: detener
+            stopRoute()
+            Tween(btn, { BackgroundColor3 = Color3.fromRGB(35, 35, 35),
+                         TextColor3 = Color3.fromRGB(210, 210, 210) })
+        else
+            stopRoute()
+            task.wait(0.05)
+            Tween(btn, { BackgroundColor3 = Color3.fromRGB(220, 220, 220),
+                         TextColor3 = Color3.fromRGB(10, 10, 10) })
+            task.spawn(function()
+                runRoute(side)
+                -- Al terminar, restaurar color
+                Tween(btn, { BackgroundColor3 = Color3.fromRGB(35, 35, 35),
+                             TextColor3 = Color3.fromRGB(210, 210, 210) })
+            end)
+        end
+    end)
+    return btn
+end
+
+MakeRouteBtn("ROUTE LEFT  ←",  0.03, "L")
+MakeRouteBtn("ROUTE RIGHT →",  0.52, "R")
+
+-- Boton STOP
+local stopBtn = Make("TextButton", {
+    Text            = "■  STOP ROUTE",
+    Size            = UDim2.new(0.94, 0, 0, 28),
+    Position        = UDim2.new(0.03, 0, 0, 232),
+    BackgroundColor3 = Color3.fromRGB(50, 25, 25),
+    TextColor3      = Color3.fromRGB(220, 100, 100),
+    Font            = Enum.Font.GothamBold,
+    TextSize        = 11,
+    BorderSizePixel = 0,
+    Parent          = MovContent,
+})
+Make("UICorner", { CornerRadius = UDim.new(0, 7), Parent = stopBtn })
+stopBtn.MouseButton1Click:Connect(function()
+    stopRoute()
 end)
 
 -- ══════════════════════════════════════════
