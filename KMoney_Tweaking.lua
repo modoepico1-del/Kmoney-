@@ -93,30 +93,6 @@ local function cleanRouteBV()
     if bv then bv:Destroy() end
 end
 
--- Gira el personaje al terminar la ruta
-local routeBtnRefs = {}  -- { L = btn, R = btn } se asigna al crear los botones
-
-local function faceDirection(yAngle)
-    local char = LocalPlayer.Character
-    if not char then return end
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-    root.CFrame = CFrame.new(root.Position) * CFrame.Angles(0, math.rad(yAngle), 0)
-end
-
-local function faceSouth() faceDirection(180) end
-local function faceNorth() faceDirection(0)   end
-
-local function resetRouteBtn(side)
-    local btn = routeBtnRefs[side]
-    if btn then
-        TweenService:Create(btn, TweenInfo.new(0.15), {
-            BackgroundColor3 = Color3.fromRGB(35, 35, 35),
-            TextColor3       = Color3.fromRGB(210, 210, 210),
-        }):Play()
-    end
-end
-
 local function runRoute(side)
     autoRouteActive  = true
     currentRouteSide = side
@@ -136,14 +112,6 @@ local function runRoute(side)
 
     cleanRouteBV()
     autoRouteActive  = false
-
-    -- Girar al llegar y resetear botón
-    if side == "L" then
-        faceSouth()
-    else
-        faceNorth()
-    end
-    resetRouteBtn(side)
     currentRouteSide = nil
 end
 
@@ -709,23 +677,37 @@ local function CreateSliderRow(parent, label, desc, value, yPos, callback)
     })
 
     local valBox = Make("Frame", {
-        Size            = UDim2.new(0, 48, 0, 26),
-        Position        = UDim2.new(1, -54, 0.5, -13),
+        Size            = UDim2.new(0, 54, 0, 26),
+        Position        = UDim2.new(1, -58, 0.5, -13),
         BackgroundColor3 = Color3.fromRGB(40, 40, 40),
         BorderSizePixel = 0,
         Parent          = row,
     })
     Make("UICorner", { CornerRadius = UDim.new(0, 6), Parent = valBox })
 
-    local valLabel = Make("TextLabel", {
-        Text            = tostring(value),
-        Size            = UDim2.new(1, 0, 1, 0),
-        BackgroundTransparency = 1,
-        TextColor3      = Color3.fromRGB(220, 220, 220),
-        Font            = Enum.Font.GothamBold,
-        TextSize        = 12,
-        Parent          = valBox,
-    })
+    -- TextBox editable con soporte para decimales
+    local valLabel = Instance.new("TextBox")
+    valLabel.Size                 = UDim2.new(1, 0, 1, 0)
+    valLabel.BackgroundTransparency = 1
+    valLabel.Text                 = tostring(value)
+    valLabel.TextColor3           = Color3.fromRGB(220, 220, 220)
+    valLabel.Font                 = Enum.Font.GothamBold
+    valLabel.TextSize             = 12
+    valLabel.ClearTextOnFocus     = false
+    valLabel.BorderSizePixel      = 0
+    valLabel.Parent               = valBox
+
+    -- Al perder foco: validar y aplicar
+    valLabel.FocusLost:Connect(function()
+        local v = tonumber(valLabel.Text)
+        if v then
+            v = math.clamp(math.floor(v * 10 + 0.5) / 10, 0, 500)
+            valLabel.Text = tostring(v)
+            if callback then callback(v) end
+        else
+            valLabel.Text = tostring(value)
+        end
+    end)
 
     local sliderBG = Make("Frame", {
         Size            = UDim2.new(1, -20, 0, 4),
@@ -737,7 +719,7 @@ local function CreateSliderRow(parent, label, desc, value, yPos, callback)
     Make("UICorner", { CornerRadius = UDim.new(1, 0), Parent = sliderBG })
 
     local sliderFill = Make("Frame", {
-        Size            = UDim2.new(value / 100, 0, 1, 0),
+        Size            = UDim2.new(value / 200, 0, 1, 0),
         BackgroundColor3 = Color3.fromRGB(220, 220, 220),
         BorderSizePixel = 0,
         Parent          = sliderBG,
@@ -1002,7 +984,6 @@ local function MakeRouteBtn(label, xPos, side)
         Parent          = MovContent,
     })
     Make("UICorner", { CornerRadius = UDim.new(0, 7), Parent = btn })
-    routeBtnRefs[side] = btn  -- guardar referencia para auto-reset
 
     btn.MouseButton1Click:Connect(function()
         if currentRouteSide == side then
@@ -1016,7 +997,8 @@ local function MakeRouteBtn(label, xPos, side)
                          TextColor3 = Color3.fromRGB(10, 10, 10) })
             task.spawn(function()
                 runRoute(side)
-                -- resetRouteBtn ya se llama dentro de runRoute al terminar
+                Tween(btn, { BackgroundColor3 = Color3.fromRGB(35, 35, 35),
+                             TextColor3 = Color3.fromRGB(210, 210, 210) })
             end)
         end
     end)
@@ -1041,6 +1023,84 @@ Make("UICorner", { CornerRadius = UDim.new(0, 7), Parent = stopBtn })
 stopBtn.MouseButton1Click:Connect(function()
     stopRoute()
 end)
+
+-- ── SET POSITION ─────────────────────────
+Make("TextLabel", {
+    Text            = "SET DESTINATION",
+    Size            = UDim2.new(1, -10, 0, 16),
+    Position        = UDim2.new(0, 5, 0, 268),
+    BackgroundTransparency = 1,
+    TextColor3      = Color3.fromRGB(100, 100, 100),
+    Font            = Enum.Font.GothamBold,
+    TextSize        = 9,
+    TextXAlignment  = Enum.TextXAlignment.Left,
+    Parent          = MovContent,
+})
+
+-- Coordenadas actuales mostradas
+local coordLabelL = Make("TextLabel", {
+    Text            = "L: "..math.floor(LFINAL.X)..","..math.floor(LFINAL.Y)..","..math.floor(LFINAL.Z),
+    Size            = UDim2.new(1, -10, 0, 14),
+    Position        = UDim2.new(0, 5, 0, 286),
+    BackgroundTransparency = 1,
+    TextColor3      = Color3.fromRGB(80, 80, 80),
+    Font            = Enum.Font.Gotham,
+    TextSize        = 9,
+    TextXAlignment  = Enum.TextXAlignment.Left,
+    Parent          = MovContent,
+})
+local coordLabelR = Make("TextLabel", {
+    Text            = "R: "..math.floor(RFINAL.X)..","..math.floor(RFINAL.Y)..","..math.floor(RFINAL.Z),
+    Size            = UDim2.new(1, -10, 0, 14),
+    Position        = UDim2.new(0, 5, 0, 300),
+    BackgroundTransparency = 1,
+    TextColor3      = Color3.fromRGB(80, 80, 80),
+    Font            = Enum.Font.Gotham,
+    TextSize        = 9,
+    TextXAlignment  = Enum.TextXAlignment.Left,
+    Parent          = MovContent,
+})
+
+local function MakeSetPosBtn(label, xPos, yPos, side)
+    local btn = Make("TextButton", {
+        Text            = label,
+        Size            = UDim2.new(0.44, 0, 0, 28),
+        Position        = UDim2.new(xPos, 0, 0, yPos),
+        BackgroundColor3 = Color3.fromRGB(28, 28, 28),
+        TextColor3      = Color3.fromRGB(200, 200, 200),
+        Font            = Enum.Font.GothamBold,
+        TextSize        = 10,
+        BorderSizePixel = 0,
+        Parent          = MovContent,
+    })
+    Make("UICorner", { CornerRadius = UDim.new(0, 7), Parent = btn })
+
+    btn.MouseButton1Click:Connect(function()
+        local char = LocalPlayer.Character
+        if not char then return end
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if not root then return end
+        local pos = root.Position
+
+        if side == "L" then
+            LFINAL = pos
+            coordLabelL.Text = "L: "..math.floor(pos.X)..","..math.floor(pos.Y)..","..math.floor(pos.Z)
+        else
+            RFINAL = pos
+            coordLabelR.Text = "R: "..math.floor(pos.X)..","..math.floor(pos.Y)..","..math.floor(pos.Z)
+        end
+
+        -- Feedback visual
+        local orig = btn.BackgroundColor3
+        Tween(btn, { BackgroundColor3 = Color3.fromRGB(60, 100, 60) })
+        task.delay(0.6, function()
+            Tween(btn, { BackgroundColor3 = orig })
+        end)
+    end)
+end
+
+MakeSetPosBtn("SET LEFT  ←",  0.03, 318, "L")
+MakeSetPosBtn("SET RIGHT →",  0.52, 318, "R")
 
 -- ══════════════════════════════════════════
 --       SETTINGS TAB
