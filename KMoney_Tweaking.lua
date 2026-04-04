@@ -44,12 +44,26 @@ local autoLeftConnection  = nil
 local autoRightConnection = nil
 local autoLeftPhase       = 1
 local autoRightPhase      = 1
-local currentRouteSide    = nil  -- "L" or "R" (para los botones)
+local currentRouteSide    = nil  -- "L" or "R"
 
--- Referencias a botones del GUI (se asignan más abajo)
 local _routeBtnL = nil
 local _routeBtnR = nil
 
+-- ══════════════════════════════════════════
+--         UNWALK VARIABLES
+-- ══════════════════════════════════════════
+local unwalkEnabled = false
+local unwalkConn    = nil
+local gChar         = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local player        = LocalPlayer
+
+LocalPlayer.CharacterAdded:Connect(function(c)
+    gChar = c
+end)
+
+-- ══════════════════════════════════════════
+--         ROUTE FUNCTIONS
+-- ══════════════════════════════════════════
 local function routeFaceSouth()
     local c = LocalPlayer.Character; if not c then return end
     local rp = c:FindFirstChild("HumanoidRootPart")
@@ -98,7 +112,6 @@ local function startAutoLeft()
                 currentRouteSide = nil
                 if autoLeftConnection then autoLeftConnection:Disconnect(); autoLeftConnection = nil end
                 autoLeftPhase = 1
-                -- Resetear botón
                 if _routeBtnL then
                     TweenService:Create(_routeBtnL, TweenInfo.new(0.15), {
                         BackgroundColor3 = Color3.fromRGB(35, 35, 35),
@@ -163,7 +176,6 @@ local function startAutoRight()
                 currentRouteSide = nil
                 if autoRightConnection then autoRightConnection:Disconnect(); autoRightConnection = nil end
                 autoRightPhase = 1
-                -- Resetear botón
                 if _routeBtnR then
                     TweenService:Create(_routeBtnR, TweenInfo.new(0.15), {
                         BackgroundColor3 = Color3.fromRGB(35, 35, 35),
@@ -196,6 +208,32 @@ local function stopRoute()
     stopAutoLeft()
     stopAutoRight()
     currentRouteSide = nil
+end
+
+-- ══════════════════════════════════════════
+--         UNWALK FUNCTIONS
+-- ══════════════════════════════════════════
+local function startUnwalk()
+    if not gChar then return end
+    local h2 = gChar:FindFirstChildOfClass("Humanoid") if not h2 then return end
+    local anim = h2:FindFirstChildOfClass("Animator") if not anim then return end
+    for _, t in ipairs(anim:GetPlayingAnimationTracks()) do t:Stop(0) end
+    if unwalkConn then unwalkConn:Disconnect() end
+    unwalkConn = RunService.Heartbeat:Connect(function()
+        if not unwalkEnabled then
+            unwalkConn:Disconnect()
+            unwalkConn = nil
+            return
+        end
+        local c = player.Character if not c then return end
+        local hh = c:FindFirstChildOfClass("Humanoid") if not hh then return end
+        local an = hh:FindFirstChildOfClass("Animator") if not an then return end
+        for _, t in ipairs(an:GetPlayingAnimationTracks()) do t:Stop(0) end
+    end)
+end
+
+local function stopUnwalk()
+    if unwalkConn then unwalkConn:Disconnect() unwalkConn = nil end
 end
 
 -- ── ANTI RAGDOLL + ANTI KNOCKBACK ────────
@@ -378,7 +416,6 @@ local function createESP(plr)
     local hum  = c:FindFirstChildOfClass("Humanoid")
     if hum then hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None end
 
-    -- Hitbox
     local hitbox         = Instance.new("BoxHandleAdornment")
     hitbox.Name          = "DragonESP"
     hitbox.Adornee       = hrp
@@ -390,7 +427,6 @@ local function createESP(plr)
     hitbox.Parent        = c
     espObjects[plr]      = hitbox
 
-    -- Nombre
     if head then
         local bb       = Instance.new("BillboardGui")
         bb.Name        = "DragonESP_Name"
@@ -762,7 +798,6 @@ local function CreateSliderRow(parent, label, desc, value, yPos, callback)
     })
     Make("UICorner", { CornerRadius = UDim.new(0, 6), Parent = valBox })
 
-    -- TextBox editable con soporte para decimales
     local valLabel = Instance.new("TextBox")
     valLabel.Size                 = UDim2.new(1, 0, 1, 0)
     valLabel.BackgroundTransparency = 1
@@ -774,7 +809,6 @@ local function CreateSliderRow(parent, label, desc, value, yPos, callback)
     valLabel.BorderSizePixel      = 0
     valLabel.Parent               = valBox
 
-    -- Al perder foco: validar y aplicar
     valLabel.FocusLost:Connect(function()
         local v = tonumber(valLabel.Text)
         if v then
@@ -988,7 +1022,6 @@ Make("TextLabel", {
     Parent          = MechContent,
 })
 
--- ── INFINITE JUMP (integrado) ─────────────
 CreateToggle(MechContent, "Infinite Jump", 30, false, function(v)
     infJumpEnabled = v
 end)
@@ -1010,6 +1043,16 @@ end)
 CreateToggle(MechContent, "ESP", 168, false, function(v)
     espEnabled = v
     if v then enableESP() else disableESP() end
+end)
+
+-- ── UNWALK TOGGLE ────────────────────────
+CreateToggle(MechContent, "Unwalk", 214, false, function(v)
+    unwalkEnabled = v
+    if v then
+        startUnwalk()
+    else
+        stopUnwalk()
+    end
 end)
 
 -- ══════════════════════════════════════════
@@ -1062,18 +1105,15 @@ local function MakeRouteBtn(label, xPos, side)
     })
     Make("UICorner", { CornerRadius = UDim.new(0, 7), Parent = btn })
 
-    -- Guardar referencias para auto-reset
     if side == "L" then _routeBtnL = btn
     else                _routeBtnR = btn end
 
     btn.MouseButton1Click:Connect(function()
         if currentRouteSide == side then
-            -- Ya activo: detener
             stopRoute()
             Tween(btn, { BackgroundColor3 = Color3.fromRGB(35, 35, 35),
                          TextColor3 = Color3.fromRGB(210, 210, 210) })
         else
-            -- Detener ruta anterior si hay
             stopRoute()
             if _routeBtnL then Tween(_routeBtnL, { BackgroundColor3 = Color3.fromRGB(35,35,35), TextColor3 = Color3.fromRGB(210,210,210) }) end
             if _routeBtnR then Tween(_routeBtnR, { BackgroundColor3 = Color3.fromRGB(35,35,35), TextColor3 = Color3.fromRGB(210,210,210) }) end
@@ -1119,7 +1159,6 @@ Make("TextLabel", {
     Parent          = MovContent,
 })
 
--- Coordenadas actuales mostradas
 local coordLabelL = Make("TextLabel", {
     Text            = "L: "..math.floor(LFINAL.X)..","..math.floor(LFINAL.Y)..","..math.floor(LFINAL.Z),
     Size            = UDim2.new(1, -10, 0, 14),
@@ -1172,7 +1211,6 @@ local function MakeSetPosBtn(label, xPos, yPos, side)
             coordLabelR.Text = "R: "..math.floor(pos.X)..","..math.floor(pos.Y)..","..math.floor(pos.Z)
         end
 
-        -- Feedback visual
         local orig = btn.BackgroundColor3
         Tween(btn, { BackgroundColor3 = Color3.fromRGB(60, 100, 60) })
         task.delay(0.6, function()
