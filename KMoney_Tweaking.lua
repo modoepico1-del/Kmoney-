@@ -50,20 +50,47 @@ local ScreenGui = Make("ScreenGui", {
 })
 if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
 
--- ── Speed Label (HUD) ──────────────────────
-local SpeedLabel = Make("TextLabel", {
-    Name            = "SpeedLabel",
-    Text            = "Speed: 0.0",
-    Size            = UDim2.new(0, 200, 0, 30),
-    Position        = UDim2.new(0.5, -100, 0.38, 0),
-    BackgroundTransparency = 1,
-    TextColor3      = Color3.fromRGB(255, 255, 255),
-    TextStrokeColor3 = Color3.fromRGB(0, 0, 0),
-    TextStrokeTransparency = 0.4,
-    Font            = Enum.Font.GothamBold,
-    TextSize        = 20,
-    Parent          = ScreenGui,
-})
+-- ── Speed Billboard (encima del personaje, compatible con shift lock) ──
+local SpeedLabel = nil
+
+local function CreateSpeedBillboard()
+    local char = LocalPlayer.Character
+    if not char then return nil end
+    local old = char:FindFirstChild("SpeedBillboard")
+    if old then old:Destroy() end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return nil end
+    local billboard = Make("BillboardGui", {
+        Name         = "SpeedBillboard",
+        Size         = UDim2.new(0, 200, 0, 40),
+        StudsOffset  = Vector3.new(0, 3.5, 0),
+        AlwaysOnTop  = true,
+        ResetOnSpawn = false,
+        Parent       = root,
+    })
+    return Make("TextLabel", {
+        Name                   = "SpeedLabel",
+        Text                   = "Speed: 0.0",
+        Size                   = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        TextColor3             = Color3.fromRGB(255, 255, 255),
+        TextStrokeColor3       = Color3.fromRGB(0, 0, 0),
+        TextStrokeTransparency = 0.3,
+        Font                   = Enum.Font.GothamBold,
+        TextSize               = 18,
+        Parent                 = billboard,
+    })
+end
+
+SpeedLabel = CreateSpeedBillboard()
+
+LocalPlayer.CharacterAdded:Connect(function(newChar)
+    Character = newChar
+    Humanoid  = newChar:WaitForChild("Humanoid")
+    RootPart  = newChar:WaitForChild("HumanoidRootPart")
+    task.wait(0.15)
+    SpeedLabel = CreateSpeedBillboard()
+end)
 
 -- ── Main Frame ────────────────────────────
 local MainFrame = Make("Frame", {
@@ -608,10 +635,12 @@ RunService.Heartbeat:Connect(function()
         Humanoid.WalkSpeed = spd
     end
 
-    -- Update HUD
-    local vel = RootPart.Velocity
-    local flat = Vector3.new(vel.X, 0, vel.Z).Magnitude
-    SpeedLabel.Text = string.format("Speed: %.1f", flat)
+    -- Update Speed Billboard
+    if SpeedLabel and SpeedLabel.Parent then
+        local vel = RootPart.Velocity
+        local flat = Vector3.new(vel.X, 0, vel.Z).Magnitude
+        SpeedLabel.Text = string.format("Speed: %.1f", flat)
+    end
 end)
 
 -- ══════════════════════════════════════════
