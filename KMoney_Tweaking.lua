@@ -771,22 +771,53 @@ Make("TextLabel", {
 -- ══════════════════════════════════════════
 --           SPEED ENGINE (RunService)
 -- ══════════════════════════════════════════
-RunService.Heartbeat:Connect(function()
-    -- Refresh character refs
+local lastAppliedSpeed = -1
+local lastMode         = ""
+
+local function applySpeed()
+    if not Config.SpeedEnabled then return end
     Character = LocalPlayer.Character
     if not Character then return end
     Humanoid = Character:FindFirstChildOfClass("Humanoid")
-    RootPart = Character:FindFirstChild("HumanoidRootPart")
-    if not Humanoid or not RootPart then return end
+    if not Humanoid then return end
 
-    -- Apply speed
-    if Config.SpeedEnabled then
-        local spd = (Config.Mode == "Carry") and Config.CarrySpeed or Config.NormalSpeed
+    local spd  = (Config.Mode == "Carry") and Config.CarrySpeed or Config.NormalSpeed
+    local mode = Config.Mode
+
+    -- Solo setear si realmente cambio, evita que el anti-cheat detecte escrituras continuas
+    if spd ~= lastAppliedSpeed or mode ~= lastMode then
         Humanoid.WalkSpeed = spd
+        lastAppliedSpeed   = spd
+        lastMode           = mode
     end
+end
 
-    -- (velocidad actualizada por RenderStepped con AssemblyLinearVelocity)
+-- Aplicar al cambiar modo con Q
+local _oldModeLabel = modeLabel
+UserInputService.InputBegan:Connect(function(inp, gp)
+    if gp then return end
+    if inp.KeyCode == Config.ModeKey then
+        task.wait()   -- esperar al siguiente frame para que Config.Mode ya este actualizado
+        applySpeed()
+    end
 end)
+
+-- Aplicar al spawnear personaje
+LocalPlayer.CharacterAdded:Connect(function(newChar)
+    task.wait(0.5)
+    lastAppliedSpeed = -1
+    applySpeed()
+end)
+
+-- Loop ligero: verificar cada 0.5s en vez de cada frame
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        applySpeed()
+    end
+end)
+
+-- (velocidad de HUD actualizada por RenderStepped con AssemblyLinearVelocity)
 
 -- ══════════════════════════════════════════
 --    Default tab & open animation
