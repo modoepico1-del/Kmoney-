@@ -771,53 +771,80 @@ Make("TextLabel", {
 -- ══════════════════════════════════════════
 --           SPEED ENGINE (RunService)
 -- ══════════════════════════════════════════
-local lastAppliedSpeed = -1
-local lastMode         = ""
+-- ══════════════════════════════════════════
+--   SPEED ENGINE v2 - BodyVelocity bypass
+--   No toca WalkSpeed (evita anti-cheat)
+-- ══════════════════════════════════════════
+local speedBV       = nil   -- BodyVelocity activo
+local speedActive   = false
 
-local function applySpeed()
-    if not Config.SpeedEnabled then return end
-    Character = LocalPlayer.Character
-    if not Character then return end
-    Humanoid = Character:FindFirstChildOfClass("Humanoid")
-    if not Humanoid then return end
-
-    local spd  = (Config.Mode == "Carry") and Config.CarrySpeed or Config.NormalSpeed
-    local mode = Config.Mode
-
-    -- Solo setear si realmente cambio, evita que el anti-cheat detecte escrituras continuas
-    if spd ~= lastAppliedSpeed or mode ~= lastMode then
-        Humanoid.WalkSpeed = spd
-        lastAppliedSpeed   = spd
-        lastMode           = mode
+local function removeSpeedBV()
+    if speedBV and speedBV.Parent then
+        speedBV:Destroy()
     end
+    speedBV = nil
 end
 
--- Aplicar al cambiar modo con Q
-local _oldModeLabel = modeLabel
-UserInputService.InputBegan:Connect(function(inp, gp)
-    if gp then return end
-    if inp.KeyCode == Config.ModeKey then
-        task.wait()   -- esperar al siguiente frame para que Config.Mode ya este actualizado
-        applySpeed()
+local function getSpeedBV()
+    local char = LocalPlayer.Character
+    if not char then return nil end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return nil end
+
+    -- Reusar si ya existe
+    local existing = root:FindFirstChild("DragonSpeedBV")
+    if existing then return existing end
+
+    local bv          = Instance.new("BodyVelocity")
+    bv.Name           = "DragonSpeedBV"
+    bv.MaxForce       = Vector3.new(1e5, 0, 1e5)  -- solo horizontal, no afecta salto/caida
+    bv.Velocity       = Vector3.zero
+    bv.P              = 1e4
+    bv.Parent         = root
+    speedBV           = bv
+    return bv
+end
+
+-- Loop principal del speed usando BodyVelocity
+RunService.Heartbeat:Connect(function()
+    if not Config.SpeedEnabled then
+        removeSpeedBV()
+        return
+    end
+
+    local char = LocalPlayer.Character
+    if not char then removeSpeedBV(); return end
+    local hum  = char:FindFirstChildOfClass("Humanoid")
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not hum or not root then removeSpeedBV(); return end
+
+    -- Si el humanoid esta muerto no aplicar
+    if hum.Health <= 0 then removeSpeedBV(); return end
+
+    local moveDir = hum.MoveDirection
+    local spd     = (Config.Mode == "Carry") and Config.CarrySpeed or Config.NormalSpeed
+
+    local bv = getSpeedBV()
+    if not bv then return end
+
+    if moveDir.Magnitude > 0.1 then
+        -- Aplicar velocidad en la direccion que se esta moviendo
+        bv.Velocity = moveDir * spd
+    else
+        -- Parado: quitar fuerza para no deslizarse
+        bv.Velocity = Vector3.zero
     end
 end)
 
--- Aplicar al spawnear personaje
+-- Limpiar al respawnear
 LocalPlayer.CharacterAdded:Connect(function(newChar)
-    task.wait(0.5)
-    lastAppliedSpeed = -1
-    applySpeed()
+    speedBV = nil
+    Character = newChar
+    Humanoid  = newChar:WaitForChild("Humanoid")
+    RootPart  = newChar:WaitForChild("HumanoidRootPart")
 end)
 
--- Loop ligero: verificar cada 0.5s en vez de cada frame
-task.spawn(function()
-    while true do
-        task.wait(0.5)
-        applySpeed()
-    end
-end)
-
--- (velocidad de HUD actualizada por RenderStepped con AssemblyLinearVelocity)
+-- (HUD de velocidad actualizado por RenderStepped)
 
 -- ══════════════════════════════════════════
 --    Default tab & open animation
