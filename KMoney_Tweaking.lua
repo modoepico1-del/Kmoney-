@@ -25,6 +25,12 @@ local Config = {
 }
 
 -- ══════════════════════════════════════════
+--         AUTO STEAL CONFIG
+-- ══════════════════════════════════════════
+local STEAL_RADIUS   = 20      -- radio en studs para detectar animales
+local STEAL_DURATION = 0.35    -- duración del robo en segundos
+
+-- ══════════════════════════════════════════
 --      AUTO ROUTE CONSTANTS
 -- ══════════════════════════════════════════
 local NORMAL_SPEED = 60
@@ -732,7 +738,7 @@ end
 -- ══════════════════════════════════════════
 --         CREATE ALL TABS
 -- ══════════════════════════════════════════
-local tabNames = {"Speed", "Bat Aimbot", "Mechanics", "Movement", "Settings"}
+local tabNames = {"Speed", "Auto", "Bat Aimbot", "Mechanics", "Movement", "Settings"}
 for i, name in ipairs(tabNames) do
     local btn, _ = CreateTab(name, i)
     btn.MouseButton1Click:Connect(function() SelectTab(name) end)
@@ -755,7 +761,9 @@ Make("TextLabel", {
     Parent          = SpeedContent,
 })
 
-local function CreateSliderRow(parent, label, desc, value, yPos, callback)
+local function CreateSliderRow(parent, label, desc, value, yPos, minVal, maxVal, callback)
+    minVal = minVal or 0
+    maxVal = maxVal or 200
     local row = Make("Frame", {
         Size            = UDim2.new(1, -6, 0, 48),
         Position        = UDim2.new(0, 3, 0, yPos),
@@ -812,7 +820,7 @@ local function CreateSliderRow(parent, label, desc, value, yPos, callback)
     valLabel.FocusLost:Connect(function()
         local v = tonumber(valLabel.Text)
         if v then
-            v = math.clamp(math.floor(v * 10 + 0.5) / 10, 0, 500)
+            v = math.clamp(math.floor(v * 100 + 0.5) / 100, minVal, maxVal)
             valLabel.Text = tostring(v)
             if callback then callback(v) end
         else
@@ -830,7 +838,7 @@ local function CreateSliderRow(parent, label, desc, value, yPos, callback)
     Make("UICorner", { CornerRadius = UDim.new(1, 0), Parent = sliderBG })
 
     local sliderFill = Make("Frame", {
-        Size            = UDim2.new(value / 200, 0, 1, 0),
+        Size            = UDim2.new((value - minVal) / (maxVal - minVal), 0, 1, 0),
         BackgroundColor3 = Color3.fromRGB(220, 220, 220),
         BorderSizePixel = 0,
         Parent          = sliderBG,
@@ -848,7 +856,7 @@ local function CreateSliderRow(parent, label, desc, value, yPos, callback)
         if dragging and inp.UserInputType == Enum.UserInputType.MouseMovement then
             local rel = (inp.Position.X - sliderBG.AbsolutePosition.X) / sliderBG.AbsoluteSize.X
             rel = math.clamp(rel, 0, 1)
-            local newVal = math.round(rel * 200 * 10) / 10
+            local newVal = math.floor((minVal + rel * (maxVal - minVal)) * 100 + 0.5) / 100
             sliderFill.Size = UDim2.new(rel, 0, 1, 0)
             valLabel.Text = tostring(newVal)
             if callback then callback(newVal) end
@@ -858,13 +866,13 @@ local function CreateSliderRow(parent, label, desc, value, yPos, callback)
     return valLabel
 end
 
-local NSpeedLabel = CreateSliderRow(SpeedContent, "Normal Speed", "Walking / Running speed",
-    Config.NormalSpeed, 30, function(v)
+CreateSliderRow(SpeedContent, "Normal Speed", "Walking / Running speed",
+    Config.NormalSpeed, 30, 0, 200, function(v)
         Config.NormalSpeed = v
     end)
 
-local CSpeedLabel = CreateSliderRow(SpeedContent, "Carry Speed", "Speed while holding an item",
-    Config.CarrySpeed, 86, function(v)
+CreateSliderRow(SpeedContent, "Carry Speed", "Speed while holding an item",
+    Config.CarrySpeed, 86, 0, 200, function(v)
         Config.CarrySpeed = v
     end)
 
@@ -927,6 +935,62 @@ UserInputService.InputBegan:Connect(function(inp, gp)
         modeLabel.Text = Config.Mode
     end
 end)
+
+-- ══════════════════════════════════════════
+--         AUTO TAB CONTENT
+-- ══════════════════════════════════════════
+local AutoTabContent = Tabs["Auto"]
+
+Make("TextLabel", {
+    Text            = "AUTO CONFIGURATION",
+    Size            = UDim2.new(1, -10, 0, 20),
+    Position        = UDim2.new(0, 5, 0, 6),
+    BackgroundTransparency = 1,
+    TextColor3      = Color3.fromRGB(100, 100, 100),
+    Font            = Enum.Font.GothamBold,
+    TextSize        = 9,
+    TextXAlignment  = Enum.TextXAlignment.Left,
+    Parent          = AutoTabContent,
+})
+
+-- Steal Radius slider
+local stealRadiusLabel = CreateSliderRow(
+    AutoTabContent,
+    "Steal Radius",
+    "Radio en studs para detectar animales",
+    STEAL_RADIUS,
+    30,
+    5, 200,
+    function(v)
+        STEAL_RADIUS = math.clamp(v, 5, 200)
+    end
+)
+
+-- Steal Duration slider
+local stealDurationLabel = CreateSliderRow(
+    AutoTabContent,
+    "Steal Duration",
+    "Duración del robo en segundos",
+    STEAL_DURATION,
+    86,
+    0.05, 5,
+    function(v)
+        STEAL_DURATION = math.max(0.05, v)
+    end
+)
+
+-- Info label showing current values
+local stealInfoLabel = Make("TextLabel", {
+    Text            = "Radius: "..STEAL_RADIUS.." studs  |  Duration: "..STEAL_DURATION.."s",
+    Size            = UDim2.new(1, -10, 0, 16),
+    Position        = UDim2.new(0, 5, 0, 142),
+    BackgroundTransparency = 1,
+    TextColor3      = Color3.fromRGB(80, 80, 80),
+    Font            = Enum.Font.Gotham,
+    TextSize        = 9,
+    TextXAlignment  = Enum.TextXAlignment.Center,
+    Parent          = AutoTabContent,
+})
 
 -- ══════════════════════════════════════════
 --       BAT AIMBOT TAB
@@ -1045,13 +1109,49 @@ CreateToggle(MechContent, "ESP", 168, false, function(v)
     if v then enableESP() else disableESP() end
 end)
 
--- ── UNWALK TOGGLE ────────────────────────
 CreateToggle(MechContent, "Unwalk", 214, false, function(v)
     unwalkEnabled = v
     if v then
         startUnwalk()
     else
         stopUnwalk()
+    end
+end)
+
+-- ── AUTO STEAL TOGGLE ────────────────────
+local autoStealEnabled = false
+local autoStealThread  = nil
+
+CreateToggle(MechContent, "Auto Steal", 260, false, function(v)
+    autoStealEnabled = v
+    if v then
+        autoStealThread = task.spawn(function()
+            while autoStealEnabled do
+                local char = LocalPlayer.Character
+                if char then
+                    local root = char:FindFirstChild("HumanoidRootPart")
+                    if root then
+                        for _, obj in ipairs(workspace:GetDescendants()) do
+                            if not autoStealEnabled then break end
+                            if obj:IsA("BasePart") then
+                                local dist = (obj.Position - root.Position).Magnitude
+                                if dist <= STEAL_RADIUS then
+                                    -- placeholder: interact with detected object
+                                    task.wait(STEAL_DURATION)
+                                end
+                            end
+                        end
+                    end
+                end
+                task.wait(0.1)
+            end
+        end)
+    else
+        autoStealEnabled = false
+        if autoStealThread then
+            task.cancel(autoStealThread)
+            autoStealThread = nil
+        end
     end
 end)
 
