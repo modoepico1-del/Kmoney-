@@ -707,7 +707,7 @@ end
 --   TABS: Carry, Steal, Visual, Mechanics,
 --         Movement, Settings
 -- ══════════════════════════════════════════
-local tabNames = {"Carry", "Steal", "Visual", "Mechanics", "Movement", "Settings"}
+local tabNames = {"Carry", "Steal", "Mechanics", "Movement", "Visual", "Settings"}
 for i, name in ipairs(tabNames) do
     local btn, _ = CreateTab(name, i)
     btn.MouseButton1Click:Connect(function() SelectTab(name) end)
@@ -897,8 +897,26 @@ Make("TextLabel", {
 })
 
 -- ══════════════════════════════════════════
---       VISUAL TAB  (antes Bat Aimbot)
+--       VISUAL TAB
 -- ══════════════════════════════════════════
+local Lighting = game:GetService("Lighting")
+local darkCC   = nil
+
+local function enableDarkMode()
+    if darkCC and darkCC.Parent then return end
+    darkCC = Instance.new("ColorCorrectionEffect")
+    darkCC.Name       = "NebulaDarkMode"
+    darkCC.Brightness = -0.25
+    darkCC.Contrast   = 0.1
+    darkCC.Saturation = -0.1
+    darkCC.Enabled    = true
+    darkCC.Parent     = Lighting
+end
+
+local function disableDarkMode()
+    if darkCC then darkCC:Destroy(); darkCC = nil end
+end
+
 local VisualContent = Tabs["Visual"]
 
 Make("TextLabel", {
@@ -906,6 +924,81 @@ Make("TextLabel", {
     BackgroundTransparency=1, TextColor3=Color3.fromRGB(100,100,100),
     Font=Enum.Font.GothamBold, TextSize=9, TextXAlignment=Enum.TextXAlignment.Left, Parent=VisualContent,
 })
+
+CreateToggle(VisualContent, "Dark", 30, false, function(v)
+    if v then enableDarkMode() else disableDarkMode() end
+end)
+
+-- Galaxy Sky
+local originalSkybox        = nil
+local galaxySkyBright       = nil
+local galaxySkyBrightConn   = nil
+local galaxyPlanets         = {}
+local galaxyBloom           = nil
+local galaxyGalaxyCC        = nil
+local galaxyCfg             = { on = false }
+
+local function enableGalaxySkyBright()
+    if galaxySkyBright then return end
+    originalSkybox = Lighting:FindFirstChildOfClass("Sky")
+    if originalSkybox then originalSkybox.Parent = nil end
+    galaxySkyBright = Instance.new("Sky")
+    for _, f in ipairs({"SkyboxBk","SkyboxDn","SkyboxFt","SkyboxLf","SkyboxRt","SkyboxUp"}) do
+        galaxySkyBright[f] = "rbxassetid://1534951537"
+    end
+    galaxySkyBright.StarCount = 10000
+    galaxySkyBright.CelestialBodiesShown = false
+    galaxySkyBright.Parent = Lighting
+    galaxyBloom = Instance.new("BloomEffect")
+    galaxyBloom.Intensity = 1.5; galaxyBloom.Size = 40
+    galaxyBloom.Threshold = 0.8; galaxyBloom.Parent = Lighting
+    galaxyGalaxyCC = Instance.new("ColorCorrectionEffect")
+    galaxyGalaxyCC.Saturation = 0.8; galaxyGalaxyCC.Contrast = 0.3
+    galaxyGalaxyCC.TintColor = Color3.fromRGB(200, 150, 255)
+    galaxyGalaxyCC.Parent = Lighting
+    Lighting.Ambient = Color3.fromRGB(120, 60, 180)
+    Lighting.Brightness = 3; Lighting.ClockTime = 0
+    for i = 1, 2 do
+        local p = Instance.new("Part")
+        p.Shape = Enum.PartType.Ball
+        p.Size = Vector3.new(800+i*200, 800+i*200, 800+i*200)
+        p.Anchored = true; p.CanCollide = false; p.CastShadow = false
+        p.Material = Enum.Material.Neon
+        p.Color = Color3.fromRGB(140+i*20, 60+i*10, 200+i*15)
+        p.Transparency = 0.3
+        p.Position = Vector3.new(math.cos(i*2)*(3000+i*500), 1500+i*300, math.sin(i*2)*(3000+i*500))
+        p.Parent = workspace
+        table.insert(galaxyPlanets, p)
+    end
+    galaxyCfg.on = true
+    galaxySkyBrightConn = RunService.Heartbeat:Connect(function()
+        if not galaxyCfg.on then return end
+        local t = tick() * 0.5
+        Lighting.Ambient = Color3.fromRGB(
+            120 + math.floor(math.sin(t) * 60),
+            50  + math.floor(math.sin(t * 0.8) * 40),
+            180 + math.floor(math.sin(t * 1.2) * 50)
+        )
+        if galaxyBloom then galaxyBloom.Intensity = 1.2 + math.sin(t*2) * 0.4 end
+    end)
+end
+
+local function disableGalaxySkyBright()
+    galaxyCfg.on = false
+    if galaxySkyBrightConn then galaxySkyBrightConn:Disconnect(); galaxySkyBrightConn = nil end
+    if galaxySkyBright then galaxySkyBright:Destroy(); galaxySkyBright = nil end
+    if originalSkybox then originalSkybox.Parent = Lighting end
+    if galaxyBloom then galaxyBloom:Destroy(); galaxyBloom = nil end
+    if galaxyGalaxyCC then galaxyGalaxyCC:Destroy(); galaxyGalaxyCC = nil end
+    for _, obj in ipairs(galaxyPlanets) do if obj then obj:Destroy() end end
+    galaxyPlanets = {}
+    Lighting.Ambient = Color3.fromRGB(127, 127, 127)
+    Lighting.Brightness = 2; Lighting.ClockTime = 14
+end
+
+CreateToggle(VisualContent, "Galaxy", 76, false, function(v)
+    if v then enableGalaxySkyBright() else disableGalaxySkyBright() end
+end)
 
 -- ══════════════════════════════════════════
 --       MECHANICS TAB
