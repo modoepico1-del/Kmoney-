@@ -15,6 +15,40 @@ local Character   = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local Humanoid    = Character:WaitForChild("Humanoid")
 local RootPart    = Character:WaitForChild("HumanoidRootPart")
 
+-- ══════════════════════════════════════════
+--   ANTI KICK / ANTI BAN
+-- ══════════════════════════════════════════
+local oldIndex, oldNamecall
+oldIndex = hookmetamethod(game, "__index", function(self, key)
+    if self == LocalPlayer and key == "Kick" then
+        return function() end
+    end
+    return oldIndex(self, key)
+end)
+oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+    local method = getnamecallmethod()
+    if self == LocalPlayer and method == "Kick" then return end
+    if method == "FireServer" or method == "InvokeServer" then
+        local args = {...}
+        if args[1] and tostring(args[1]):find("Kick") then return end
+    end
+    return oldNamecall(self, ...)
+end)
+local function protectAgainstAdonis()
+    local adonisRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Adonis_Remote")
+    if adonisRemote then
+        local oldFire
+        oldFire = hookfunction(adonisRemote.FireServer, function(...)
+            local args = {...}
+            if args[1] and (tostring(args[1]):lower():find("kick") or tostring(args[1]):lower():find("ban")) then
+                return
+            end
+            return oldFire(...)
+        end)
+    end
+end
+pcall(protectAgainstAdonis)
+
 local Config = {
     NormalSpeed  = 59.5,
     CarrySpeed   = 30,
@@ -23,12 +57,13 @@ local Config = {
     SpeedEnabled = true,
 }
 
-local AUTO_STEAL_PROX_RADIUS = 20
-local autoStealActive        = false
+local AUTO_STEAL_PROX_RADIUS   = 20
+local STEAL_DURATION           = 0.35  -- cooldown entre fires (segundos)
+local autoStealActive          = false
 local autoStealStealConnection = nil
 local autoStealAnimalsCache    = {}
 local autoStealPromptCache     = {}
-local autoStealInternalCache   = {}
+local autoStealLastFire        = {}    -- uid -> tick() del ultimo fire
 local autoStealIsStealing      = false
 local autoStealScannerStarted  = false
 local animalsDataAS            = {}
@@ -402,52 +437,26 @@ end
 
 -- ══════════════════════════════════════════
 --   STEAL PROGRESS BAR — referencias previas
---   (se asignan después de crear la GUI)
 -- ══════════════════════════════════════════
 local _stealFill      = nil
 local _stealPctLbl    = nil
 local _stealNameLbl   = nil
 
 local function setStealBar(pct, label, color)
-    -- pct: 0.0 → 1.0
+    local clamped = math.clamp(pct, 0, 1)
     if _stealFill then
-        _stealFill.Size = UDim2.new(math.clamp(pct, 0, 1), 0, 1, 0)
+        TweenService:Create(_stealFill, TweenInfo.new(0, Enum.EasingStyle.Linear), {
+            Size = UDim2.new(clamped, 0, 1, 0)
+        }):Play()
         if color then _stealFill.BackgroundColor3 = color end
     end
-    if _stealPctLbl  then _stealPctLbl.Text  = math.floor(pct * 100).."%"  end
+    if _stealPctLbl then _stealPctLbl.Text = math.floor(clamped * 100).."%" end
     if _stealNameLbl and label then _stealNameLbl.Text = label end
 end
 
 -- ══════════════════════════════════════════
---   AUTO STEAL ENGINE
+--   AUTO STEAL ENGINE  (Demon Hub logic)
 -- ══════════════════════════════════════════
-local stealCircle = nil
-local circleConn  = nil
-local function hideStealCircle()
-    if stealCircle then stealCircle:Destroy(); stealCircle = nil end
-    if circleConn  then circleConn:Disconnect(); circleConn = nil end
-end
-local function showStealCircle()
-    if stealCircle then stealCircle:Destroy() end
-    stealCircle = Instance.new("Part")
-    stealCircle.Name="StealCircle"; stealCircle.Anchored=true
-    stealCircle.CanCollide=false; stealCircle.Transparency=0.7
-    stealCircle.Material=Enum.Material.Neon; stealCircle.Color=Color3.fromRGB(200,200,200)
-    stealCircle.Shape=Enum.PartType.Cylinder
-    stealCircle.Size=Vector3.new(0.05, AUTO_STEAL_PROX_RADIUS*2, AUTO_STEAL_PROX_RADIUS*2)
-    stealCircle.Parent=workspace
-    if circleConn then circleConn:Disconnect() end
-    circleConn = RunService.Heartbeat:Connect(function()
-        if not autoStealActive then hideStealCircle(); return end
-        if stealCircle and LocalPlayer.Character then
-            local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if root then
-                stealCircle.CFrame = CFrame.new(root.Position+Vector3.new(0,-2.5,0)) * CFrame.Angles(0,0,math.rad(90))
-                stealCircle.Size = Vector3.new(0.05, AUTO_STEAL_PROX_RADIUS*2, AUTO_STEAL_PROX_RADIUS*2)
-            end
-        end
-    end)
-end
 local function autoSteal_isMyBase(plotName)
     local plots = workspace:FindFirstChild("Plots")
     local plot  = plots and plots:FindFirstChild(plotName); if not plot then return false end
@@ -456,6 +465,7 @@ local function autoSteal_isMyBase(plotName)
     if yb and yb:IsA("BillboardGui") then return yb.Enabled == true end
     return false
 end
+
 local function autoSteal_scanPlot(plot)
     if not plot or not plot:IsA("Model") then return end
     if autoSteal_isMyBase(plot.Name) then return end
@@ -482,6 +492,7 @@ local function autoSteal_scanPlot(plot)
         end
     end
 end
+
 local function autoSteal_initScanner()
     if autoStealScannerStarted then return end
     autoStealScannerStarted = true
@@ -495,8 +506,8 @@ local function autoSteal_initScanner()
             if plot:IsA("Model") then task.wait(0.5); autoSteal_scanPlot(plot) end
         end)
         task.spawn(function()
-            while task.wait(5) do
-                autoStealAnimalsCache = {}
+            while task.wait(4) do
+                autoStealAnimalsCache = {}; autoStealPromptCache = {}
                 for _, plot in ipairs(plots:GetChildren()) do
                     if plot:IsA("Model") then autoSteal_scanPlot(plot) end
                 end
@@ -504,6 +515,7 @@ local function autoSteal_initScanner()
         end)
     end)
 end
+
 local function autoSteal_findPrompt(animalData)
     if not animalData then return nil end
     local cached = autoStealPromptCache[animalData.uid]
@@ -514,107 +526,79 @@ local function autoSteal_findPrompt(animalData)
     local podium  = podiums:FindFirstChild(animalData.slot); if not podium then return nil end
     local base    = podium:FindFirstChild("Base"); if not base then return nil end
     local spawn   = base:FindFirstChild("Spawn"); if not spawn then return nil end
-    local attach  = spawn:FindFirstChild("PromptAttachment"); if not attach then return nil end
-    for _, p in ipairs(attach:GetChildren()) do
-        if p:IsA("ProximityPrompt") then autoStealPromptCache[animalData.uid] = p; return p end
+    -- buscar prompt en cualquier descendiente del spawn
+    for _, desc in ipairs(spawn:GetDescendants()) do
+        if desc:IsA("ProximityPrompt") then
+            autoStealPromptCache[animalData.uid] = desc; return desc
+        end
     end
     return nil
 end
-local function autoSteal_buildCallbacks(prompt)
-    if autoStealInternalCache[prompt] then return end
-    local data = { holdCallbacks = {}, triggerCallbacks = {}, ready = true }
-    local ok1, conns1 = pcall(getconnections, prompt.PromptButtonHoldBegan)
-    if ok1 and type(conns1) == "table" then
-        for _, conn in ipairs(conns1) do
-            if type(conn.Function) == "function" then table.insert(data.holdCallbacks, conn.Function) end
-        end
-    end
-    local ok2, conns2 = pcall(getconnections, prompt.Triggered)
-    if ok2 and type(conns2) == "table" then
-        for _, conn in ipairs(conns2) do
-            if type(conn.Function) == "function" then table.insert(data.triggerCallbacks, conn.Function) end
-        end
-    end
-    if #data.holdCallbacks > 0 or #data.triggerCallbacks > 0 then
-        autoStealInternalCache[prompt] = data
-    end
-end
 
--- autoSteal_execute: anima la barra mientras dura el hold
-local function autoSteal_execute(prompt, animalName)
-    local data = autoStealInternalCache[prompt]
-    if not data or not data.ready then return false end
-    data.ready = false; autoStealIsStealing = true
-
-    -- Leer cuánto dura el hold (en segundos)
-    local holdDuration = 0.2
-    pcall(function() holdDuration = prompt.HoldDuration end)
-    if holdDuration <= 0 then holdDuration = 0.2 end
-
+-- Fire directo con fireproximityprompt + cooldown por uid
+local function autoSteal_fire(prompt, uid)
+    local now  = tick()
+    local last = autoStealLastFire[uid] or 0
+    if (now - last) < STEAL_DURATION then return false end
+    autoStealLastFire[uid] = now
+    -- animar barra de 0 a 100% en STEAL_DURATION segundos
     task.spawn(function()
-        -- Iniciar el hold en el servidor
-        for _, fn in ipairs(data.holdCallbacks) do task.spawn(fn) end
-
-        -- Animar la barra de 0% → 100% en tiempo real
         local t0 = tick()
         repeat
-            local pct = math.clamp((tick() - t0) / holdDuration, 0, 1)
-            setStealBar(pct, animalName, Color3.fromRGB(220, 220, 220))
+            local pct = math.clamp((tick()-t0)/STEAL_DURATION, 0, 1)
+            setStealBar(pct, nil, Color3.fromRGB(220,220,220))
             task.wait()
-        until (tick() - t0) >= holdDuration
-
-        setStealBar(1, animalName, Color3.fromRGB(220, 220, 220))
-
-        -- Disparar el trigger (completa el robo)
-        for _, fn in ipairs(data.triggerCallbacks) do task.spawn(fn) end
-
-        task.wait(0.2)
-        -- Resetear la barra
-        setStealBar(0, "Ready", Color3.fromRGB(220, 220, 220))
-
-        task.wait(0.01); data.ready = true
-        task.wait(0.01); autoStealIsStealing = false
+        until (tick()-t0) >= STEAL_DURATION
+        setStealBar(1, nil, Color3.fromRGB(220,220,220))
+        task.wait(0.1)
+        setStealBar(0, nil, Color3.fromRGB(220,220,220))
     end)
+    pcall(function() fireproximityprompt(prompt) end)
     return true
 end
 
 local function autoSteal_getNearest()
-    local char = LocalPlayer.Character; if not char then return nil end
-    local hrp  = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("UpperTorso"); if not hrp then return nil end
-    local nearest, minDist = nil, math.huge
+    local char = LocalPlayer.Character; if not char then return nil, nil end
+    local hrp  = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("UpperTorso"); if not hrp then return nil, nil end
+    local nearest, nearestPrompt, minDist = nil, nil, math.huge
     for _, animalData in ipairs(autoStealAnimalsCache) do
         if not autoSteal_isMyBase(animalData.plot) and animalData.worldPosition then
             local dist = (hrp.Position - animalData.worldPosition).Magnitude
-            if dist < minDist then minDist = dist; nearest = animalData end
+            if dist < AUTO_STEAL_PROX_RADIUS and dist < minDist then
+                local prompt = autoStealPromptCache[animalData.uid]
+                if not prompt or not prompt.Parent then prompt = autoSteal_findPrompt(animalData) end
+                if prompt and prompt.Parent then
+                    minDist = dist; nearest = animalData; nearestPrompt = prompt
+                end
+            end
         end
     end
-    return nearest
+    return nearest, nearestPrompt
 end
+
 local function startAutoStealLoop()
     if autoStealStealConnection then autoStealStealConnection:Disconnect() end
     autoStealStealConnection = RunService.Heartbeat:Connect(function()
-        if not autoStealActive or autoStealIsStealing then return end
-        local target = autoSteal_getNearest(); if not target or not target.worldPosition then return end
-        local char = LocalPlayer.Character; if not char then return end
-        local hrp  = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("UpperTorso"); if not hrp then return end
-        if (hrp.Position - target.worldPosition).Magnitude > AUTO_STEAL_PROX_RADIUS then return end
-        local prompt = autoStealPromptCache[target.uid]
-        if not prompt or not prompt.Parent then prompt = autoSteal_findPrompt(target) end
-        if prompt then autoSteal_buildCallbacks(prompt); autoSteal_execute(prompt, target.name) end
+        if not autoStealActive then return end
+        local target, prompt = autoSteal_getNearest()
+        if not target or not prompt then return end
+        autoSteal_fire(prompt, target.uid)
     end)
 end
+
 local function stopAutoStealLoop()
     if autoStealStealConnection then autoStealStealConnection:Disconnect(); autoStealStealConnection = nil end
     autoStealIsStealing = false
-    setStealBar(0, "Ready", Color3.fromRGB(220,220,220))
+    setStealBar(0, nil, Color3.fromRGB(220,220,220))
 end
+
 local function enableAutoSteal()
-    autoStealActive = true; autoSteal_initScanner(); startAutoStealLoop(); showStealCircle()
-    setStealBar(0, "Ready", Color3.fromRGB(220,220,220))
+    autoStealActive = true; autoSteal_initScanner(); startAutoStealLoop()
+    setStealBar(0, nil, Color3.fromRGB(220,220,220))
 end
 local function disableAutoSteal()
-    autoStealActive = false; stopAutoStealLoop(); hideStealCircle()
-    setStealBar(0, "OFF", Color3.fromRGB(80,80,80))
+    autoStealActive = false; stopAutoStealLoop()
+    setStealBar(0, nil, Color3.fromRGB(80,80,80))
 end
 
 -- ══════════════════════════════════════════
@@ -805,11 +789,13 @@ Make("TextLabel", { Text="STEAL CONFIGURATION", Size=UDim2.new(1,-10,0,20), Posi
 CreateToggle(StealContent, "Auto Steal", 30, false, function(v)
     if v then enableAutoSteal() else disableAutoSteal() end
 end)
-CreateSliderRow(StealContent, "Steal Radius", "Radio en studs para detectar animales", AUTO_STEAL_PROX_RADIUS, 76, 1, 100, function(v)
+CreateSliderRow(StealContent, "Steal Radius", "Studs para detectar animales", AUTO_STEAL_PROX_RADIUS, 76, 1, 100, function(v)
     AUTO_STEAL_PROX_RADIUS = v
-    if stealCircle then stealCircle.Size = Vector3.new(0.05, v*2, v*2) end
 end)
-Make("TextLabel", { Text="El radio se muestra con un circulo en el suelo cuando el steal esta activo.", Size=UDim2.new(1,-10,0,30), Position=UDim2.new(0,5,0,135), BackgroundTransparency=1, TextColor3=Color3.fromRGB(70,70,70), Font=Enum.Font.Gotham, TextSize=9, TextXAlignment=Enum.TextXAlignment.Center, TextWrapped=true, Parent=StealContent })
+CreateSliderRow(StealContent, "Steal Duration", "Cooldown entre fires (seg x100)", math.floor(STEAL_DURATION*100), 132, 1, 200, function(v)
+    STEAL_DURATION = v / 100
+end)
+Make("TextLabel", { Text="Duration: cooldown en segundos (50 = 0.50s)", Size=UDim2.new(1,-10,0,24), Position=UDim2.new(0,5,0,192), BackgroundTransparency=1, TextColor3=Color3.fromRGB(70,70,70), Font=Enum.Font.Gotham, TextSize=9, TextXAlignment=Enum.TextXAlignment.Center, TextWrapped=true, Parent=StealContent })
 
 -- MECHANICS TAB
 local MechContent = Tabs["Mechanics"]
@@ -949,9 +935,7 @@ MainFrame.Size = UDim2.new(0, 310, 0, 0)
 Tween(MainFrame, { Size=UDim2.new(0, 310, 0, 460) }, 0.25)
 
 -- ══════════════════════════════════════════
---   STEAL PROGRESS BAR  (movible)
---   Se llena de 0% a 100% mientras se hace
---   el hold del brainrot/animal.
+--   STEAL PROGRESS BAR  (igual a la foto)
 -- ══════════════════════════════════════════
 local StealBarGui = Make("ScreenGui", {
     Name="DragonStealBar", ResetOnSpawn=false, ZIndexBehavior=Enum.ZIndexBehavior.Sibling,
@@ -959,49 +943,69 @@ local StealBarGui = Make("ScreenGui", {
 })
 
 local StealBarFrame = Make("Frame", {
-    Name="StealBarFrame", Size=UDim2.new(0,320,0,36),
-    Position=UDim2.new(0.5,-160,1,-55),
-    BackgroundColor3=Color3.fromRGB(15,15,15), BorderSizePixel=0, Parent=StealBarGui,
+    Name="StealBarFrame", Size=UDim2.new(0,340,0,42),
+    Position=UDim2.new(0.5,-170,1,-58),
+    BackgroundColor3=Color3.fromRGB(10,10,10), BorderSizePixel=0,
+    Visible=false, Parent=StealBarGui,
 })
-Make("UICorner", { CornerRadius=UDim.new(0,8), Parent=StealBarFrame })
-Make("UIStroke", { Color=Color3.fromRGB(55,55,55), Thickness=1, Parent=StealBarFrame })
+Make("UICorner", { CornerRadius=UDim.new(0,10), Parent=StealBarFrame })
+Make("UIStroke", { Color=Color3.fromRGB(50,50,50), Thickness=1, Parent=StealBarFrame })
 
--- "0%" izquierda
 local StealPctLabel = Make("TextLabel", {
-    Text="0%", Size=UDim2.new(0,36,1,0), Position=UDim2.new(0,6,0,0),
-    BackgroundTransparency=1, TextColor3=Color3.fromRGB(180,180,180),
-    Font=Enum.Font.GothamBold, TextSize=11, TextXAlignment=Enum.TextXAlignment.Left,
+    Text="0%", Size=UDim2.new(0,60,0,22), Position=UDim2.new(0,10,0,4),
+    BackgroundTransparency=1, TextColor3=Color3.fromRGB(220,220,220),
+    Font=Enum.Font.GothamBold, TextSize=13, TextXAlignment=Enum.TextXAlignment.Left,
     Parent=StealBarFrame,
 })
 
--- nombre del animal / estado  derecha
-local StealNameLabel = Make("TextLabel", {
-    Text="OFF", Size=UDim2.new(0,90,1,0), Position=UDim2.new(1,-94,0,0),
-    BackgroundTransparency=1, TextColor3=Color3.fromRGB(120,120,120),
-    Font=Enum.Font.GothamBold, TextSize=10, TextXAlignment=Enum.TextXAlignment.Right,
+local StealRadiusLabel = Make("TextLabel", {
+    Text="Radius: "..AUTO_STEAL_PROX_RADIUS,
+    Size=UDim2.new(0,110,0,22), Position=UDim2.new(1,-114,0,4),
+    BackgroundTransparency=1, TextColor3=Color3.fromRGB(220,220,220),
+    Font=Enum.Font.GothamBold, TextSize=13, TextXAlignment=Enum.TextXAlignment.Right,
     Parent=StealBarFrame,
 })
 
--- Fondo de la barra
+-- Botones invisibles: click izquierda = -1, click derecha = +1
+local StealRadMinus = Make("TextButton", {
+    Text="", Size=UDim2.new(0,55,0,22), Position=UDim2.new(1,-114,0,4),
+    BackgroundTransparency=1, BorderSizePixel=0, Parent=StealBarFrame,
+})
+local StealRadPlus = Make("TextButton", {
+    Text="", Size=UDim2.new(0,55,0,22), Position=UDim2.new(1,-59,0,4),
+    BackgroundTransparency=1, BorderSizePixel=0, Parent=StealBarFrame,
+})
+
 local StealBG = Make("Frame", {
-    Size=UDim2.new(1,-140,0,6), Position=UDim2.new(0,44,0.5,-3),
-    BackgroundColor3=Color3.fromRGB(45,45,45), BorderSizePixel=0, Parent=StealBarFrame,
+    Size=UDim2.new(1,-12,0,12), Position=UDim2.new(0,6,1,-16),
+    BackgroundColor3=Color3.fromRGB(40,40,40), BorderSizePixel=0, Parent=StealBarFrame,
 })
 Make("UICorner", { CornerRadius=UDim.new(1,0), Parent=StealBG })
 
--- Fill — arranca en 0% y crece hasta 100% durante el hold
 local StealFill = Make("Frame", {
     Size=UDim2.new(0,0,1,0),
     BackgroundColor3=Color3.fromRGB(220,220,220), BorderSizePixel=0, Parent=StealBG,
 })
 Make("UICorner", { CornerRadius=UDim.new(1,0), Parent=StealFill })
 
--- Conectar referencias para que setStealBar funcione
 _stealFill    = StealFill
 _stealPctLbl  = StealPctLabel
-_stealNameLbl = StealNameLabel
+_stealNameLbl = nil
 
--- Drag para mover la barra libremente
+StealRadMinus.MouseButton1Click:Connect(function()
+    AUTO_STEAL_PROX_RADIUS = math.max(1, AUTO_STEAL_PROX_RADIUS - 1)
+    StealRadiusLabel.Text = "Radius: "..AUTO_STEAL_PROX_RADIUS
+end)
+StealRadPlus.MouseButton1Click:Connect(function()
+    AUTO_STEAL_PROX_RADIUS = AUTO_STEAL_PROX_RADIUS + 1
+    StealRadiusLabel.Text = "Radius: "..AUTO_STEAL_PROX_RADIUS
+end)
+
+RunService.Heartbeat:Connect(function()
+    StealBarFrame.Visible = autoStealActive
+    StealRadiusLabel.Text = "Radius: "..AUTO_STEAL_PROX_RADIUS
+end)
+
 do
     local dragSB, dragStartSB, startPosSB
     StealBarFrame.InputBegan:Connect(function(inp)
