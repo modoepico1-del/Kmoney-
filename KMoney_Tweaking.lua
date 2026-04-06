@@ -929,7 +929,6 @@ CreateToggle(StealContent, "Auto Steal", 30, false, function(v)
     if v then enableAutoSteal() else disableAutoSteal() end
 end)
 
--- Slider radio
 CreateSliderRow(StealContent, "Steal Radius", "Radio en studs para detectar animales",
     AUTO_STEAL_PROX_RADIUS, 76, 1, 100, function(v)
         AUTO_STEAL_PROX_RADIUS = v
@@ -1206,5 +1205,153 @@ end)
 SelectTab("Carry")
 MainFrame.Size = UDim2.new(0, 310, 0, 0)
 Tween(MainFrame, { Size=UDim2.new(0, 310, 0, 460) }, 0.25)
+
+-- ══════════════════════════════════════════
+--         RADIUS BAR (movible)
+-- ══════════════════════════════════════════
+local RADIUS_MIN = 1
+local RADIUS_MAX = 100
+
+local RadiusGui = Make("ScreenGui", {
+    Name           = "DragonRadiusBar",
+    ResetOnSpawn   = false,
+    ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+    Parent         = (gethui and gethui()) or LocalPlayer:WaitForChild("PlayerGui"),
+})
+
+local RadiusFrame = Make("Frame", {
+    Name             = "RadiusFrame",
+    Size             = UDim2.new(0, 320, 0, 36),
+    Position         = UDim2.new(0.5, -160, 1, -55),
+    BackgroundColor3 = Color3.fromRGB(15, 15, 15),
+    BorderSizePixel  = 0,
+    Parent           = RadiusGui,
+})
+Make("UICorner", { CornerRadius = UDim.new(0, 8),  Parent = RadiusFrame })
+Make("UIStroke", { Color = Color3.fromRGB(55, 55, 55), Thickness = 1, Parent = RadiusFrame })
+
+-- Label izquierdo "0%"
+local RadiusPctLabel = Make("TextLabel", {
+    Text             = math.floor(((AUTO_STEAL_PROX_RADIUS - RADIUS_MIN) / (RADIUS_MAX - RADIUS_MIN)) * 100).."%",
+    Size             = UDim2.new(0, 36, 1, 0),
+    Position         = UDim2.new(0, 6, 0, 0),
+    BackgroundTransparency = 1,
+    TextColor3       = Color3.fromRGB(180, 180, 180),
+    Font             = Enum.Font.GothamBold,
+    TextSize         = 11,
+    TextXAlignment   = Enum.TextXAlignment.Left,
+    Parent           = RadiusFrame,
+})
+
+-- Label derecho "Radius: 20"
+local RadiusValLabel = Make("TextLabel", {
+    Text             = "Radius: "..AUTO_STEAL_PROX_RADIUS,
+    Size             = UDim2.new(0, 90, 1, 0),
+    Position         = UDim2.new(1, -94, 0, 0),
+    BackgroundTransparency = 1,
+    TextColor3       = Color3.fromRGB(200, 200, 200),
+    Font             = Enum.Font.GothamBold,
+    TextSize         = 11,
+    TextXAlignment   = Enum.TextXAlignment.Right,
+    Parent           = RadiusFrame,
+})
+
+-- Slider background
+local RadSliderBG = Make("Frame", {
+    Size             = UDim2.new(1, -140, 0, 5),
+    Position         = UDim2.new(0, 44, 0.5, -2),
+    BackgroundColor3 = Color3.fromRGB(50, 50, 50),
+    BorderSizePixel  = 0,
+    Parent           = RadiusFrame,
+})
+Make("UICorner", { CornerRadius = UDim.new(1, 0), Parent = RadSliderBG })
+
+local initRel = (AUTO_STEAL_PROX_RADIUS - RADIUS_MIN) / (RADIUS_MAX - RADIUS_MIN)
+
+local RadSliderFill = Make("Frame", {
+    Size             = UDim2.new(initRel, 0, 1, 0),
+    BackgroundColor3 = Color3.fromRGB(220, 220, 220),
+    BorderSizePixel  = 0,
+    Parent           = RadSliderBG,
+})
+Make("UICorner", { CornerRadius = UDim.new(1, 0), Parent = RadSliderFill })
+
+-- Knob
+local RadKnob = Make("Frame", {
+    Size             = UDim2.new(0, 13, 0, 13),
+    Position         = UDim2.new(initRel, -6, 0.5, -6),
+    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+    BorderSizePixel  = 0,
+    Parent           = RadSliderBG,
+})
+Make("UICorner", { CornerRadius = UDim.new(1, 0), Parent = RadKnob })
+
+-- Función central para actualizar el radius
+local function setRadius(newVal)
+    newVal = math.clamp(math.floor(newVal + 0.5), RADIUS_MIN, RADIUS_MAX)
+    AUTO_STEAL_PROX_RADIUS = newVal
+    local rel = (newVal - RADIUS_MIN) / (RADIUS_MAX - RADIUS_MIN)
+    RadSliderFill.Size  = UDim2.new(rel, 0, 1, 0)
+    RadKnob.Position    = UDim2.new(rel, -6, 0.5, -6)
+    RadiusValLabel.Text = "Radius: "..newVal
+    RadiusPctLabel.Text = math.floor(rel * 100).."%"
+    -- Actualizar círculo en tiempo real si está activo
+    if stealCircle then
+        stealCircle.Size = Vector3.new(0.05, newVal * 2, newVal * 2)
+    end
+end
+
+-- Drag del slider
+local radDragging = false
+RadSliderBG.InputBegan:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+        radDragging = true
+        local rel = math.clamp(
+            (inp.Position.X - RadSliderBG.AbsolutePosition.X) / RadSliderBG.AbsoluteSize.X,
+            0, 1
+        )
+        setRadius(RADIUS_MIN + rel * (RADIUS_MAX - RADIUS_MIN))
+    end
+end)
+UserInputService.InputEnded:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+        radDragging = false
+    end
+end)
+UserInputService.InputChanged:Connect(function(inp)
+    if radDragging and inp.UserInputType == Enum.UserInputType.MouseMovement then
+        local rel = math.clamp(
+            (inp.Position.X - RadSliderBG.AbsolutePosition.X) / RadSliderBG.AbsoluteSize.X,
+            0, 1
+        )
+        setRadius(RADIUS_MIN + rel * (RADIUS_MAX - RADIUS_MIN))
+    end
+end)
+
+-- Drag del frame completo para moverlo
+do
+    local draggingRad, dragStartRad, startPosRad
+    RadiusFrame.InputBegan:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+            draggingRad  = true
+            dragStartRad = inp.Position
+            startPosRad  = RadiusFrame.Position
+        end
+    end)
+    RadiusFrame.InputEnded:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+            draggingRad = false
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(inp)
+        if draggingRad and not radDragging and inp.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = inp.Position - dragStartRad
+            RadiusFrame.Position = UDim2.new(
+                startPosRad.X.Scale, startPosRad.X.Offset + delta.X,
+                startPosRad.Y.Scale, startPosRad.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
 
 print("[DRAGON HUB] Loaded! discord.gg/dragonhub")
