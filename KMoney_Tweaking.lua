@@ -487,6 +487,101 @@ local function disableESP()
 end
 
 -- ══════════════════════════════════════════
+--   DARK MODE + OPTIMIZER (Kmoney style)
+-- ══════════════════════════════════════════
+local Lighting = game:GetService("Lighting")
+local darkCC                  = nil
+local darkOriginalTransparency = {}
+local darkXrayActive          = false
+
+local function enableDarkMode()
+    if darkCC and darkCC.Parent then return end
+
+    -- Color correction
+    darkCC            = Instance.new("ColorCorrectionEffect")
+    darkCC.Name       = "NebulaDarkMode"
+    darkCC.Brightness = -0.25
+    darkCC.Contrast   = 0.1
+    darkCC.Saturation = -0.1
+    darkCC.Enabled    = true
+    darkCC.Parent     = Lighting
+
+    -- Reducir calidad de render y desactivar sombras/fog
+    pcall(function()
+        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+        Lighting.GlobalShadows = false
+        Lighting.FogEnd        = 9e9
+        Lighting.FogStart      = 9e9
+        for _, fx in ipairs(Lighting:GetChildren()) do
+            if fx:IsA("PostEffect") and fx ~= darkCC then
+                fx.Enabled = false
+            end
+        end
+    end)
+
+    -- Eliminar partículas, texturas, sombras de partes
+    pcall(function()
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            pcall(function()
+                if obj:IsA("ParticleEmitter") or obj:IsA("Trail")
+                or obj:IsA("Beam") or obj:IsA("Smoke")
+                or obj:IsA("Fire") or obj:IsA("Sparkles") then
+                    obj.Enabled = false
+                    obj:Destroy()
+                elseif obj:IsA("BasePart") then
+                    obj.CastShadow = false
+                    obj.Material   = Enum.Material.Plastic
+                    for _, child in ipairs(obj:GetChildren()) do
+                        if child:IsA("Decal") or child:IsA("Texture")
+                        or child:IsA("SurfaceAppearance") then
+                            child:Destroy()
+                        end
+                    end
+                elseif obj:IsA("Sky") then
+                    obj:Destroy()
+                end
+            end)
+        end
+    end)
+
+    -- X-ray semitransparente en bases
+    darkXrayActive = true
+    pcall(function()
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("BasePart") and obj.Anchored
+            and (obj.Name:lower():find("base")
+            or (obj.Parent and obj.Parent.Name:lower():find("base"))) then
+                darkOriginalTransparency[obj] = obj.LocalTransparencyModifier
+                obj.LocalTransparencyModifier = 0.88
+            end
+        end
+    end)
+end
+
+local function disableDarkMode()
+    if darkCC then darkCC:Destroy(); darkCC = nil end
+
+    -- Restaurar configuración gráfica
+    pcall(function()
+        Lighting.GlobalShadows = true
+        for _, fx in ipairs(Lighting:GetChildren()) do
+            if fx:IsA("PostEffect") then fx.Enabled = true end
+        end
+    end)
+
+    -- Restaurar transparencias X-ray
+    if darkXrayActive then
+        for part, value in pairs(darkOriginalTransparency) do
+            if part and part.Parent then
+                part.LocalTransparencyModifier = value
+            end
+        end
+        darkOriginalTransparency = {}
+        darkXrayActive = false
+    end
+end
+
+-- ══════════════════════════════════════════
 --               GUI BUILDER
 -- ══════════════════════════════════════════
 local function Make(class, props)
@@ -822,7 +917,7 @@ local function CreateToggle(parent, label, yPos, default, callback)
 end
 
 -- ══════════════════════════════════════════
---       CARRY TAB  (antes Speed)
+--       CARRY TAB
 -- ══════════════════════════════════════════
 local CarryContent = Tabs["Carry"]
 
@@ -873,7 +968,7 @@ UserInputService.InputBegan:Connect(function(inp, gp)
 end)
 
 -- ══════════════════════════════════════════
---       STEAL TAB  (antes Auto)
+--       STEAL TAB
 -- ══════════════════════════════════════════
 local StealContent = Tabs["Steal"]
 
@@ -897,26 +992,8 @@ Make("TextLabel", {
 })
 
 -- ══════════════════════════════════════════
---       VISUAL TAB
+--       VISUAL TAB  (Dark Mode Kmoney style)
 -- ══════════════════════════════════════════
-local Lighting = game:GetService("Lighting")
-local darkCC   = nil
-
-local function enableDarkMode()
-    if darkCC and darkCC.Parent then return end
-    darkCC = Instance.new("ColorCorrectionEffect")
-    darkCC.Name       = "NebulaDarkMode"
-    darkCC.Brightness = -0.25
-    darkCC.Contrast   = 0.1
-    darkCC.Saturation = -0.1
-    darkCC.Enabled    = true
-    darkCC.Parent     = Lighting
-end
-
-local function disableDarkMode()
-    if darkCC then darkCC:Destroy(); darkCC = nil end
-end
-
 local VisualContent = Tabs["Visual"]
 
 Make("TextLabel", {
