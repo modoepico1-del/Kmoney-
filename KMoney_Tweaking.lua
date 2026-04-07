@@ -26,6 +26,7 @@ local CONFIG = {
     OPTIMIZER           = false,
     ANTI_RAGDOLL        = true,
     SPEED_BOOST         = false,
+    DARK_MODE           = false,
 }
 
 local NORMAL_SPEED   = 60
@@ -44,6 +45,7 @@ local function saveConfig()
         OPTIMIZER              = CONFIG.OPTIMIZER,
         ANTI_RAGDOLL           = CONFIG.ANTI_RAGDOLL,
         SPEED_BOOST            = CONFIG.SPEED_BOOST,
+        DARK_MODE              = CONFIG.DARK_MODE,
         NORMAL_SPEED           = NORMAL_SPEED,
         CARRY_SPEED            = CARRY_SPEED,
         AUTO_STEAL_PROX_RADIUS = AUTO_STEAL_PROX_RADIUS,
@@ -67,6 +69,7 @@ local function loadConfig()
             CONFIG.OPTIMIZER          = data.OPTIMIZER or false
             CONFIG.ANTI_RAGDOLL       = data.ANTI_RAGDOLL ~= nil and data.ANTI_RAGDOLL or true
             CONFIG.SPEED_BOOST        = data.SPEED_BOOST or false
+            CONFIG.DARK_MODE          = data.DARK_MODE or false
             NORMAL_SPEED              = data.NORMAL_SPEED or 60
             CARRY_SPEED               = data.CARRY_SPEED or 30
             if data.AUTO_STEAL_PROX_RADIUS then AUTO_STEAL_PROX_RADIUS = data.AUTO_STEAL_PROX_RADIUS end
@@ -102,7 +105,73 @@ local optimizerDescendantConnection = nil
 local optimizerLightingConnection   = nil
 
 -- ══════════════════════════════════════════
---   CORE FUNCTIONS (originales, sin cambios)
+--   DARK MODE
+-- ══════════════════════════════════════════
+local darkCC                   = nil
+local darkOriginalTransparency = {}
+local darkXrayActive           = false
+
+local function enableDarkMode()
+    if darkCC and darkCC.Parent then return end
+    darkCC = Instance.new("ColorCorrectionEffect")
+    darkCC.Name="NebulaDarkMode"; darkCC.Brightness=-0.25
+    darkCC.Contrast=0.1; darkCC.Saturation=-0.1
+    darkCC.Enabled=true; darkCC.Parent=Lighting
+    pcall(function()
+        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+        Lighting.GlobalShadows = false
+        Lighting.FogEnd=9e9; Lighting.FogStart=9e9
+        for _, fx in ipairs(Lighting:GetChildren()) do
+            if fx:IsA("PostEffect") and fx ~= darkCC then fx.Enabled = false end
+        end
+    end)
+    pcall(function()
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            pcall(function()
+                if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
+                or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
+                    obj.Enabled = false; obj:Destroy()
+                elseif obj:IsA("BasePart") then
+                    obj.CastShadow = false; obj.Material = Enum.Material.Plastic
+                    for _, child in ipairs(obj:GetChildren()) do
+                        if child:IsA("Decal") or child:IsA("Texture") or child:IsA("SurfaceAppearance") then
+                            child:Destroy()
+                        end
+                    end
+                elseif obj:IsA("Sky") then obj:Destroy() end
+            end)
+        end
+    end)
+    darkXrayActive = true
+    pcall(function()
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("BasePart") and obj.Anchored
+            and (obj.Name:lower():find("base") or (obj.Parent and obj.Parent.Name:lower():find("base"))) then
+                darkOriginalTransparency[obj] = obj.LocalTransparencyModifier
+                obj.LocalTransparencyModifier = 0.88
+            end
+        end
+    end)
+end
+
+local function disableDarkMode()
+    if darkCC then darkCC:Destroy(); darkCC = nil end
+    pcall(function()
+        Lighting.GlobalShadows = true
+        for _, fx in ipairs(Lighting:GetChildren()) do
+            if fx:IsA("PostEffect") then fx.Enabled = true end
+        end
+    end)
+    if darkXrayActive then
+        for part, value in pairs(darkOriginalTransparency) do
+            if part and part.Parent then part.LocalTransparencyModifier = value end
+        end
+        darkOriginalTransparency = {}; darkXrayActive = false
+    end
+end
+
+-- ══════════════════════════════════════════
+--   CORE FUNCTIONS
 -- ══════════════════════════════════════════
 local function getHRP()
     local char = LocalPlayer.Character
@@ -237,7 +306,7 @@ local function getNearestAnimal()
 end
 
 -- ══════════════════════════════════════════
---   BAT FUNCTIONS (originales)
+--   BAT FUNCTIONS
 -- ══════════════════════════════════════════
 local function getBat()
     local char = LocalPlayer.Character; if not char then return nil end
@@ -515,6 +584,11 @@ CreateToggle(VisualContent, "Optimizer", 30, false, function(v)
     if v then pcall(applyAdvancedOptimizer) else pcall(disableOptimizer) end
 end)
 
+CreateToggle(VisualContent, "Dark Mode", 76, false, function(v)
+    CONFIG.DARK_MODE = v
+    if v then pcall(enableDarkMode) else pcall(disableDarkMode) end
+end)
+
 -- ══════════════════════════════════════════
 --   FEATURES TAB
 -- ══════════════════════════════════════════
@@ -540,7 +614,7 @@ end)
 Make("TextLabel", { Text="discord.gg/jRsgRcun", Size=UDim2.new(1,-10,0,20), Position=UDim2.new(0,5,1,-30), BackgroundTransparency=1, TextColor3=Color3.fromRGB(70,70,70), Font=Enum.Font.Gotham, TextSize=9, TextXAlignment=Enum.TextXAlignment.Center, Parent=SetContent })
 
 -- ══════════════════════════════════════════
---   PROGRESS BAR (bottom, igual al original)
+--   PROGRESS BAR (bottom)
 -- ══════════════════════════════════════════
 local StealBarGui = Make("ScreenGui", {
     Name="VyseStealBar", ResetOnSpawn=false, ZIndexBehavior=Enum.ZIndexBehavior.Sibling,
@@ -590,7 +664,7 @@ do
 end
 
 -- ══════════════════════════════════════════
---   FPS / PING (top right, igual al original)
+--   FPS / PING (top right)
 -- ══════════════════════════════════════════
 local fpsFrame = Make("Frame", {
     Size=UDim2.new(0,150,0,60), Position=UDim2.new(1,-160,0,10),
@@ -602,7 +676,7 @@ local fpsLabel = Make("TextLabel", { Size=UDim2.new(1,0,0.5,0), BackgroundTransp
 local pingLabel= Make("TextLabel", { Size=UDim2.new(1,0,0.5,0), Position=UDim2.new(0,0,0.5,0), BackgroundTransparency=1, Text="PING: 0ms", TextColor3=Color3.fromRGB(0,255,0), Font=Enum.Font.GothamBold, TextSize=14, TextXAlignment=Enum.TextXAlignment.Center, Parent=fpsFrame })
 
 -- ══════════════════════════════════════════
---   AUTO STEAL LOOP (original)
+--   AUTO STEAL LOOP
 -- ══════════════════════════════════════════
 function autoStealLoop()
     if stealConnection then stealConnection:Disconnect(); stealConnection = nil end
@@ -620,7 +694,7 @@ function autoStealLoop()
 end
 
 -- ══════════════════════════════════════════
---   INPUT HANDLING (original)
+--   INPUT HANDLING
 -- ══════════════════════════════════════════
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
@@ -631,7 +705,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if input.KeyCode == autoBatKey then
         CONFIG.BAT_AIMBOT_AUTOBAT = not CONFIG.BAT_AIMBOT_AUTOBAT
         autoBatToggled = CONFIG.BAT_AIMBOT_AUTOBAT
-        -- sync toggle visual
         Tween(autoBatTogRef.togBG, {BackgroundColor3=autoBatToggled and Color3.fromRGB(240,240,240) or Color3.fromRGB(55,55,55)})
         Tween(autoBatTogRef.knob,  {Position=autoBatToggled and UDim2.new(1,-19,0.5,-8) or UDim2.new(0,3,0.5,-8)})
         autoBatTogRef.state = autoBatToggled
@@ -639,7 +712,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 end)
 
 -- ══════════════════════════════════════════
---   INFINITE JUMP (original)
+--   INFINITE JUMP
 -- ══════════════════════════════════════════
 local jumpForce = 55; local clampFallSpeed = 120
 UserInputService.JumpRequest:Connect(function()
@@ -658,7 +731,7 @@ RunService.Heartbeat:Connect(function()
 end)
 
 -- ══════════════════════════════════════════
---   AUTO BAT LOOP (original)
+--   AUTO BAT LOOP
 -- ══════════════════════════════════════════
 RunService.Heartbeat:Connect(function()
     if autoBatToggled and h and hrp then
@@ -671,7 +744,7 @@ RunService.Heartbeat:Connect(function()
 end)
 
 -- ══════════════════════════════════════════
---   SPEED LOOP (original)
+--   SPEED LOOP
 -- ══════════════════════════════════════════
 RunService.RenderStepped:Connect(function()
     if not CONFIG.SPEED_BOOST then return end
@@ -686,7 +759,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- ══════════════════════════════════════════
---   OPTIMIZER (original)
+--   OPTIMIZER
 -- ══════════════════════════════════════════
 local function optimizeObject(v)
     pcall(function()
@@ -748,7 +821,7 @@ function disableOptimizer()
 end
 
 -- ══════════════════════════════════════════
---   ANTI-RAGDOLL (original)
+--   ANTI-RAGDOLL
 -- ══════════════════════════════════════════
 local currentCharacter        = nil
 local ragdollRemoteConnection = nil
@@ -814,7 +887,7 @@ local function setupAntiRagdoll(char)
 end
 
 -- ══════════════════════════════════════════
---   PROGRESS BAR MONITOR (original logic)
+--   PROGRESS BAR MONITOR
 -- ══════════════════════════════════════════
 task.spawn(function()
     while task.wait(0.01) do
@@ -849,7 +922,7 @@ task.spawn(function()
 end)
 
 -- ══════════════════════════════════════════
---   FPS / PING MONITOR (original)
+--   FPS / PING MONITOR
 -- ══════════════════════════════════════════
 local lastFpsUpdate = tick(); local fpsCounter = 0
 task.spawn(function()
@@ -884,6 +957,7 @@ loadConfig()
 -- Sync toggles with loaded config
 if CONFIG.BAT_AIMBOT_AUTOBAT then autoBatToggled=true end
 if CONFIG.OPTIMIZER then pcall(applyAdvancedOptimizer) end
+if CONFIG.DARK_MODE then pcall(enableDarkMode) end
 
 SelectTab("Speed")
 MainFrame.Size = UDim2.new(0,310,0,0)
