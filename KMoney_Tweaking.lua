@@ -381,7 +381,7 @@ local function SelectTab(name)
     end
 end
 
-local tabNames = {"Speed", "Steal", "Combat", "Features", "Settings"}
+local tabNames = {"Speed", "Steal", "Combat", "Visual", "Features", "Settings"}
 for i, name in ipairs(tabNames) do
     local btn = CreateTab(name, i)
     btn.MouseButton1Click:Connect(function() SelectTab(name) end)
@@ -505,17 +505,24 @@ autoBatKeyInputTb:GetPropertyChangedSignal("Text"):Connect(function()
 end)
 
 -- ══════════════════════════════════════════
+--   VISUAL TAB
+-- ══════════════════════════════════════════
+local VisualContent = Tabs["Visual"]
+CreateSectionLabel(VisualContent, "VISUAL", 6)
+
+CreateToggle(VisualContent, "Optimizer", 30, false, function(v)
+    CONFIG.OPTIMIZER = v
+    if v then pcall(applyAdvancedOptimizer) else pcall(disableOptimizer) end
+end)
+
+-- ══════════════════════════════════════════
 --   FEATURES TAB
 -- ══════════════════════════════════════════
 local FeatContent = Tabs["Features"]
 CreateSectionLabel(FeatContent, "FEATURES", 6)
 
 CreateToggle(FeatContent, "Infinite Jump", 30, false, function(v) CONFIG.INFINITE_JUMP = v end)
-CreateToggle(FeatContent, "Optimizer",     76, false, function(v)
-    CONFIG.OPTIMIZER = v
-    if v then pcall(applyAdvancedOptimizer) else pcall(disableOptimizer) end
-end)
-CreateToggle(FeatContent, "Anti-Ragdoll", 122, true, function(v) CONFIG.ANTI_RAGDOLL = v end)
+CreateToggle(FeatContent, "Anti-Ragdoll", 76, true, function(v) CONFIG.ANTI_RAGDOLL = v end)
 
 -- ══════════════════════════════════════════
 --   SETTINGS TAB
@@ -875,7 +882,6 @@ LocalPlayer.CharacterRemoving:Connect(function() cleanupRagdoll(); disconnectRem
 loadConfig()
 
 -- Sync toggles with loaded config
-if CONFIG.INFINITE_JUMP then end -- toggles start at false, user re-enables
 if CONFIG.BAT_AIMBOT_AUTOBAT then autoBatToggled=true end
 if CONFIG.OPTIMIZER then pcall(applyAdvancedOptimizer) end
 
