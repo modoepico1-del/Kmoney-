@@ -45,6 +45,8 @@ local function saveConfig()
         OPTIMIZER              = CONFIG.OPTIMIZER,
         ANTI_RAGDOLL           = CONFIG.ANTI_RAGDOLL,
         SPEED_BOOST            = CONFIG.SPEED_BOOST,
+        DARK_MODE              = CONFIG.DARK_MODE,
+        GALAXY                 = galaxyEnabled,
         NORMAL_SPEED           = NORMAL_SPEED,
         CARRY_SPEED            = CARRY_SPEED,
         AUTO_STEAL_PROX_RADIUS = AUTO_STEAL_PROX_RADIUS,
@@ -68,6 +70,8 @@ local function loadConfig()
             CONFIG.OPTIMIZER          = data.OPTIMIZER or false
             CONFIG.ANTI_RAGDOLL       = data.ANTI_RAGDOLL ~= nil and data.ANTI_RAGDOLL or true
             CONFIG.SPEED_BOOST        = data.SPEED_BOOST or false
+            CONFIG.DARK_MODE          = data.DARK_MODE or false
+            galaxyEnabled             = data.GALAXY or false
             NORMAL_SPEED              = data.NORMAL_SPEED or 60
             CARRY_SPEED               = data.CARRY_SPEED or 30
             if data.AUTO_STEAL_PROX_RADIUS then AUTO_STEAL_PROX_RADIUS = data.AUTO_STEAL_PROX_RADIUS end
@@ -976,9 +980,10 @@ LocalPlayer.CharacterRemoving:Connect(function() cleanupRagdoll(); disconnectRem
 
 loadConfig()
 
--- Sync toggles with loaded config
-if CONFIG.BAT_AIMBOT_AUTOBAT then autoBatToggled=true end
-if CONFIG.OPTIMIZER then pcall(applyAdvancedOptimizer) end
+-- Sync con config cargado
+if CONFIG.BAT_AIMBOT_AUTOBAT then autoBatToggled = true end
+if CONFIG.DARK_MODE           then startDarkmode()        end
+if galaxyEnabled              then startGalaxy()           end
 
 SelectTab("Speed")
 MainFrame.Size = UDim2.new(0,310,0,0)
