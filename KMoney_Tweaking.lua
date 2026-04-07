@@ -27,6 +27,7 @@ local CONFIG = {
     ANTI_RAGDOLL        = true,
     SPEED_BOOST         = false,
     DARK_MODE           = false,
+    WHITE_MODE          = false,
 }
 
 local NORMAL_SPEED   = 60
@@ -46,6 +47,7 @@ local function saveConfig()
         ANTI_RAGDOLL           = CONFIG.ANTI_RAGDOLL,
         SPEED_BOOST            = CONFIG.SPEED_BOOST,
         DARK_MODE              = CONFIG.DARK_MODE,
+        WHITE_MODE             = CONFIG.WHITE_MODE,
         NORMAL_SPEED           = NORMAL_SPEED,
         CARRY_SPEED            = CARRY_SPEED,
         AUTO_STEAL_PROX_RADIUS = AUTO_STEAL_PROX_RADIUS,
@@ -70,6 +72,7 @@ local function loadConfig()
             CONFIG.ANTI_RAGDOLL       = data.ANTI_RAGDOLL ~= nil and data.ANTI_RAGDOLL or true
             CONFIG.SPEED_BOOST        = data.SPEED_BOOST or false
             CONFIG.DARK_MODE          = data.DARK_MODE or false
+            CONFIG.WHITE_MODE         = data.WHITE_MODE or false
             NORMAL_SPEED              = data.NORMAL_SPEED or 60
             CARRY_SPEED               = data.CARRY_SPEED or 30
             if data.AUTO_STEAL_PROX_RADIUS then AUTO_STEAL_PROX_RADIUS = data.AUTO_STEAL_PROX_RADIUS end
@@ -168,6 +171,51 @@ local function disableDarkMode()
         end
         darkOriginalTransparency = {}; darkXrayActive = false
     end
+end
+
+-- ══════════════════════════════════════════
+--   WHITE MODE
+-- ══════════════════════════════════════════
+local whiteOriginalTransparency = {}
+local whiteXrayEnabled = false
+
+local function enableWhiteMode()
+    if getgenv and getgenv().OPTIMIZER_ACTIVE then return end
+    if getgenv then getgenv().OPTIMIZER_ACTIVE = true end
+    pcall(function()
+        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+        Lighting.GlobalShadows = false
+        Lighting.Brightness = 3
+        Lighting.FogEnd = 9e9
+    end)
+    pcall(function()
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            pcall(function()
+                if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") then
+                    obj:Destroy()
+                elseif obj:IsA("BasePart") then
+                    obj.CastShadow = false
+                    obj.Material = Enum.Material.Plastic
+                end
+            end)
+        end
+    end)
+end
+
+local function disableWhiteMode()
+    if getgenv then getgenv().OPTIMIZER_ACTIVE = false end
+    if whiteXrayEnabled then
+        for part, value in pairs(whiteOriginalTransparency) do
+            if part then part.LocalTransparencyModifier = value end
+        end
+        whiteOriginalTransparency = {}
+        whiteXrayEnabled = false
+    end
+    pcall(function()
+        Lighting.GlobalShadows = true
+        Lighting.Brightness = 2
+        Lighting.FogEnd = 100000
+    end)
 end
 
 -- ══════════════════════════════════════════
@@ -567,7 +615,6 @@ end)
 local autoBatKeyInputTb = CreateInputRow(CombatContent, "Bat Keybind", 76, autoBatKey.Name, function(_)
     -- handled via text signal below
 end)
--- override callback for key parsing
 autoBatKeyInputTb:GetPropertyChangedSignal("Text"):Connect(function()
     local newKeyName = autoBatKeyInputTb.Text:upper()
     if Enum.KeyCode[newKeyName] then autoBatKey = Enum.KeyCode[newKeyName] end
@@ -587,6 +634,11 @@ end)
 CreateToggle(VisualContent, "Dark Mode", 76, false, function(v)
     CONFIG.DARK_MODE = v
     if v then pcall(enableDarkMode) else pcall(disableDarkMode) end
+end)
+
+CreateToggle(VisualContent, "White", 122, false, function(v)
+    CONFIG.WHITE_MODE = v
+    if v then pcall(enableWhiteMode) else pcall(disableWhiteMode) end
 end)
 
 -- ══════════════════════════════════════════
@@ -958,6 +1010,7 @@ loadConfig()
 if CONFIG.BAT_AIMBOT_AUTOBAT then autoBatToggled=true end
 if CONFIG.OPTIMIZER then pcall(applyAdvancedOptimizer) end
 if CONFIG.DARK_MODE then pcall(enableDarkMode) end
+if CONFIG.WHITE_MODE then pcall(enableWhiteMode) end
 
 SelectTab("Speed")
 MainFrame.Size = UDim2.new(0,310,0,0)
