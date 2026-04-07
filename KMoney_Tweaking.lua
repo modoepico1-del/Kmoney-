@@ -103,9 +103,6 @@ local autoBatToggled  = false
 local hittingCooldown = false
 local SAFE_DELAY      = 0.08
 
-local optimizerDescendantConnection = nil
-local optimizerLightingConnection   = nil
-
 -- ══════════════════════════════════════════
 --   CORE FUNCTIONS (originales, sin cambios)
 -- ══════════════════════════════════════════
@@ -512,85 +509,68 @@ end)
 -- ══════════════════════════════════════════
 --   DARK MODE
 -- ══════════════════════════════════════════
-local SKYBOX_ID          = "rbxassetid://120677415283673"
-local originalSky        = nil
-local originalAmbient    = nil
-local originalBrightness = nil
-local originalFogColor   = nil
+local darkCC = nil
+local xrayEnabled        = false
+local originalTransparency = {}
 
+local function enableDarkMode()
+    if darkCC and darkCC.Parent then return end
+    darkCC = Instance.new("ColorCorrectionEffect")
+    darkCC.Name = "NebulaDarkMode"; darkCC.Brightness = -0.25; darkCC.Contrast = 0.1
+    darkCC.Saturation = -0.1; darkCC.Enabled = true; darkCC.Parent = Lighting
+end
+
+local function disableDarkMode()
+    if darkCC then darkCC:Destroy(); darkCC = nil end
+end
+
+-- ══════════════════════════════════════════
+--   GALAXY SKY
+-- ══════════════════════════════════════════
 local galaxyEnabled      = false
-local originalGalaxySky  = nil
-local originalGalaxyAmb  = nil
-local originalGalaxyOut  = nil
-local originalGalaxyBri  = nil
-local originalGalaxyFog  = nil
-local originalGalaxyFogE = nil
+local originalSkybox     = nil
+local galaxySkyBright    = nil
+local galaxySkyBrightConn= nil
+local galaxyPlanets      = {}
+local galaxyBloom        = nil
+local galaxyCC_galaxy    = nil
 
-local function startGalaxy()
-    pcall(function()
-        originalGalaxyAmb  = Lighting.Ambient
-        originalGalaxyOut  = Lighting.OutdoorAmbient
-        originalGalaxyBri  = Lighting.Brightness
-        originalGalaxyFog  = Lighting.FogColor
-        originalGalaxyFogE = Lighting.FogEnd
-        local existingSky  = Lighting:FindFirstChildOfClass("Sky")
-        if existingSky then originalGalaxySky = existingSky; existingSky.Parent = nil end
-        local sky = Instance.new("Sky")
-        sky.Name     = "VyseGalaxySky"
-        local GALAXY = "rbxassetid://159454286"
-        sky.SkyboxBk = GALAXY; sky.SkyboxDn = GALAXY; sky.SkyboxFt = GALAXY
-        sky.SkyboxLf = GALAXY; sky.SkyboxRt = GALAXY; sky.SkyboxUp = GALAXY
-        sky.StarCount = 3000
-        sky.Parent = Lighting
-        Lighting.Ambient        = Color3.fromRGB(20,10,40)
-        Lighting.OutdoorAmbient = Color3.fromRGB(10,5,30)
-        Lighting.Brightness     = 0.3
-        Lighting.FogColor       = Color3.fromRGB(10,5,30)
-        Lighting.FogEnd         = 9e9
+local function enableGalaxySkyBright()
+    if galaxySkyBright then return end
+    originalSkybox = Lighting:FindFirstChildOfClass("Sky")
+    if originalSkybox then originalSkybox.Parent = nil end
+    galaxySkyBright = Instance.new("Sky")
+    local GID = "rbxassetid://1534951537"
+    galaxySkyBright.SkyboxBk = GID; galaxySkyBright.SkyboxDn = GID; galaxySkyBright.SkyboxFt = GID
+    galaxySkyBright.SkyboxLf = GID; galaxySkyBright.SkyboxRt = GID; galaxySkyBright.SkyboxUp = GID
+    galaxySkyBright.StarCount = 10000; galaxySkyBright.CelestialBodiesShown = false; galaxySkyBright.Parent = Lighting
+    galaxyBloom = Instance.new("BloomEffect"); galaxyBloom.Intensity = 1.5; galaxyBloom.Size = 40; galaxyBloom.Threshold = 0.8; galaxyBloom.Parent = Lighting
+    galaxyCC_galaxy = Instance.new("ColorCorrectionEffect"); galaxyCC_galaxy.Saturation = 0.8; galaxyCC_galaxy.Contrast = 0.3; galaxyCC_galaxy.TintColor = Color3.fromRGB(200,150,255); galaxyCC_galaxy.Parent = Lighting
+    Lighting.Ambient = Color3.fromRGB(120,60,180); Lighting.Brightness = 3; Lighting.ClockTime = 0
+    for i = 1, 2 do
+        local p = Instance.new("Part"); p.Shape = Enum.PartType.Ball
+        p.Size = Vector3.new(800+i*200, 800+i*200, 800+i*200); p.Anchored = true; p.CanCollide = false; p.CastShadow = false
+        p.Material = Enum.Material.Neon; p.Color = Color3.fromRGB(140+i*20, 60+i*10, 200+i*15); p.Transparency = 0.3
+        p.Position = Vector3.new(math.cos(i*2)*(3000+i*500), 1500+i*300, math.sin(i*2)*(3000+i*500)); p.Parent = workspace
+        table.insert(galaxyPlanets, p)
+    end
+    galaxySkyBrightConn = RunService.Heartbeat:Connect(function()
+        if not CONFIG.GALAXY then return end
+        local t = tick() * 0.5
+        Lighting.Ambient = Color3.fromRGB(120+math.sin(t)*60, 50+math.sin(t*0.8)*40, 180+math.sin(t*1.2)*50)
+        if galaxyBloom then galaxyBloom.Intensity = 1.2 + math.sin(t*2) * 0.4 end
     end)
 end
 
-local function stopGalaxy()
-    pcall(function()
-        local galaxySky = Lighting:FindFirstChild("VyseGalaxySky")
-        if galaxySky then galaxySky:Destroy() end
-        if originalGalaxySky  then originalGalaxySky.Parent = Lighting; originalGalaxySky = nil end
-        if originalGalaxyAmb  then Lighting.Ambient        = originalGalaxyAmb  end
-        if originalGalaxyOut  then Lighting.OutdoorAmbient = originalGalaxyOut  end
-        if originalGalaxyBri  then Lighting.Brightness     = originalGalaxyBri  end
-        if originalGalaxyFog  then Lighting.FogColor       = originalGalaxyFog  end
-        if originalGalaxyFogE then Lighting.FogEnd         = originalGalaxyFogE end
-    end)
-end
-
-local function startDarkmode()
-    pcall(function()
-        originalAmbient    = Lighting.Ambient
-        originalBrightness = Lighting.Brightness
-        originalFogColor   = Lighting.FogColor
-        local existingSky  = Lighting:FindFirstChildOfClass("Sky")
-        if existingSky then originalSky = existingSky; existingSky.Parent = nil end
-        local newSky = Instance.new("Sky")
-        newSky.Name = "VyseDarkSky"
-        for _, face in ipairs({"SkyboxBk","SkyboxDn","SkyboxFt","SkyboxLf","SkyboxRt","SkyboxUp"}) do
-            newSky[face] = SKYBOX_ID
-        end
-        newSky.Parent = Lighting
-        Lighting.Ambient    = Color3.fromRGB(0,0,0)
-        Lighting.Brightness = 0
-        Lighting.FogColor   = Color3.fromRGB(0,0,0)
-    end)
-end
-
-local function stopDarkmode()
-    pcall(function()
-        local darkSky = Lighting:FindFirstChild("VyseDarkSky")
-        if darkSky then darkSky:Destroy() end
-        if originalSky        then originalSky.Parent = Lighting; originalSky = nil end
-        if originalAmbient    then Lighting.Ambient    = originalAmbient    end
-        if originalBrightness then Lighting.Brightness = originalBrightness end
-        if originalFogColor   then Lighting.FogColor   = originalFogColor   end
-    end)
+local function disableGalaxySkyBright()
+    if galaxySkyBrightConn then galaxySkyBrightConn:Disconnect(); galaxySkyBrightConn = nil end
+    if galaxySkyBright then galaxySkyBright:Destroy(); galaxySkyBright = nil end
+    if originalSkybox then originalSkybox.Parent = Lighting; originalSkybox = nil end
+    if galaxyBloom then galaxyBloom:Destroy(); galaxyBloom = nil end
+    if galaxyCC_galaxy then galaxyCC_galaxy:Destroy(); galaxyCC_galaxy = nil end
+    for _, obj in ipairs(galaxyPlanets) do if obj then obj:Destroy() end end
+    galaxyPlanets = {}
+    Lighting.Ambient = Color3.fromRGB(127,127,127); Lighting.Brightness = 2; Lighting.ClockTime = 14
 end
 
 -- ══════════════════════════════════════════
@@ -601,12 +581,13 @@ CreateSectionLabel(VisualContent, "VISUAL", 6)
 
 CreateToggle(VisualContent, "Dark", 30, false, function(v)
     CONFIG.DARK_MODE = v
-    if v then startDarkmode() else stopDarkmode() end
+    if v then enableDarkMode() else disableDarkMode() end
 end)
 
 CreateToggle(VisualContent, "Galaxy", 76, false, function(v)
     galaxyEnabled = v
-    if v then startGalaxy() else stopGalaxy() end
+    CONFIG.GALAXY = v
+    if v then enableGalaxySkyBright() else disableGalaxySkyBright() end
 end)
 
 CreateToggle(VisualContent, "Optimizer", 122, false, function(v)
@@ -785,65 +766,49 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- ══════════════════════════════════════════
---   OPTIMIZER (original)
+--   OPTIMIZER
 -- ══════════════════════════════════════════
-local function optimizeObject(v)
-    pcall(function()
-        if v:IsA("Model") then v.LevelOfDetail=Enum.ModelLevelOfDetail.Disabled; v.ModelStreamingMode=Enum.ModelStreamingMode.Nonatomic
-        elseif v:IsA("BasePart") and not v:IsA("MeshPart") then v.CastShadow=false; v.Material=Enum.Material.Plastic; v.Reflectance=0; v.MaterialVariant=""
-        elseif v:IsA("Decal") or v:IsA("Texture") then v.Transparency=1
-        elseif v:IsA("MeshPart") then v.CastShadow=false; v.DoubleSided=false; v.RenderFidelity=Enum.RenderFidelity.Performance; pcall(function() v.TextureID=10385902758728957 end)
-        elseif v:IsA("SpecialMesh") then v.TextureId=0
-        elseif v:IsA("ShirtGraphic") then v.Graphic=0
-        elseif v:IsA("Shirt") or v:IsA("Pants") then v[v.ClassName.."Template"]=0
-        elseif v:IsA("Fire") or v:IsA("SpotLight") or v:IsA("Smoke") or v:IsA("Sparkles") then v.Enabled=false
-        elseif v:IsA("Explosion") then v.BlastPressure=1; v.BlastRadius=1
-        elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then v.Enabled=false
-        elseif v:IsA("Beam") then v.Enabled=false
-        elseif v:IsA("SurfaceAppearance") then v:Destroy()
-        elseif v:IsA("Debris") then v:Destroy()
-        elseif v:IsA("Attachment") then v.Visible=false
-        elseif v:IsA("MaterialVariant") then v:Destroy() end
-    end)
-end
-
 function applyAdvancedOptimizer()
-    pcall(function() setfpscap(999999999) end)
-    for _, v in pairs(Workspace:GetDescendants()) do optimizeObject(v) end
-    for _, v in pairs(Lighting:GetDescendants()) do
-        pcall(function()
-            if v:IsA("Sky") or v:IsA("Atmosphere") or v:IsA("BloomEffect") or v:IsA("BlurEffect")
-            or v:IsA("SunRaysEffect") or v:IsA("DepthOfFieldEffect") or v:IsA("Clouds")
-            or v:IsA("PostEffect") or v:IsA("ColorCorrectionEffect") then v:Destroy() end
-        end)
-    end
+    if getgenv and getgenv().NEBULA_OPT_ACTIVE then return end
+    if getgenv then getgenv().NEBULA_OPT_ACTIVE = true end
     pcall(function()
-        pcall(function() sethiddenproperty(Lighting,"Technology",2) end)
-        Lighting.GlobalShadows=false; Lighting.FogEnd=9e9; Lighting.Brightness=0
+        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+        Lighting.GlobalShadows = false; Lighting.Brightness = 2; Lighting.FogEnd = 9e9; Lighting.FogStart = 9e9
+        for _, fx in ipairs(Lighting:GetChildren()) do if fx:IsA("PostEffect") then fx.Enabled = false end end
     end)
-    local terrain = Workspace:FindFirstChildOfClass("Terrain")
-    if terrain then pcall(function()
-        pcall(function() sethiddenproperty(terrain,"Decoration",false) end)
-        terrain.WaterReflectance=0; terrain.WaterTransparency=0.7; terrain.WaterWaveSize=0; terrain.WaterWaveSpeed=0
-    end) end
-    if not optimizerLightingConnection then
-        optimizerLightingConnection = Lighting.ChildAdded:Connect(function(v)
-            if CONFIG.OPTIMIZER then task.spawn(function() pcall(function() v:Destroy() end) end) end
-        end)
-    end
-    if not optimizerDescendantConnection then
-        optimizerDescendantConnection = Workspace.DescendantAdded:Connect(function(v)
-            if CONFIG.OPTIMIZER then task.spawn(function() optimizeObject(v) end) end
-        end)
-    end
-    pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 end)
+    pcall(function()
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            pcall(function()
+                if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
+                or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
+                    obj.Enabled = false; obj:Destroy()
+                elseif obj:IsA("BasePart") then
+                    obj.CastShadow = false; obj.Material = Enum.Material.Plastic
+                    for _, child in ipairs(obj:GetChildren()) do
+                        if child:IsA("Decal") or child:IsA("Texture") or child:IsA("SurfaceAppearance") then child:Destroy() end
+                    end
+                elseif obj:IsA("Sky") then obj:Destroy() end
+            end)
+        end
+    end)
+    xrayEnabled = true
+    pcall(function()
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("BasePart") and obj.Anchored and (obj.Name:lower():find("base") or (obj.Parent and obj.Parent.Name:lower():find("base"))) then
+                originalTransparency[obj] = obj.LocalTransparencyModifier
+                obj.LocalTransparencyModifier = 0.88
+            end
+        end
+    end)
 end
 
 function disableOptimizer()
-    if optimizerDescendantConnection then optimizerDescendantConnection:Disconnect(); optimizerDescendantConnection=nil end
-    if optimizerLightingConnection   then optimizerLightingConnection:Disconnect();   optimizerLightingConnection=nil   end
-    pcall(function() setfpscap(60) end)
-    settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
+    if getgenv then getgenv().NEBULA_OPT_ACTIVE = false end
+    if xrayEnabled then
+        for part, value in pairs(originalTransparency) do if part then part.LocalTransparencyModifier = value end end
+        originalTransparency = {}; xrayEnabled = false
+    end
+    pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic end)
 end
 
 -- ══════════════════════════════════════════
@@ -982,8 +947,8 @@ loadConfig()
 
 -- Sync con config cargado
 if CONFIG.BAT_AIMBOT_AUTOBAT then autoBatToggled = true end
-if CONFIG.DARK_MODE           then startDarkmode()        end
-if galaxyEnabled              then startGalaxy()           end
+if CONFIG.DARK_MODE           then enableDarkMode()            end
+if galaxyEnabled              then enableGalaxySkyBright()     end
 
 SelectTab("Speed")
 MainFrame.Size = UDim2.new(0,310,0,0)
