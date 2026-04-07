@@ -174,48 +174,32 @@ local function disableDarkMode()
 end
 
 -- ══════════════════════════════════════════
---   WHITE MODE
+--   WHITE MODE (Galaxy Skybox)
 -- ══════════════════════════════════════════
-local whiteOriginalTransparency = {}
-local whiteXrayEnabled = false
+local galaxySky = nil
 
 local function enableWhiteMode()
-    if getgenv and getgenv().OPTIMIZER_ACTIVE then return end
-    if getgenv then getgenv().OPTIMIZER_ACTIVE = true end
-    pcall(function()
-        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-        Lighting.GlobalShadows = false
-        Lighting.Brightness = 3
-        Lighting.FogEnd = 9e9
-    end)
-    pcall(function()
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            pcall(function()
-                if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") then
-                    obj:Destroy()
-                elseif obj:IsA("BasePart") then
-                    obj.CastShadow = false
-                    obj.Material = Enum.Material.Plastic
-                end
-            end)
-        end
-    end)
+    for _, v in ipairs(Lighting:GetChildren()) do
+        if v:IsA("Sky") then v:Destroy() end
+    end
+    local sky = Instance.new("Sky", Lighting)
+    sky.Name       = "NovaGalaxySky"
+    sky.SkyboxBk   = "rbxassetid://12450520111"
+    sky.SkyboxDn   = "rbxassetid://12450519395"
+    sky.SkyboxFt   = "rbxassetid://12450518712"
+    sky.SkyboxLf   = "rbxassetid://12450518063"
+    sky.SkyboxRt   = "rbxassetid://12450517417"
+    sky.SkyboxUp   = "rbxassetid://12450516616"
+    sky.SunStyle   = Enum.SunStyle.None
+    sky.MoonStyle  = Enum.MoonStyle.None
+    galaxySky = sky
 end
 
 local function disableWhiteMode()
-    if getgenv then getgenv().OPTIMIZER_ACTIVE = false end
-    if whiteXrayEnabled then
-        for part, value in pairs(whiteOriginalTransparency) do
-            if part then part.LocalTransparencyModifier = value end
-        end
-        whiteOriginalTransparency = {}
-        whiteXrayEnabled = false
+    if galaxySky and galaxySky.Parent then
+        galaxySky:Destroy()
+        galaxySky = nil
     end
-    pcall(function()
-        Lighting.GlobalShadows = true
-        Lighting.Brightness = 2
-        Lighting.FogEnd = 100000
-    end)
 end
 
 -- ══════════════════════════════════════════
@@ -636,7 +620,7 @@ CreateToggle(VisualContent, "Dark Mode", 76, false, function(v)
     if v then pcall(enableDarkMode) else pcall(disableDarkMode) end
 end)
 
-CreateToggle(VisualContent, "White", 122, false, function(v)
+CreateToggle(VisualContent, "Galaxy Sky", 122, false, function(v)
     CONFIG.WHITE_MODE = v
     if v then pcall(enableWhiteMode) else pcall(disableWhiteMode) end
 end)
