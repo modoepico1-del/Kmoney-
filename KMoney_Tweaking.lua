@@ -26,6 +26,7 @@ local CONFIG = {
     OPTIMIZER           = false,
     ANTI_RAGDOLL        = true,
     SPEED_BOOST         = false,
+    DARK_MODE           = false,
 }
 
 local NORMAL_SPEED   = 60
@@ -505,12 +506,106 @@ autoBatKeyInputTb:GetPropertyChangedSignal("Text"):Connect(function()
 end)
 
 -- ══════════════════════════════════════════
+--   DARK MODE
+-- ══════════════════════════════════════════
+local SKYBOX_ID          = "rbxassetid://120677415283673"
+local originalSky        = nil
+local originalAmbient    = nil
+local originalBrightness = nil
+local originalFogColor   = nil
+
+local galaxyEnabled      = false
+local originalGalaxySky  = nil
+local originalGalaxyAmb  = nil
+local originalGalaxyOut  = nil
+local originalGalaxyBri  = nil
+local originalGalaxyFog  = nil
+local originalGalaxyFogE = nil
+
+local function startGalaxy()
+    pcall(function()
+        originalGalaxyAmb  = Lighting.Ambient
+        originalGalaxyOut  = Lighting.OutdoorAmbient
+        originalGalaxyBri  = Lighting.Brightness
+        originalGalaxyFog  = Lighting.FogColor
+        originalGalaxyFogE = Lighting.FogEnd
+        local existingSky  = Lighting:FindFirstChildOfClass("Sky")
+        if existingSky then originalGalaxySky = existingSky; existingSky.Parent = nil end
+        local sky = Instance.new("Sky")
+        sky.Name     = "VyseGalaxySky"
+        local GALAXY = "rbxassetid://159454286"
+        sky.SkyboxBk = GALAXY; sky.SkyboxDn = GALAXY; sky.SkyboxFt = GALAXY
+        sky.SkyboxLf = GALAXY; sky.SkyboxRt = GALAXY; sky.SkyboxUp = GALAXY
+        sky.StarCount = 3000
+        sky.Parent = Lighting
+        Lighting.Ambient        = Color3.fromRGB(20,10,40)
+        Lighting.OutdoorAmbient = Color3.fromRGB(10,5,30)
+        Lighting.Brightness     = 0.3
+        Lighting.FogColor       = Color3.fromRGB(10,5,30)
+        Lighting.FogEnd         = 9e9
+    end)
+end
+
+local function stopGalaxy()
+    pcall(function()
+        local galaxySky = Lighting:FindFirstChild("VyseGalaxySky")
+        if galaxySky then galaxySky:Destroy() end
+        if originalGalaxySky  then originalGalaxySky.Parent = Lighting; originalGalaxySky = nil end
+        if originalGalaxyAmb  then Lighting.Ambient        = originalGalaxyAmb  end
+        if originalGalaxyOut  then Lighting.OutdoorAmbient = originalGalaxyOut  end
+        if originalGalaxyBri  then Lighting.Brightness     = originalGalaxyBri  end
+        if originalGalaxyFog  then Lighting.FogColor       = originalGalaxyFog  end
+        if originalGalaxyFogE then Lighting.FogEnd         = originalGalaxyFogE end
+    end)
+end
+
+local function startDarkmode()
+    pcall(function()
+        originalAmbient    = Lighting.Ambient
+        originalBrightness = Lighting.Brightness
+        originalFogColor   = Lighting.FogColor
+        local existingSky  = Lighting:FindFirstChildOfClass("Sky")
+        if existingSky then originalSky = existingSky; existingSky.Parent = nil end
+        local newSky = Instance.new("Sky")
+        newSky.Name = "VyseDarkSky"
+        for _, face in ipairs({"SkyboxBk","SkyboxDn","SkyboxFt","SkyboxLf","SkyboxRt","SkyboxUp"}) do
+            newSky[face] = SKYBOX_ID
+        end
+        newSky.Parent = Lighting
+        Lighting.Ambient    = Color3.fromRGB(0,0,0)
+        Lighting.Brightness = 0
+        Lighting.FogColor   = Color3.fromRGB(0,0,0)
+    end)
+end
+
+local function stopDarkmode()
+    pcall(function()
+        local darkSky = Lighting:FindFirstChild("VyseDarkSky")
+        if darkSky then darkSky:Destroy() end
+        if originalSky        then originalSky.Parent = Lighting; originalSky = nil end
+        if originalAmbient    then Lighting.Ambient    = originalAmbient    end
+        if originalBrightness then Lighting.Brightness = originalBrightness end
+        if originalFogColor   then Lighting.FogColor   = originalFogColor   end
+    end)
+end
+
+-- ══════════════════════════════════════════
 --   VISUAL TAB
 -- ══════════════════════════════════════════
 local VisualContent = Tabs["Visual"]
 CreateSectionLabel(VisualContent, "VISUAL", 6)
 
-CreateToggle(VisualContent, "Optimizer", 30, false, function(v)
+CreateToggle(VisualContent, "Dark", 30, false, function(v)
+    CONFIG.DARK_MODE = v
+    if v then startDarkmode() else stopDarkmode() end
+end)
+
+CreateToggle(VisualContent, "Galaxy", 76, false, function(v)
+    galaxyEnabled = v
+    if v then startGalaxy() else stopGalaxy() end
+end)
+
+CreateToggle(VisualContent, "Optimizer", 122, false, function(v)
     CONFIG.OPTIMIZER = v
     if v then pcall(applyAdvancedOptimizer) else pcall(disableOptimizer) end
 end)
