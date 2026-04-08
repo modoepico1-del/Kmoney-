@@ -174,32 +174,74 @@ local function disableDarkMode()
 end
 
 -- ══════════════════════════════════════════
---   WHITE MODE (Galaxy Skybox)
+--   GALAXY SKY (White Mode)
 -- ══════════════════════════════════════════
-local galaxySky = nil
+local galaxySkyActive         = false
+local galaxySkyInstance       = nil
+local galaxySkyOriginalSkybox = nil
+local galaxySkyConn           = nil
+local galaxySkyPlanets        = {}
+local galaxySkyBloom          = nil
+local galaxySkyCC             = nil
 
 local function enableWhiteMode()
-    for _, v in ipairs(Lighting:GetChildren()) do
-        if v:IsA("Sky") then v:Destroy() end
+    if galaxySkyInstance then return end
+    galaxySkyOriginalSkybox = Lighting:FindFirstChildOfClass("Sky")
+    if galaxySkyOriginalSkybox then galaxySkyOriginalSkybox.Parent = nil end
+    galaxySkyInstance = Instance.new("Sky")
+    galaxySkyInstance.SkyboxBk="rbxassetid://1534951537"
+    galaxySkyInstance.SkyboxDn="rbxassetid://1534951537"
+    galaxySkyInstance.SkyboxFt="rbxassetid://1534951537"
+    galaxySkyInstance.SkyboxLf="rbxassetid://1534951537"
+    galaxySkyInstance.SkyboxRt="rbxassetid://1534951537"
+    galaxySkyInstance.SkyboxUp="rbxassetid://1534951537"
+    galaxySkyInstance.StarCount=10000
+    galaxySkyInstance.CelestialBodiesShown=false
+    galaxySkyInstance.Parent=Lighting
+    galaxySkyBloom=Instance.new("BloomEffect")
+    galaxySkyBloom.Intensity=1.5; galaxySkyBloom.Size=40
+    galaxySkyBloom.Threshold=0.8; galaxySkyBloom.Parent=Lighting
+    galaxySkyCC=Instance.new("ColorCorrectionEffect")
+    galaxySkyCC.Saturation=0.8; galaxySkyCC.Contrast=0.3
+    galaxySkyCC.TintColor=Color3.fromRGB(200,150,255)
+    galaxySkyCC.Parent=Lighting
+    Lighting.Ambient=Color3.fromRGB(120,60,180)
+    Lighting.Brightness=3; Lighting.ClockTime=0
+    for i=1,2 do
+        local p=Instance.new("Part"); p.Shape=Enum.PartType.Ball
+        p.Size=Vector3.new(800+i*200,800+i*200,800+i*200)
+        p.Anchored=true; p.CanCollide=false; p.CastShadow=false
+        p.Material=Enum.Material.Neon
+        p.Color=Color3.fromRGB(140+i*20,60+i*10,200+i*15)
+        p.Transparency=0.3
+        p.Position=Vector3.new(math.cos(i*2)*(3000+i*500),1500+i*300,math.sin(i*2)*(3000+i*500))
+        p.Parent=workspace
+        table.insert(galaxySkyPlanets,p)
     end
-    local sky = Instance.new("Sky", Lighting)
-    sky.Name       = "NovaGalaxySky"
-    sky.SkyboxBk   = "rbxassetid://12450520111"
-    sky.SkyboxDn   = "rbxassetid://12450519395"
-    sky.SkyboxFt   = "rbxassetid://12450518712"
-    sky.SkyboxLf   = "rbxassetid://12450518063"
-    sky.SkyboxRt   = "rbxassetid://12450517417"
-    sky.SkyboxUp   = "rbxassetid://12450516616"
-    sky.SunStyle   = Enum.SunStyle.None
-    sky.MoonStyle  = Enum.MoonStyle.None
-    galaxySky = sky
+    galaxySkyConn=RunService.Heartbeat:Connect(function()
+        if not CONFIG.WHITE_MODE then return end
+        local t=tick()*0.5
+        Lighting.Ambient=Color3.fromRGB(
+            120+math.floor(math.sin(t)*60),
+            50+math.floor(math.sin(t*0.8)*40),
+            180+math.floor(math.sin(t*1.2)*50)
+        )
+        if galaxySkyBloom then galaxySkyBloom.Intensity=1.2+math.sin(t*2)*0.4 end
+    end)
+    galaxySkyActive = true
 end
 
 local function disableWhiteMode()
-    if galaxySky and galaxySky.Parent then
-        galaxySky:Destroy()
-        galaxySky = nil
-    end
+    if galaxySkyConn then galaxySkyConn:Disconnect(); galaxySkyConn=nil end
+    if galaxySkyInstance then galaxySkyInstance:Destroy(); galaxySkyInstance=nil end
+    if galaxySkyOriginalSkybox then galaxySkyOriginalSkybox.Parent=Lighting end
+    if galaxySkyBloom then galaxySkyBloom:Destroy(); galaxySkyBloom=nil end
+    if galaxySkyCC then galaxySkyCC:Destroy(); galaxySkyCC=nil end
+    for _,obj in ipairs(galaxySkyPlanets) do if obj and obj.Parent then obj:Destroy() end end
+    galaxySkyPlanets={}
+    Lighting.Ambient=Color3.fromRGB(127,127,127)
+    Lighting.Brightness=2; Lighting.ClockTime=14
+    galaxySkyActive = false
 end
 
 -- ══════════════════════════════════════════
@@ -597,7 +639,6 @@ local autoBatTogRef = CreateToggle(CombatContent, "Auto-Bat", 30, false, functio
 end)
 
 local autoBatKeyInputTb = CreateInputRow(CombatContent, "Bat Keybind", 76, autoBatKey.Name, function(_)
-    -- handled via text signal below
 end)
 autoBatKeyInputTb:GetPropertyChangedSignal("Text"):Connect(function()
     local newKeyName = autoBatKeyInputTb.Text:upper()
@@ -682,7 +723,6 @@ Make("UICorner", { CornerRadius=UDim.new(1,0), Parent=BarBG })
 local BarFill = Make("Frame", { Size=UDim2.new(0,0,1,0), BackgroundColor3=Color3.fromRGB(0,255,0), BorderSizePixel=0, Parent=BarBG })
 Make("UICorner", { CornerRadius=UDim.new(1,0), Parent=BarFill })
 
--- Drag steal bar
 do
     local dragSB, dragStartSB, startPosSB
     StealBarFrame.InputBegan:Connect(function(inp)
@@ -700,7 +740,7 @@ do
 end
 
 -- ══════════════════════════════════════════
---   FPS / PING (top right)
+--   FPS / PING
 -- ══════════════════════════════════════════
 local fpsFrame = Make("Frame", {
     Size=UDim2.new(0,150,0,60), Position=UDim2.new(1,-160,0,10),
@@ -990,7 +1030,6 @@ LocalPlayer.CharacterRemoving:Connect(function() cleanupRagdoll(); disconnectRem
 
 loadConfig()
 
--- Sync toggles with loaded config
 if CONFIG.BAT_AIMBOT_AUTOBAT then autoBatToggled=true end
 if CONFIG.OPTIMIZER then pcall(applyAdvancedOptimizer) end
 if CONFIG.DARK_MODE then pcall(enableDarkMode) end
