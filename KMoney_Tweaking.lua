@@ -498,6 +498,17 @@ local LeftPanel = Make("Frame", { Size=UDim2.new(0,100,1,-40), Position=UDim2.ne
 Make("UICorner", { CornerRadius=UDim.new(0,8), Parent=LeftPanel })
 local RightPanel = Make("Frame", { Size=UDim2.new(1,-108,1,-48), Position=UDim2.new(0,106,0,44), BackgroundColor3=Color3.fromRGB(18,18,18), BorderSizePixel=0, Parent=MainFrame })
 
+-- SCROLL para Visual tab (necesita más espacio)
+local RightScroll = Make("ScrollingFrame", {
+    Size=UDim2.new(1,0,1,0),
+    BackgroundTransparency=1,
+    BorderSizePixel=0,
+    ScrollBarThickness=3,
+    ScrollBarImageColor3=Color3.fromRGB(80,80,80),
+    CanvasSize=UDim2.new(0,0,0,0),
+    Parent=RightPanel,
+})
+
 -- ══════════════════════════════════════════
 --   TABS
 -- ══════════════════════════════════════════
@@ -664,6 +675,43 @@ end)
 CreateToggle(VisualContent, "Galaxy Sky", 122, false, function(v)
     CONFIG.WHITE_MODE = v
     if v then pcall(enableWhiteMode) else pcall(disableWhiteMode) end
+end)
+
+-- FOV
+CreateSectionLabel(VisualContent, "FIELD OF VIEW", 172)
+local fovTb = CreateInputRow(VisualContent, "FOV (70-120)", 192, math.floor(Camera.FieldOfView), function(v)
+    local clamped = math.clamp(v, 70, 120)
+    Camera.FieldOfView = clamped
+end)
+
+-- RESOLUTION STRETCH
+CreateSectionLabel(VisualContent, "RESOLUTION STRETCH", 244)
+
+CreateButton(VisualContent, "1720 x 1080", 264, function()
+    pcall(function()
+        Camera.ViewportSize = Vector2.new(1720, 1080)
+    end)
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Vyse Hub", Text = "Resolution: 1720x1080", Duration = 2
+    })
+end)
+
+CreateButton(VisualContent, "1650 x 1080", 306, function()
+    pcall(function()
+        Camera.ViewportSize = Vector2.new(1650, 1080)
+    end)
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Vyse Hub", Text = "Resolution: 1650x1080", Duration = 2
+    })
+end)
+
+CreateButton(VisualContent, "Reset Resolution", 348, function()
+    pcall(function()
+        Camera.ViewportSize = Vector2.new(1920, 1080)
+    end)
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Vyse Hub", Text = "Resolution reset!", Duration = 2
+    })
 end)
 
 -- ══════════════════════════════════════════
