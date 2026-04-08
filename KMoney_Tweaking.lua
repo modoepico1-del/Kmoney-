@@ -28,6 +28,7 @@ local CONFIG = {
     SPEED_BOOST         = false,
     DARK_MODE           = false,
     WHITE_MODE          = false,
+    ESP                 = false,
 }
 
 local NORMAL_SPEED   = 60
@@ -48,6 +49,7 @@ local function saveConfig()
         SPEED_BOOST            = CONFIG.SPEED_BOOST,
         DARK_MODE              = CONFIG.DARK_MODE,
         WHITE_MODE             = CONFIG.WHITE_MODE,
+        ESP                    = CONFIG.ESP,
         NORMAL_SPEED           = NORMAL_SPEED,
         CARRY_SPEED            = CARRY_SPEED,
         AUTO_STEAL_PROX_RADIUS = AUTO_STEAL_PROX_RADIUS,
@@ -73,6 +75,7 @@ local function loadConfig()
             CONFIG.SPEED_BOOST        = data.SPEED_BOOST or false
             CONFIG.DARK_MODE          = data.DARK_MODE or false
             CONFIG.WHITE_MODE         = data.WHITE_MODE or false
+            CONFIG.ESP                = data.ESP or false
             NORMAL_SPEED              = data.NORMAL_SPEED or 60
             CARRY_SPEED               = data.CARRY_SPEED or 30
             if data.AUTO_STEAL_PROX_RADIUS then AUTO_STEAL_PROX_RADIUS = data.AUTO_STEAL_PROX_RADIUS end
@@ -86,15 +89,7 @@ end
 -- ══════════════════════════════════════════
 --   VARIABLES
 -- ══════════════════════════════════════════
-local AUTO_STEAL_PROX_RADIUS = 20
-local IsStealing             = false
-local StealProgress          = 0
-local CurrentStealTarget     = nil
-local allAnimalsCache        = {}
-local PromptMemoryCache      = {}
-local InternalStealCache     = {}
-local LastPlayerPosition     = nil
-local PlayerVelocity         = Vector3.zero
+local AUTO_STEAL_PROX_RADIUS = 7
 local stealConnection        = nil
 local velocityConnection     = nil
 
@@ -174,7 +169,7 @@ local function disableDarkMode()
 end
 
 -- ══════════════════════════════════════════
---   GALAXY SKY (White Mode)
+--   GALAXY SKY
 -- ══════════════════════════════════════════
 local galaxySkyActive         = false
 local galaxySkyInstance       = nil
@@ -264,9 +259,112 @@ local function isMyBase(plotName)
     return false
 end
 
-local function scanSinglePlot(plot)
+-- ══════════════════════════════════════════
+--   ESP (Demontime - color gris)
+-- ══════════════════════════════════════════
+local espObjects = {}
+local espConnections = {}
+
+local function createESP(plr)
+    if plr == LocalPlayer then return end
+    if not plr.Character then return end
+    if plr.Character:FindFirstChild("VyseESP") then return end
+    local c = plr.Character
+    local hrpESP = c:FindFirstChild("HumanoidRootPart"); if not hrpESP then return end
+    local head = c:FindFirstChild("Head")
+    local hum = c:FindFirstChildOfClass("Humanoid")
+    if hum then hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None end
+    local hitbox = Instance.new("BoxHandleAdornment")
+    hitbox.Name = "VyseESP"; hitbox.Adornee = hrpESP; hitbox.Size = Vector3.new(4,6,2)
+    hitbox.Color3 = Color3.fromRGB(180,180,180); hitbox.Transparency = 0.3
+    hitbox.ZIndex = 10; hitbox.AlwaysOnTop = true; hitbox.Parent = c
+    espObjects[plr] = hitbox
+    if head then
+        local billboard = Instance.new("BillboardGui")
+        billboard.Name = "VyseESP_Name"; billboard.Adornee = head
+        billboard.Size = UDim2.new(0,200,0,50); billboard.StudsOffset = Vector3.new(0,3,0)
+        billboard.AlwaysOnTop = true; billboard.Parent = c
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1,0,1,0); label.BackgroundTransparency = 1
+        label.Text = plr.DisplayName or plr.Name
+        label.TextColor3 = Color3.fromRGB(200,200,200)
+        label.Font = Enum.Font.GothamBold; label.TextScaled = true
+        label.TextStrokeTransparency = 0.6
+        label.TextStrokeColor3 = Color3.fromRGB(0,0,0); label.Parent = billboard
+    end
+end
+
+local function removeESP(plr)
+    pcall(function()
+        if plr.Character then
+            local hESP = plr.Character:FindFirstChild("VyseESP"); if hESP then hESP:Destroy() end
+            local n = plr.Character:FindFirstChild("VyseESP_Name"); if n then n:Destroy() end
+            local hum = plr.Character:FindFirstChildOfClass("Humanoid")
+            if hum then hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Automatic end
+        end
+        espObjects[plr] = nil
+    end)
+end
+
+local function enableESP()
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            if plr.Character then pcall(function() createESP(plr) end) end
+            table.insert(espConnections, plr.CharacterAdded:Connect(function()
+                task.wait(0.1); if CONFIG.ESP then pcall(function() createESP(plr) end) end
+            end))
+        end
+    end
+    table.insert(espConnections, Players.PlayerAdded:Connect(function(plr)
+        if plr == LocalPlayer then return end
+        table.insert(espConnections, plr.CharacterAdded:Connect(function()
+            task.wait(0.1); if CONFIG.ESP then pcall(function() createESP(plr) end) end
+        end))
+    end))
+end
+
+local function disableESP()
+    for _, plr in ipairs(Players:GetPlayers()) do pcall(function() removeESP(plr) end) end
+    for _, conn in ipairs(espConnections) do if conn and conn.Connected then conn:Disconnect() end end
+    espConnections = {}; espObjects = {}
+end
+
+-- ══════════════════════════════════════════
+--   AUTO STEAL (Demontime)
+-- ══════════════════════════════════════════
+local autoStealActive        = false
+local autoStealStealConn     = nil
+local autoStealAnimalsCache  = {}
+local autoStealPromptCache   = {}
+local autoStealInternalCache = {}
+local autoStealIsStealing    = false
+
+local animalsDataAS = {}
+pcall(function()
+    animalsDataAS = require(ReplicatedStorage:WaitForChild("Datas",5):WaitForChild("Animals",5))
+end)
+
+local function autoSteal_getHRP()
+    local char = LocalPlayer.Character
+    if not char then return nil end
+    return char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("UpperTorso")
+end
+
+local function autoSteal_isMyBase(plotName)
+    local plots = workspace:FindFirstChild("Plots")
+    local plot = plots and plots:FindFirstChild(plotName)
+    if not plot then return false end
+    local sign = plot:FindFirstChild("PlotSign")
+    if sign then
+        local yourBase = sign:FindFirstChild("YourBase")
+        if yourBase and yourBase:IsA("BillboardGui") then return yourBase.Enabled == true end
+    end
+    return false
+end
+
+local function autoSteal_scanPlot(plot)
     if not plot or not plot:IsA("Model") then return end
-    if isMyBase(plot.Name) then return end
+    if autoSteal_isMyBase(plot.Name) then return end
     local podiums = plot:FindFirstChild("AnimalPodiums"); if not podiums then return end
     for _, podium in ipairs(podiums:GetChildren()) do
         if podium:IsA("Model") and podium:FindFirstChild("Base") then
@@ -276,145 +374,291 @@ local function scanSinglePlot(plot)
                 for _, child in ipairs(spawn:GetChildren()) do
                     if child:IsA("Model") and child.Name ~= "PromptAttachment" then
                         animalName = child.Name
-                        local info = AnimalsData[animalName]
+                        local info = animalsDataAS[animalName]
                         if info and info.DisplayName then animalName = info.DisplayName end
                         break
                     end
                 end
             end
-            table.insert(allAnimalsCache, {
+            table.insert(autoStealAnimalsCache, {
                 name = animalName, plot = plot.Name, slot = podium.Name,
                 worldPosition = podium:GetPivot().Position,
-                uid = plot.Name .. "_" .. podium.Name,
+                uid = plot.Name.."_"..podium.Name,
             })
         end
     end
 end
 
-local function initializeScanner()
-    task.wait(2)
-    local plots = workspace:WaitForChild("Plots", 10); if not plots then return end
-    for _, plot in ipairs(plots:GetChildren()) do if plot:IsA("Model") then scanSinglePlot(plot) end end
-    plots.ChildAdded:Connect(function(plot) if plot:IsA("Model") then task.wait(0.5); scanSinglePlot(plot) end end)
+local autoStealScannerStarted = false
+local function autoSteal_initScanner()
+    if autoStealScannerStarted then return end
+    autoStealScannerStarted = true
     task.spawn(function()
-        while task.wait(5) do
-            allAnimalsCache = {}
-            for _, plot in ipairs(plots:GetChildren()) do if plot:IsA("Model") then scanSinglePlot(plot) end end
-        end
+        task.wait(2)
+        local plots = workspace:WaitForChild("Plots",10); if not plots then return end
+        for _, plot in ipairs(plots:GetChildren()) do if plot:IsA("Model") then autoSteal_scanPlot(plot) end end
+        plots.ChildAdded:Connect(function(plot) if plot:IsA("Model") then task.wait(0.5); autoSteal_scanPlot(plot) end end)
+        task.spawn(function()
+            while task.wait(5) do
+                autoStealAnimalsCache = {}
+                for _, plot in ipairs(plots:GetChildren()) do if plot:IsA("Model") then autoSteal_scanPlot(plot) end end
+            end
+        end)
     end)
 end
 
-local function findProximityPromptForAnimal(animalData)
+local function autoSteal_findPrompt(animalData)
     if not animalData then return nil end
-    local cached = PromptMemoryCache[animalData.uid]
+    local cached = autoStealPromptCache[animalData.uid]
     if cached and cached.Parent then return cached end
-    local plot = workspace.Plots:FindFirstChild(animalData.plot); if not plot then return nil end
+    local plots = workspace:FindFirstChild("Plots")
+    local plot = plots and plots:FindFirstChild(animalData.plot); if not plot then return nil end
     local podiums = plot:FindFirstChild("AnimalPodiums"); if not podiums then return nil end
-    local podium  = podiums:FindFirstChild(animalData.slot); if not podium then return nil end
-    local base    = podium:FindFirstChild("Base"); if not base then return nil end
-    local spawn   = base:FindFirstChild("Spawn"); if not spawn then return nil end
-    local attach  = spawn:FindFirstChild("PromptAttachment"); if not attach then return nil end
+    local podium = podiums:FindFirstChild(animalData.slot); if not podium then return nil end
+    local base = podium:FindFirstChild("Base"); if not base then return nil end
+    local spawn = base:FindFirstChild("Spawn"); if not spawn then return nil end
+    local attach = spawn:FindFirstChild("PromptAttachment"); if not attach then return nil end
     for _, p in ipairs(attach:GetChildren()) do
-        if p:IsA("ProximityPrompt") then PromptMemoryCache[animalData.uid] = p; return p end
+        if p:IsA("ProximityPrompt") then autoStealPromptCache[animalData.uid] = p; return p end
     end
     return nil
 end
 
-local function updatePlayerVelocity()
-    local currentHrp = getHRP(); if not currentHrp then return end
-    local currentPos = currentHrp.Position
-    if LastPlayerPosition then
-        local dt = task.wait()
-        if dt > 0 then PlayerVelocity = (currentPos - LastPlayerPosition) / dt end
-    end
-    LastPlayerPosition = currentPos
-end
-
-local function shouldSteal(animalData)
-    if not animalData or not animalData.worldPosition then return false end
-    local currentHrp = getHRP(); if not currentHrp then return false end
-    return (currentHrp.Position - animalData.worldPosition).Magnitude <= AUTO_STEAL_PROX_RADIUS
-end
-
-local function buildStealCallbacks(prompt)
-    if InternalStealCache[prompt] then return end
-    local data = { holdCallbacks = {}, triggerCallbacks = {}, ready = true }
+local function autoSteal_buildCallbacks(prompt)
+    if autoStealInternalCache[prompt] then return end
+    local data = { holdCallbacks={}, triggerCallbacks={}, ready=true }
     local ok1, conns1 = pcall(getconnections, prompt.PromptButtonHoldBegan)
-    if ok1 then for _, conn in ipairs(conns1) do if type(conn.Function) == "function" then table.insert(data.holdCallbacks, conn.Function) end end end
+    if ok1 and type(conns1)=="table" then
+        for _, conn in ipairs(conns1) do if type(conn.Function)=="function" then table.insert(data.holdCallbacks, conn.Function) end end
+    end
     local ok2, conns2 = pcall(getconnections, prompt.Triggered)
-    if ok2 then for _, conn in ipairs(conns2) do if type(conn.Function) == "function" then table.insert(data.triggerCallbacks, conn.Function) end end end
-    if #data.holdCallbacks > 0 or #data.triggerCallbacks > 0 then InternalStealCache[prompt] = data end
+    if ok2 and type(conns2)=="table" then
+        for _, conn in ipairs(conns2) do if type(conn.Function)=="function" then table.insert(data.triggerCallbacks, conn.Function) end end
+    end
+    if (#data.holdCallbacks>0) or (#data.triggerCallbacks>0) then autoStealInternalCache[prompt] = data end
 end
 
-local function executeInternalStealAsync(prompt, animalData)
-    local data = InternalStealCache[prompt]
+local function autoSteal_execute(prompt)
+    local data = autoStealInternalCache[prompt]
     if not data or not data.ready then return false end
-    data.ready = false; IsStealing = true; StealProgress = 0; CurrentStealTarget = animalData
+    data.ready = false; autoStealIsStealing = true
     task.spawn(function()
-        for _, fn in ipairs(data.holdCallbacks) do pcall(function() fn() end) end
-        local startTime = tick(); local stealDuration = 1.3
-        while tick() - startTime < stealDuration do StealProgress = (tick() - startTime) / stealDuration; task.wait(0.01) end
-        StealProgress = 1
-        for _, fn in ipairs(data.triggerCallbacks) do pcall(function() fn() end) end
-        data.ready = true; IsStealing = false; StealProgress = 0; CurrentStealTarget = nil
+        for _, fn in ipairs(data.holdCallbacks) do task.spawn(fn) end
+        task.wait(0.2)
+        for _, fn in ipairs(data.triggerCallbacks) do task.spawn(fn) end
+        task.wait(0.01); data.ready = true; task.wait(0.01); autoStealIsStealing = false
     end)
     return true
 end
 
-local function attemptSteal(prompt, animalData)
+local function autoSteal_attempt(prompt)
     if not prompt or not prompt.Parent then return false end
-    buildStealCallbacks(prompt)
-    if not InternalStealCache[prompt] then return false end
-    return executeInternalStealAsync(prompt, animalData)
+    autoSteal_buildCallbacks(prompt)
+    if not autoStealInternalCache[prompt] then return false end
+    return autoSteal_execute(prompt)
 end
 
-local function getNearestAnimal()
-    local currentHrp = getHRP(); if not currentHrp then return nil end
+local function autoSteal_getNearest()
+    local hrpAS = autoSteal_getHRP(); if not hrpAS then return nil end
     local nearest, minDist = nil, math.huge
-    for _, animal in ipairs(allAnimalsCache) do
-        if isMyBase(animal.plot) then continue end
-        local dist = (currentHrp.Position - animal.worldPosition).Magnitude
-        if dist < minDist then minDist = dist; nearest = animal end
+    for _, animalData in ipairs(autoStealAnimalsCache) do
+        if autoSteal_isMyBase(animalData.plot) then continue end
+        if animalData.worldPosition then
+            local dist = (hrpAS.Position - animalData.worldPosition).Magnitude
+            if dist < minDist then minDist = dist; nearest = animalData end
+        end
     end
     return nearest
 end
 
+local function startAutoStealLoop()
+    if autoStealStealConn then autoStealStealConn:Disconnect() end
+    autoStealStealConn = RunService.Heartbeat:Connect(function()
+        if not autoStealActive or autoStealIsStealing then return end
+        local target = autoSteal_getNearest(); if not target or not target.worldPosition then return end
+        local hrpAS = autoSteal_getHRP(); if not hrpAS then return end
+        if (hrpAS.Position - target.worldPosition).Magnitude > AUTO_STEAL_PROX_RADIUS then return end
+        local prompt = autoStealPromptCache[target.uid]
+        if not prompt or not prompt.Parent then prompt = autoSteal_findPrompt(target) end
+        if prompt then autoSteal_attempt(prompt) end
+    end)
+end
+
+local function enableAutoSteal()
+    autoStealActive = true; autoSteal_initScanner(); startAutoStealLoop()
+end
+
+local function disableAutoSteal()
+    autoStealActive = false
+    if autoStealStealConn then autoStealStealConn:Disconnect(); autoStealStealConn = nil end
+    autoStealIsStealing = false
+end
+
 -- ══════════════════════════════════════════
---   BAT FUNCTIONS
+--   BAT AIMBOT (Demontime)
 -- ══════════════════════════════════════════
-local function getBat()
-    local char = LocalPlayer.Character; if not char then return nil end
-    local tool = char:FindFirstChild("Bat"); if tool then return tool end
-    local bp = LocalPlayer:FindFirstChild("Backpack")
-    if bp then tool = bp:FindFirstChild("Bat"); if tool then tool.Parent = char; return tool end end
+local batAimbotOn = false
+local batAimbotConnection = nil
+
+local function findBat()
+    local c = LocalPlayer.Character
+    local bp = LocalPlayer:FindFirstChildOfClass("Backpack")
+    if c then for _, ch in ipairs(c:GetChildren()) do if ch:IsA("Tool") and ch.Name:lower():find("bat") then return ch end end end
+    if bp then for _, ch in ipairs(bp:GetChildren()) do if ch:IsA("Tool") and ch.Name:lower():find("bat") then return ch end end end
     return nil
 end
 
-local function tryHitBat()
-    if hittingCooldown then return end
-    hittingCooldown = true
-    local bat = getBat()
-    if bat then pcall(function() bat:Activate(); local evt = bat:FindFirstChildWhichIsA("RemoteEvent"); if evt then evt:FireServer() end end) end
-    task.delay(SAFE_DELAY, function() hittingCooldown = false end)
-end
-
-local function getClosestPlayer()
-    local closestPlayer, closestDist = nil, math.huge
-    local currentHrp = getHRP(); if not currentHrp then return nil, math.huge end
-    for _, plr in pairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-            local dist = (currentHrp.Position - plr.Character.HumanoidRootPart.Position).Magnitude
-            if dist < closestDist then closestDist = dist; closestPlayer = plr end
+local function findNearestEnemy(myHRP)
+    local nearest, nearestDist, nearestTorso = nil, math.huge, nil
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character then
+            local eh = p.Character:FindFirstChild("HumanoidRootPart")
+            local tor = p.Character:FindFirstChild("UpperTorso") or p.Character:FindFirstChild("Torso")
+            local hum = p.Character:FindFirstChildOfClass("Humanoid")
+            if eh and hum and hum.Health > 0 then
+                local d = (eh.Position - myHRP.Position).Magnitude
+                if d < nearestDist then nearestDist = d; nearest = eh; nearestTorso = tor or eh end
+            end
         end
     end
-    return closestPlayer, closestDist
+    return nearest, nearestDist, nearestTorso
 end
 
-local function flyToFrontOfTarget(targetHRP)
-    local currentHrp = getHRP(); if not currentHrp then return end
-    local frontPos = targetHRP.Position + targetHRP.CFrame.LookVector * 4
-    local direction = (frontPos - currentHrp.Position).Unit
-    currentHrp.Velocity = Vector3.new(direction.X * 55, direction.Y * 55, direction.Z * 55)
+local function startBatAimbot()
+    if batAimbotConnection then return end
+    batAimbotConnection = RunService.Heartbeat:Connect(function()
+        if not batAimbotOn then return end
+        local c = LocalPlayer.Character; if not c then return end
+        local hb = c:FindFirstChild("HumanoidRootPart")
+        local hum = c:FindFirstChildOfClass("Humanoid")
+        if not hb or not hum then return end
+        local bat = findBat()
+        if bat and bat.Parent ~= c then hum:EquipTool(bat) end
+        local target, _, torso = findNearestEnemy(hb)
+        if target and torso then
+            local dir = (torso.Position - hb.Position)
+            local flatDir = Vector3.new(dir.X, 0, dir.Z)
+            if flatDir.Magnitude > 1.5 then
+                local moveDir = flatDir.Unit
+                hb.AssemblyLinearVelocity = Vector3.new(moveDir.X*55, hb.AssemblyLinearVelocity.Y, moveDir.Z*55)
+            else
+                local tv = target.AssemblyLinearVelocity
+                hb.AssemblyLinearVelocity = Vector3.new(tv.X, hb.AssemblyLinearVelocity.Y, tv.Z)
+            end
+        end
+    end)
+end
+
+local function stopBatAimbot()
+    if batAimbotConnection then batAimbotConnection:Disconnect(); batAimbotConnection = nil end
+end
+
+-- ══════════════════════════════════════════
+--   ROUTE (Auto Left Z / Auto Right C)
+-- ══════════════════════════════════════════
+local AutoLeftEnabled  = false
+local AutoRightEnabled = false
+local autoLeftConn     = nil
+local autoRightConn    = nil
+local autoLeftPhase    = 1
+local autoRightPhase   = 1
+local ROUTE_SPEED      = 60
+
+local POSITION_L1 = Vector3.new(-476.48, -6.28,  92.73)
+local POSITION_L2 = Vector3.new(-483.12, -4.95,  94.80)
+local POSITION_R1 = Vector3.new(-476.16, -6.52,  25.62)
+local POSITION_R2 = Vector3.new(-483.04, -5.09,  23.14)
+
+-- Referencias para los toggles de Route (se asignan después de crear la GUI)
+local routeLeftTogRef  = nil
+local routeRightTogRef = nil
+
+local function stopAutoLeft()
+    if autoLeftConn then autoLeftConn:Disconnect(); autoLeftConn = nil end
+    autoLeftPhase = 1
+    local c = LocalPlayer.Character
+    if c then local hm = c:FindFirstChildOfClass("Humanoid"); if hm then hm:Move(Vector3.zero, false) end end
+end
+
+local function stopAutoRight()
+    if autoRightConn then autoRightConn:Disconnect(); autoRightConn = nil end
+    autoRightPhase = 1
+    local c = LocalPlayer.Character
+    if c then local hm = c:FindFirstChildOfClass("Humanoid"); if hm then hm:Move(Vector3.zero, false) end end
+end
+
+local function startAutoLeft()
+    if autoLeftConn then autoLeftConn:Disconnect() end
+    autoLeftPhase = 1
+    autoLeftConn = RunService.Heartbeat:Connect(function()
+        if not AutoLeftEnabled then return end
+        local c = LocalPlayer.Character; if not c then return end
+        local rp = c:FindFirstChild("HumanoidRootPart")
+        local hm = c:FindFirstChildOfClass("Humanoid")
+        if not rp or not hm then return end
+        if autoLeftPhase == 1 then
+            local tgt = Vector3.new(POSITION_L1.X, rp.Position.Y, POSITION_L1.Z)
+            if (tgt - rp.Position).Magnitude < 1 then
+                autoLeftPhase = 2
+                local d = (POSITION_L2 - rp.Position); local mv = Vector3.new(d.X,0,d.Z).Unit
+                hm:Move(mv,false); rp.AssemblyLinearVelocity = Vector3.new(mv.X*ROUTE_SPEED, rp.AssemblyLinearVelocity.Y, mv.Z*ROUTE_SPEED); return
+            end
+            local d = (POSITION_L1 - rp.Position); local mv = Vector3.new(d.X,0,d.Z).Unit
+            hm:Move(mv,false); rp.AssemblyLinearVelocity = Vector3.new(mv.X*ROUTE_SPEED, rp.AssemblyLinearVelocity.Y, mv.Z*ROUTE_SPEED)
+        elseif autoLeftPhase == 2 then
+            local tgt = Vector3.new(POSITION_L2.X, rp.Position.Y, POSITION_L2.Z)
+            if (tgt - rp.Position).Magnitude < 1 then
+                hm:Move(Vector3.zero,false); rp.AssemblyLinearVelocity = Vector3.zero
+                AutoLeftEnabled = false
+                stopAutoLeft()
+                if routeLeftTogRef then
+                    routeLeftTogRef.state = false
+                    TweenService:Create(routeLeftTogRef.togBG,TweenInfo.new(0.15),{BackgroundColor3=Color3.fromRGB(55,55,55)}):Play()
+                    TweenService:Create(routeLeftTogRef.knob,TweenInfo.new(0.15),{Position=UDim2.new(0,3,0.5,-8)}):Play()
+                end
+                return
+            end
+            local d = (POSITION_L2 - rp.Position); local mv = Vector3.new(d.X,0,d.Z).Unit
+            hm:Move(mv,false); rp.AssemblyLinearVelocity = Vector3.new(mv.X*ROUTE_SPEED, rp.AssemblyLinearVelocity.Y, mv.Z*ROUTE_SPEED)
+        end
+    end)
+end
+
+local function startAutoRight()
+    if autoRightConn then autoRightConn:Disconnect() end
+    autoRightPhase = 1
+    autoRightConn = RunService.Heartbeat:Connect(function()
+        if not AutoRightEnabled then return end
+        local c = LocalPlayer.Character; if not c then return end
+        local rp = c:FindFirstChild("HumanoidRootPart")
+        local hm = c:FindFirstChildOfClass("Humanoid")
+        if not rp or not hm then return end
+        if autoRightPhase == 1 then
+            local tgt = Vector3.new(POSITION_R1.X, rp.Position.Y, POSITION_R1.Z)
+            if (tgt - rp.Position).Magnitude < 1 then
+                autoRightPhase = 2
+                local d = (POSITION_R2 - rp.Position); local mv = Vector3.new(d.X,0,d.Z).Unit
+                hm:Move(mv,false); rp.AssemblyLinearVelocity = Vector3.new(mv.X*ROUTE_SPEED, rp.AssemblyLinearVelocity.Y, mv.Z*ROUTE_SPEED); return
+            end
+            local d = (POSITION_R1 - rp.Position); local mv = Vector3.new(d.X,0,d.Z).Unit
+            hm:Move(mv,false); rp.AssemblyLinearVelocity = Vector3.new(mv.X*ROUTE_SPEED, rp.AssemblyLinearVelocity.Y, mv.Z*ROUTE_SPEED)
+        elseif autoRightPhase == 2 then
+            local tgt = Vector3.new(POSITION_R2.X, rp.Position.Y, POSITION_R2.Z)
+            if (tgt - rp.Position).Magnitude < 1 then
+                hm:Move(Vector3.zero,false); rp.AssemblyLinearVelocity = Vector3.zero
+                AutoRightEnabled = false
+                stopAutoRight()
+                if routeRightTogRef then
+                    routeRightTogRef.state = false
+                    TweenService:Create(routeRightTogRef.togBG,TweenInfo.new(0.15),{BackgroundColor3=Color3.fromRGB(55,55,55)}):Play()
+                    TweenService:Create(routeRightTogRef.knob,TweenInfo.new(0.15),{Position=UDim2.new(0,3,0.5,-8)}):Play()
+                end
+                return
+            end
+            local d = (POSITION_R2 - rp.Position); local mv = Vector3.new(d.X,0,d.Z).Unit
+            hm:Move(mv,false); rp.AssemblyLinearVelocity = Vector3.new(mv.X*ROUTE_SPEED, rp.AssemblyLinearVelocity.Y, mv.Z*ROUTE_SPEED)
+        end
+    end)
 end
 
 -- ══════════════════════════════════════════
@@ -440,7 +684,7 @@ LocalPlayer.CharacterAdded:Connect(setupChar)
 if LocalPlayer.Character then setupChar(LocalPlayer.Character) end
 
 -- ══════════════════════════════════════════
---   GUI HELPERS (Dragon Hub style)
+--   GUI HELPERS
 -- ══════════════════════════════════════════
 local function Make(class, props)
     local obj = Instance.new(class)
@@ -456,7 +700,6 @@ local ScreenGui = Make("ScreenGui", {
     Parent=(gethui and gethui()) or PlayerGui,
 })
 
--- MAIN FRAME
 local MainFrame = Make("Frame", {
     Name="MainFrame", Size=UDim2.new(0,310,0,500), Position=UDim2.new(0.5,-155,0.5,-250),
     BackgroundColor3=Color3.fromRGB(18,18,18), BorderSizePixel=0, Parent=ScreenGui,
@@ -498,7 +741,6 @@ local LeftPanel = Make("Frame", { Size=UDim2.new(0,100,1,-40), Position=UDim2.ne
 Make("UICorner", { CornerRadius=UDim.new(0,8), Parent=LeftPanel })
 local RightPanel = Make("Frame", { Size=UDim2.new(1,-108,1,-48), Position=UDim2.new(0,106,0,44), BackgroundColor3=Color3.fromRGB(18,18,18), BorderSizePixel=0, Parent=MainFrame })
 
--- SCROLL para Visual tab (necesita más espacio)
 local RightScroll = Make("ScrollingFrame", {
     Size=UDim2.new(1,0,1,0),
     BackgroundTransparency=1,
@@ -588,9 +830,7 @@ end
 local function CreateButton(parent, label, yPos, callback)
     local btn = Make("TextButton", { Text=label, Size=UDim2.new(1,-6,0,34), Position=UDim2.new(0,3,0,yPos), BackgroundColor3=Color3.fromRGB(35,35,35), TextColor3=Color3.fromRGB(210,210,210), Font=Enum.Font.GothamBold, TextSize=12, BorderSizePixel=0, Parent=parent })
     Make("UICorner", { CornerRadius=UDim.new(0,7), Parent=btn })
-    btn.MouseButton1Click:Connect(function()
-        if callback then callback() end
-    end)
+    btn.MouseButton1Click:Connect(function() if callback then callback() end end)
     return btn
 end
 
@@ -599,7 +839,6 @@ end
 -- ══════════════════════════════════════════
 local SpeedContent = Tabs["Speed"]
 CreateSectionLabel(SpeedContent, "SPEED CONFIGURATION", 6)
-
 CreateInputRow(SpeedContent, "Normal Speed", 30, NORMAL_SPEED, function(v) NORMAL_SPEED = v end)
 CreateInputRow(SpeedContent, "Carry Speed",  76, CARRY_SPEED,  function(v) CARRY_SPEED  = v end)
 
@@ -612,9 +851,7 @@ local modeLbl = Make("TextLabel", { Text="Normal", Size=UDim2.new(0.7,0,1,0), Ba
 local keyLbl  = Make("TextLabel", { Text="Q", Size=UDim2.new(0,20,0,20), Position=UDim2.new(1,-22,0.5,-10), BackgroundColor3=Color3.fromRGB(60,60,60), TextColor3=Color3.fromRGB(200,200,200), Font=Enum.Font.GothamBold, TextSize=10, Parent=modeDisplay })
 Make("UICorner", { CornerRadius=UDim.new(0,4), Parent=keyLbl })
 
-local speedToggleRef = CreateToggle(SpeedContent, "Speed Boost", 168, false, function(v)
-    CONFIG.SPEED_BOOST = v
-end)
+CreateToggle(SpeedContent, "Speed Boost", 168, false, function(v) CONFIG.SPEED_BOOST = v end)
 
 -- ══════════════════════════════════════════
 --   STEAL TAB
@@ -624,17 +861,11 @@ CreateSectionLabel(StealContent, "AUTO STEAL", 6)
 
 local instaGrabTogRef = CreateToggle(StealContent, "Insta Grab", 30, false, function(v)
     CONFIG.AUTO_STEAL_NEAREST = v
-    CONFIG.SPEED_BOOST = v
-    if v then
-        pcall(autoStealLoop)
-    else
-        if stealConnection then stealConnection:Disconnect(); stealConnection = nil end
-        if velocityConnection then velocityConnection:Disconnect(); velocityConnection = nil end
-    end
+    if v then enableAutoSteal() else disableAutoSteal() end
 end)
 
 CreateSectionLabel(StealContent, "RADIUS CONTROL", 80)
-local radiusInputTb = CreateInputRow(StealContent, "Grab Radius", 100, AUTO_STEAL_PROX_RADIUS, function(v)
+CreateInputRow(StealContent, "Grab Radius", 100, AUTO_STEAL_PROX_RADIUS, function(v)
     AUTO_STEAL_PROX_RADIUS = v
 end)
 
@@ -644,16 +875,10 @@ end)
 local CombatContent = Tabs["Combat"]
 CreateSectionLabel(CombatContent, "BAT AIMBOT", 6)
 
-local autoBatTogRef = CreateToggle(CombatContent, "Auto-Bat", 30, false, function(v)
+local autoBatTogRef = CreateToggle(CombatContent, "Auto-Bat [E]", 30, false, function(v)
     CONFIG.BAT_AIMBOT_AUTOBAT = v
-    autoBatToggled = v
-end)
-
-local autoBatKeyInputTb = CreateInputRow(CombatContent, "Bat Keybind", 76, autoBatKey.Name, function(_)
-end)
-autoBatKeyInputTb:GetPropertyChangedSignal("Text"):Connect(function()
-    local newKeyName = autoBatKeyInputTb.Text:upper()
-    if Enum.KeyCode[newKeyName] then autoBatKey = Enum.KeyCode[newKeyName] end
+    batAimbotOn = v
+    if v then startBatAimbot() else stopBatAimbot() end
 end)
 
 -- ══════════════════════════════════════════
@@ -677,41 +902,9 @@ CreateToggle(VisualContent, "Galaxy Sky", 122, false, function(v)
     if v then pcall(enableWhiteMode) else pcall(disableWhiteMode) end
 end)
 
--- FOV
 CreateSectionLabel(VisualContent, "FIELD OF VIEW", 172)
-local fovTb = CreateInputRow(VisualContent, "FOV (70-120)", 192, math.floor(Camera.FieldOfView), function(v)
-    local clamped = math.clamp(v, 70, 120)
-    Camera.FieldOfView = clamped
-end)
-
--- RESOLUTION STRETCH
-CreateSectionLabel(VisualContent, "RESOLUTION STRETCH", 244)
-
-CreateButton(VisualContent, "1720 x 1080", 264, function()
-    pcall(function()
-        Camera.ViewportSize = Vector2.new(1720, 1080)
-    end)
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "Vyse Hub", Text = "Resolution: 1720x1080", Duration = 2
-    })
-end)
-
-CreateButton(VisualContent, "1650 x 1080", 306, function()
-    pcall(function()
-        Camera.ViewportSize = Vector2.new(1650, 1080)
-    end)
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "Vyse Hub", Text = "Resolution: 1650x1080", Duration = 2
-    })
-end)
-
-CreateButton(VisualContent, "Reset Resolution", 348, function()
-    pcall(function()
-        Camera.ViewportSize = Vector2.new(1920, 1080)
-    end)
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "Vyse Hub", Text = "Resolution reset!", Duration = 2
-    })
+CreateInputRow(VisualContent, "FOV (70-120)", 192, math.floor(Camera.FieldOfView), function(v)
+    Camera.FieldOfView = math.clamp(v, 70, 120)
 end)
 
 -- ══════════════════════════════════════════
@@ -721,7 +914,11 @@ local FeatContent = Tabs["Features"]
 CreateSectionLabel(FeatContent, "FEATURES", 6)
 
 CreateToggle(FeatContent, "Infinite Jump", 30, false, function(v) CONFIG.INFINITE_JUMP = v end)
-CreateToggle(FeatContent, "Anti-Ragdoll", 76, true, function(v) CONFIG.ANTI_RAGDOLL = v end)
+CreateToggle(FeatContent, "Anti-Ragdoll",  76, true,  function(v) CONFIG.ANTI_RAGDOLL = v end)
+CreateToggle(FeatContent, "ESP",           122, false, function(v)
+    CONFIG.ESP = v
+    if v then enableESP() else disableESP() end
+end)
 
 -- ══════════════════════════════════════════
 --   SETTINGS TAB
@@ -736,56 +933,47 @@ CreateButton(SetContent, "📋 Copy Discord", 72, function()
         Title = "Vyse Hub", Text = "Discord copied!", Duration = 3
     })
 end)
-Make("TextLabel", { Text="discord.gg/jRsgRcun", Size=UDim2.new(1,-10,0,20), Position=UDim2.new(0,5,1,-30), BackgroundTransparency=1, TextColor3=Color3.fromRGB(70,70,70), Font=Enum.Font.Gotham, TextSize=9, TextXAlignment=Enum.TextXAlignment.Center, Parent=SetContent })
 
--- ══════════════════════════════════════════
---   PROGRESS BAR (bottom)
--- ══════════════════════════════════════════
-local StealBarGui = Make("ScreenGui", {
-    Name="VyseStealBar", ResetOnSpawn=false, ZIndexBehavior=Enum.ZIndexBehavior.Sibling,
-    Parent=(gethui and gethui()) or PlayerGui,
-})
-local StealBarFrame = Make("Frame", {
-    Size=UDim2.new(0,380,0,50), Position=UDim2.new(0.5,-190,1,-70),
-    BackgroundColor3=Color3.fromRGB(10,10,10), BorderSizePixel=0,
-    Visible=false, Parent=StealBarGui,
-})
-Make("UICorner", { CornerRadius=UDim.new(0,10), Parent=StealBarFrame })
-Make("UIStroke", { Color=Color3.fromRGB(50,50,50), Thickness=1, Parent=StealBarFrame })
+-- ROUTE en Settings
+CreateSectionLabel(SetContent, "ROUTE  [Z] Left  [C] Right", 118)
 
-local ProgressPct = Make("TextLabel", {
-    Text="0%", Size=UDim2.new(0,50,0,20), Position=UDim2.new(0,8,0,4),
-    BackgroundTransparency=1, TextColor3=Color3.fromRGB(220,220,220),
-    Font=Enum.Font.GothamBold, TextSize=13, TextXAlignment=Enum.TextXAlignment.Left,
-    Parent=StealBarFrame,
-})
-local RadiusLbl = Make("TextLabel", {
-    Text="Radius: "..AUTO_STEAL_PROX_RADIUS,
-    Size=UDim2.new(0,120,0,20), Position=UDim2.new(1,-124,0,4),
-    BackgroundTransparency=1, TextColor3=Color3.fromRGB(220,220,220),
-    Font=Enum.Font.GothamBold, TextSize=13, TextXAlignment=Enum.TextXAlignment.Right,
-    Parent=StealBarFrame,
-})
-local BarBG = Make("Frame", { Size=UDim2.new(1,-12,0,12), Position=UDim2.new(0,6,1,-18), BackgroundColor3=Color3.fromRGB(40,40,40), BorderSizePixel=0, Parent=StealBarFrame })
-Make("UICorner", { CornerRadius=UDim.new(1,0), Parent=BarBG })
-local BarFill = Make("Frame", { Size=UDim2.new(0,0,1,0), BackgroundColor3=Color3.fromRGB(0,255,0), BorderSizePixel=0, Parent=BarBG })
-Make("UICorner", { CornerRadius=UDim.new(1,0), Parent=BarFill })
-
-do
-    local dragSB, dragStartSB, startPosSB
-    StealBarFrame.InputBegan:Connect(function(inp)
-        if inp.UserInputType==Enum.UserInputType.MouseButton1 then dragSB=true; dragStartSB=inp.Position; startPosSB=StealBarFrame.Position end
-    end)
-    StealBarFrame.InputEnded:Connect(function(inp)
-        if inp.UserInputType==Enum.UserInputType.MouseButton1 then dragSB=false end
-    end)
-    UserInputService.InputChanged:Connect(function(inp)
-        if dragSB and inp.UserInputType==Enum.UserInputType.MouseMovement then
-            local delta=inp.Position-dragStartSB
-            StealBarFrame.Position=UDim2.new(startPosSB.X.Scale,startPosSB.X.Offset+delta.X,startPosSB.Y.Scale,startPosSB.Y.Offset+delta.Y)
+routeLeftTogRef = CreateToggle(SetContent, "Auto Left [Z]", 138, false, function(v)
+    AutoLeftEnabled = v
+    if v then
+        if AutoRightEnabled then
+            AutoRightEnabled = false
+            stopAutoRight()
+            if routeRightTogRef then
+                routeRightTogRef.state = false
+                Tween(routeRightTogRef.togBG, {BackgroundColor3=Color3.fromRGB(55,55,55)})
+                Tween(routeRightTogRef.knob,  {Position=UDim2.new(0,3,0.5,-8)})
+            end
         end
-    end)
-end
+        startAutoLeft()
+    else
+        stopAutoLeft()
+    end
+end)
+
+routeRightTogRef = CreateToggle(SetContent, "Auto Right [C]", 184, false, function(v)
+    AutoRightEnabled = v
+    if v then
+        if AutoLeftEnabled then
+            AutoLeftEnabled = false
+            stopAutoLeft()
+            if routeLeftTogRef then
+                routeLeftTogRef.state = false
+                Tween(routeLeftTogRef.togBG, {BackgroundColor3=Color3.fromRGB(55,55,55)})
+                Tween(routeLeftTogRef.knob,  {Position=UDim2.new(0,3,0.5,-8)})
+            end
+        end
+        startAutoRight()
+    else
+        stopAutoRight()
+    end
+end)
+
+Make("TextLabel", { Text="discord.gg/jRsgRcun", Size=UDim2.new(1,-10,0,20), Position=UDim2.new(0,5,1,-30), BackgroundTransparency=1, TextColor3=Color3.fromRGB(70,70,70), Font=Enum.Font.Gotham, TextSize=9, TextXAlignment=Enum.TextXAlignment.Center, Parent=SetContent })
 
 -- ══════════════════════════════════════════
 --   FPS / PING
@@ -796,42 +984,86 @@ local fpsFrame = Make("Frame", {
 })
 Make("UICorner", { CornerRadius=UDim.new(0,8), Parent=fpsFrame })
 Make("UIStroke", { Color=Color3.fromRGB(50,50,50), Thickness=1, Parent=fpsFrame })
-local fpsLabel = Make("TextLabel", { Size=UDim2.new(1,0,0.5,0), BackgroundTransparency=1, Text="FPS: 60", TextColor3=Color3.fromRGB(0,255,0), Font=Enum.Font.GothamBold, TextSize=14, TextXAlignment=Enum.TextXAlignment.Center, Parent=fpsFrame })
-local pingLabel= Make("TextLabel", { Size=UDim2.new(1,0,0.5,0), Position=UDim2.new(0,0,0.5,0), BackgroundTransparency=1, Text="PING: 0ms", TextColor3=Color3.fromRGB(0,255,0), Font=Enum.Font.GothamBold, TextSize=14, TextXAlignment=Enum.TextXAlignment.Center, Parent=fpsFrame })
-
--- ══════════════════════════════════════════
---   AUTO STEAL LOOP
--- ══════════════════════════════════════════
-function autoStealLoop()
-    if stealConnection then stealConnection:Disconnect(); stealConnection = nil end
-    if velocityConnection then velocityConnection:Disconnect(); velocityConnection = nil end
-    velocityConnection = RunService.Heartbeat:Connect(function() pcall(updatePlayerVelocity) end)
-    stealConnection = RunService.Heartbeat:Connect(function()
-        if not CONFIG.AUTO_STEAL_NEAREST then return end
-        if IsStealing then return end
-        local target = getNearestAnimal(); if not target then return end
-        if not shouldSteal(target) then return end
-        local prompt = PromptMemoryCache[target.uid]
-        if not prompt or not prompt.Parent then prompt = findProximityPromptForAnimal(target) end
-        if prompt then pcall(function() attemptSteal(prompt, target) end) end
-    end)
-end
+local fpsLabel  = Make("TextLabel", { Size=UDim2.new(1,0,0.5,0), BackgroundTransparency=1, Text="FPS: 60", TextColor3=Color3.fromRGB(0,255,0), Font=Enum.Font.GothamBold, TextSize=14, TextXAlignment=Enum.TextXAlignment.Center, Parent=fpsFrame })
+local pingLabel = Make("TextLabel", { Size=UDim2.new(1,0,0.5,0), Position=UDim2.new(0,0,0.5,0), BackgroundTransparency=1, Text="PING: 0ms", TextColor3=Color3.fromRGB(0,255,0), Font=Enum.Font.GothamBold, TextSize=14, TextXAlignment=Enum.TextXAlignment.Center, Parent=fpsFrame })
 
 -- ══════════════════════════════════════════
 --   INPUT HANDLING
 -- ══════════════════════════════════════════
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
+
+    -- Speed mode toggle
     if input.KeyCode == Enum.KeyCode.Q and CONFIG.SPEED_BOOST then
         speedToggled = not speedToggled
         modeLbl.Text = speedToggled and "Carry" or "Normal"
     end
+
+    -- Bat aimbot keybind
     if input.KeyCode == autoBatKey then
-        CONFIG.BAT_AIMBOT_AUTOBAT = not CONFIG.BAT_AIMBOT_AUTOBAT
-        autoBatToggled = CONFIG.BAT_AIMBOT_AUTOBAT
-        Tween(autoBatTogRef.togBG, {BackgroundColor3=autoBatToggled and Color3.fromRGB(240,240,240) or Color3.fromRGB(55,55,55)})
-        Tween(autoBatTogRef.knob,  {Position=autoBatToggled and UDim2.new(1,-19,0.5,-8) or UDim2.new(0,3,0.5,-8)})
-        autoBatTogRef.state = autoBatToggled
+        batAimbotOn = not batAimbotOn
+        CONFIG.BAT_AIMBOT_AUTOBAT = batAimbotOn
+        Tween(autoBatTogRef.togBG, {BackgroundColor3=batAimbotOn and Color3.fromRGB(240,240,240) or Color3.fromRGB(55,55,55)})
+        Tween(autoBatTogRef.knob,  {Position=batAimbotOn and UDim2.new(1,-19,0.5,-8) or UDim2.new(0,3,0.5,-8)})
+        autoBatTogRef.state = batAimbotOn
+        if batAimbotOn then startBatAimbot() else stopBatAimbot() end
+    end
+
+    -- Route keybinds
+    if input.KeyCode == Enum.KeyCode.Z then
+        AutoLeftEnabled = not AutoLeftEnabled
+        if AutoLeftEnabled then
+            if AutoRightEnabled then
+                AutoRightEnabled = false
+                stopAutoRight()
+                if routeRightTogRef then
+                    routeRightTogRef.state = false
+                    Tween(routeRightTogRef.togBG, {BackgroundColor3=Color3.fromRGB(55,55,55)})
+                    Tween(routeRightTogRef.knob,  {Position=UDim2.new(0,3,0.5,-8)})
+                end
+            end
+            startAutoLeft()
+            if routeLeftTogRef then
+                routeLeftTogRef.state = true
+                Tween(routeLeftTogRef.togBG, {BackgroundColor3=Color3.fromRGB(240,240,240)})
+                Tween(routeLeftTogRef.knob,  {Position=UDim2.new(1,-19,0.5,-8)})
+            end
+        else
+            stopAutoLeft()
+            if routeLeftTogRef then
+                routeLeftTogRef.state = false
+                Tween(routeLeftTogRef.togBG, {BackgroundColor3=Color3.fromRGB(55,55,55)})
+                Tween(routeLeftTogRef.knob,  {Position=UDim2.new(0,3,0.5,-8)})
+            end
+        end
+    end
+
+    if input.KeyCode == Enum.KeyCode.C then
+        AutoRightEnabled = not AutoRightEnabled
+        if AutoRightEnabled then
+            if AutoLeftEnabled then
+                AutoLeftEnabled = false
+                stopAutoLeft()
+                if routeLeftTogRef then
+                    routeLeftTogRef.state = false
+                    Tween(routeLeftTogRef.togBG, {BackgroundColor3=Color3.fromRGB(55,55,55)})
+                    Tween(routeLeftTogRef.knob,  {Position=UDim2.new(0,3,0.5,-8)})
+                end
+            end
+            startAutoRight()
+            if routeRightTogRef then
+                routeRightTogRef.state = true
+                Tween(routeRightTogRef.togBG, {BackgroundColor3=Color3.fromRGB(240,240,240)})
+                Tween(routeRightTogRef.knob,  {Position=UDim2.new(1,-19,0.5,-8)})
+            end
+        else
+            stopAutoRight()
+            if routeRightTogRef then
+                routeRightTogRef.state = false
+                Tween(routeRightTogRef.togBG, {BackgroundColor3=Color3.fromRGB(55,55,55)})
+                Tween(routeRightTogRef.knob,  {Position=UDim2.new(0,3,0.5,-8)})
+            end
+        end
     end
 end)
 
@@ -851,19 +1083,6 @@ RunService.Heartbeat:Connect(function()
     local currentHrp = char:FindFirstChild("HumanoidRootPart")
     if currentHrp and currentHrp.Velocity.Y < -clampFallSpeed then
         currentHrp.Velocity = Vector3.new(currentHrp.Velocity.X, -clampFallSpeed, currentHrp.Velocity.Z)
-    end
-end)
-
--- ══════════════════════════════════════════
---   AUTO BAT LOOP
--- ══════════════════════════════════════════
-RunService.Heartbeat:Connect(function()
-    if autoBatToggled and h and hrp then
-        local target, dist = getClosestPlayer()
-        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-            flyToFrontOfTarget(target.Character.HumanoidRootPart)
-            if dist <= 8 then tryHitBat() end
-        end
     end
 end)
 
@@ -890,17 +1109,12 @@ local function optimizeObject(v)
         if v:IsA("Model") then v.LevelOfDetail=Enum.ModelLevelOfDetail.Disabled; v.ModelStreamingMode=Enum.ModelStreamingMode.Nonatomic
         elseif v:IsA("BasePart") and not v:IsA("MeshPart") then v.CastShadow=false; v.Material=Enum.Material.Plastic; v.Reflectance=0; v.MaterialVariant=""
         elseif v:IsA("Decal") or v:IsA("Texture") then v.Transparency=1
-        elseif v:IsA("MeshPart") then v.CastShadow=false; v.DoubleSided=false; v.RenderFidelity=Enum.RenderFidelity.Performance; pcall(function() v.TextureID=10385902758728957 end)
+        elseif v:IsA("MeshPart") then v.CastShadow=false; v.DoubleSided=false; v.RenderFidelity=Enum.RenderFidelity.Performance
         elseif v:IsA("SpecialMesh") then v.TextureId=0
-        elseif v:IsA("ShirtGraphic") then v.Graphic=0
-        elseif v:IsA("Shirt") or v:IsA("Pants") then v[v.ClassName.."Template"]=0
         elseif v:IsA("Fire") or v:IsA("SpotLight") or v:IsA("Smoke") or v:IsA("Sparkles") then v.Enabled=false
-        elseif v:IsA("Explosion") then v.BlastPressure=1; v.BlastRadius=1
         elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then v.Enabled=false
         elseif v:IsA("Beam") then v.Enabled=false
         elseif v:IsA("SurfaceAppearance") then v:Destroy()
-        elseif v:IsA("Debris") then v:Destroy()
-        elseif v:IsA("Attachment") then v.Visible=false
         elseif v:IsA("MaterialVariant") then v:Destroy() end
     end)
 end
@@ -911,19 +1125,10 @@ function applyAdvancedOptimizer()
     for _, v in pairs(Lighting:GetDescendants()) do
         pcall(function()
             if v:IsA("Sky") or v:IsA("Atmosphere") or v:IsA("BloomEffect") or v:IsA("BlurEffect")
-            or v:IsA("SunRaysEffect") or v:IsA("DepthOfFieldEffect") or v:IsA("Clouds")
-            or v:IsA("PostEffect") or v:IsA("ColorCorrectionEffect") then v:Destroy() end
+            or v:IsA("SunRaysEffect") or v:IsA("DepthOfFieldEffect") or v:IsA("PostEffect") then v:Destroy() end
         end)
     end
-    pcall(function()
-        pcall(function() sethiddenproperty(Lighting,"Technology",2) end)
-        Lighting.GlobalShadows=false; Lighting.FogEnd=9e9; Lighting.Brightness=0
-    end)
-    local terrain = Workspace:FindFirstChildOfClass("Terrain")
-    if terrain then pcall(function()
-        pcall(function() sethiddenproperty(terrain,"Decoration",false) end)
-        terrain.WaterReflectance=0; terrain.WaterTransparency=0.7; terrain.WaterWaveSize=0; terrain.WaterWaveSpeed=0
-    end) end
+    pcall(function() Lighting.GlobalShadows=false; Lighting.FogEnd=9e9 end)
     if not optimizerLightingConnection then
         optimizerLightingConnection = Lighting.ChildAdded:Connect(function(v)
             if CONFIG.OPTIMIZER then task.spawn(function() pcall(function() v:Destroy() end) end) end
@@ -994,12 +1199,6 @@ local function setupAntiRagdoll(char)
                     end)
                 end
             end)
-            task.spawn(function()
-                for i=1,10 do
-                    if root and root.Parent then root.AssemblyLinearVelocity = root.AssemblyLinearVelocity * 0.5 end
-                    task.wait(0.02)
-                end
-            end)
         end
         if arg1=="Destroy" or arg2=="manualD" then
             humanoid:ChangeState(Enum.HumanoidStateType.Running)
@@ -1009,41 +1208,6 @@ local function setupAntiRagdoll(char)
         end
     end)
 end
-
--- ══════════════════════════════════════════
---   PROGRESS BAR MONITOR
--- ══════════════════════════════════════════
-task.spawn(function()
-    while task.wait(0.01) do
-        pcall(function()
-            StealBarFrame.Visible = true
-            RadiusLbl.Text = "Radius: "..AUTO_STEAL_PROX_RADIUS
-            if not CONFIG.AUTO_STEAL_NEAREST then
-                ProgressPct.Text = "0%"; BarFill.Size = UDim2.new(0,0,1,0); return
-            end
-            local nearestAnimal = getNearestAnimal()
-            local currentHrp   = getHRP()
-            if nearestAnimal and currentHrp then
-                local distance = (currentHrp.Position - nearestAnimal.worldPosition).Magnitude
-                if distance <= AUTO_STEAL_PROX_RADIUS or IsStealing then
-                    if IsStealing then
-                        local fw = math.clamp(StealProgress,0,1)
-                        ProgressPct.Text = math.floor(fw*100).."%"
-                        TweenService:Create(BarFill, TweenInfo.new(0.05,Enum.EasingStyle.Linear), {Size=UDim2.new(fw,0,1,0)}):Play()
-                    else
-                        local ap = math.clamp(1-(distance/AUTO_STEAL_PROX_RADIUS),0,1)
-                        ProgressPct.Text = math.floor(ap*100).."%"
-                        TweenService:Create(BarFill, TweenInfo.new(0.1,Enum.EasingStyle.Linear), {Size=UDim2.new(ap,0,1,0)}):Play()
-                    end
-                else
-                    ProgressPct.Text="0%"; BarFill.Size=UDim2.new(0,0,1,0)
-                end
-            else
-                ProgressPct.Text="0%"; BarFill.Size=UDim2.new(0,0,1,0)
-            end
-        end)
-    end
-end)
 
 -- ══════════════════════════════════════════
 --   FPS / PING MONITOR
@@ -1071,20 +1235,21 @@ end)
 -- ══════════════════════════════════════════
 --   INIT
 -- ══════════════════════════════════════════
-initializeScanner()
 if LocalPlayer.Character then setupAntiRagdoll(LocalPlayer.Character); setupChar(LocalPlayer.Character) end
 LocalPlayer.CharacterAdded:Connect(function(char) setupAntiRagdoll(char); setupChar(char) end)
 LocalPlayer.CharacterRemoving:Connect(function() cleanupRagdoll(); disconnectRemote(); currentCharacter=nil end)
 
 loadConfig()
 
-if CONFIG.BAT_AIMBOT_AUTOBAT then autoBatToggled=true end
+if CONFIG.BAT_AIMBOT_AUTOBAT then batAimbotOn=true; startBatAimbot() end
 if CONFIG.OPTIMIZER then pcall(applyAdvancedOptimizer) end
 if CONFIG.DARK_MODE then pcall(enableDarkMode) end
 if CONFIG.WHITE_MODE then pcall(enableWhiteMode) end
+if CONFIG.ESP then enableESP() end
+if CONFIG.AUTO_STEAL_NEAREST then enableAutoSteal() end
 
 SelectTab("Speed")
 MainFrame.Size = UDim2.new(0,310,0,0)
 Tween(MainFrame, { Size=UDim2.new(0,310,0,500) }, 0.25)
 
-print("[VYSE HUB] Loaded with Dragon UI! discord.gg/jRsgRcun")
+print("[VYSE HUB] Loaded! discord.gg/jRsgRcun")
